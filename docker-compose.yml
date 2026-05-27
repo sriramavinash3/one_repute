@@ -1,0 +1,19 @@
+services:
+
+  backend:
+    build: ./backend
+    container_name: restaurant_backend
+    restart: always
+    expose:
+      - "3000"
+    env_file:
+      - ./backend/.env
+
+  frontend:
+    build: ./frontend
+    container_name: restaurant_frontend
+    restart: always
+    expose:
+      - "80"
+    depends_on:
+      - backend
