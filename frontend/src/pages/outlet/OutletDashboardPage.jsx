@@ -73,6 +73,48 @@ export default function OutletDashboardPage() {
 
   const autoRate = Math.round(((statusCounts.responded + statusCounts.suggested) / Math.max(reviews.length, 1)) * 100)
 
+  const now = new Date()
+
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(now.getDate() - 7)
+
+  const fourteenDaysAgo = new Date()
+    fourteenDaysAgo.setDate(now.getDate() - 14)
+
+    const currentWeekReviews = reviews.filter((review) => {
+    const date = review.createdAt?.toDate?.()
+
+    return date && date >= sevenDaysAgo
+  })
+
+  const previousWeekReviews = reviews.filter((review) => {
+    const date = review.createdAt?.toDate?.()
+
+    return (
+      date &&
+      date >= fourteenDaysAgo &&
+      date < sevenDaysAgo
+    )
+  })
+
+  const currentStats = computeRatingStats(currentWeekReviews)
+  const previousStats = computeRatingStats(previousWeekReviews)
+
+  const currentStatus = computeStatusCounts(currentWeekReviews)
+  const previousStatus = computeStatusCounts(previousWeekReviews)
+
+  const ratingDelta =
+    currentStats.averageRating -
+    previousStats.averageRating
+
+  const reviewDelta =
+    currentWeekReviews.length -
+    previousWeekReviews.length
+
+  const escalationDelta =
+    currentStatus.escalated -
+    previousStatus.escalated
+
   return (
     <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
       {/* Header & Status */}
@@ -93,8 +135,16 @@ export default function OutletDashboardPage() {
         <motion.div variants={fadeUp}>
           <StatCard
             title="Avg rating"
-            value={reviews.length > 0 ? `${ratingStats.averageRating.toFixed(1)} ★` : '—'}
-            delta={reviews.length > 0 ? 'No change' : '—'}
+            value={
+              reviews.length > 0
+                ? `${ratingStats.averageRating.toFixed(1)} ★`
+                : '—'
+            }
+            delta={
+              previousWeekReviews.length > 0
+                ? `${ratingDelta >= 0 ? '↑' : '↓'} ${Math.abs(ratingDelta).toFixed(1)} from last week`
+                : 'First week of data'
+            }
             icon={<Star className="h-5 w-5" />}
           />
         </motion.div>
@@ -102,23 +152,47 @@ export default function OutletDashboardPage() {
           <StatCard
             title="Total reviews"
             value={reviews.length > 0 ? `${reviews.length}` : '—'}
-            delta={reviews.length > 0 ? 'No change' : '—'}
+            delta={
+              reviewDelta > 0
+                ? `+${reviewDelta} this week`
+                : reviewDelta < 0
+                  ? `${reviewDelta} this week`
+                  : 'Same as last week'
+            }
             icon={<MessageCircle className="h-5 w-5" />}
           />
         </motion.div>
         <motion.div variants={fadeUp}>
           <StatCard
             title="AI responses"
-            value={reviews.length > 0 ? `${statusCounts.responded + statusCounts.suggested}` : '—'}
-            delta={reviews.length > 0 ? `${autoRate}% auto-rate` : '—'}
+            value={
+              reviews.length > 0
+                ? `${statusCounts.responded + statusCounts.suggested}`
+                : '—'
+            }
+            delta={
+              reviews.length > 0
+                ? `${autoRate}% automated`
+                : '—'
+            }
             icon={<Sparkles className="h-5 w-5" />}
           />
         </motion.div>
         <motion.div variants={fadeUp}>
           <StatCard
             title="Escalations"
-            value={reviews.length > 0 ? `${statusCounts.escalated}` : '—'}
-            delta={reviews.length > 0 ? 'No change' : '—'}
+            value={
+              reviews.length > 0
+                ? `${statusCounts.escalated}`
+                : '—'
+            }
+            delta={
+              escalationDelta > 0
+                ? `↑ ${escalationDelta} more than last week`
+                : escalationDelta < 0
+                  ? `↓ ${Math.abs(escalationDelta)} fewer than last week`
+                  : 'No escalation change'
+            }
             icon={<TriangleAlert className="h-5 w-5" />}
           />
         </motion.div>
