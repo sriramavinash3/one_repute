@@ -1,8 +1,22 @@
 import apiClient from './apiClient'
 
-export async function fetchSystemLogs(page = 1, pageSize = 10) {
-  const { data } = await apiClient.get(`/api/admin/logs?page=${page}&pageSize=${pageSize}`)
-  return data
+export async function fetchSystemLogs({
+  page = 1,
+  pageSize = 25,
+  status = 'all',
+  search = ''
+}) {
+  const response = await apiClient.get('/api/admin/logs', {
+    params: {
+      page,
+      pageSize,
+      status,
+      search
+    }
+  })
+  console.log(response);
+
+  return response.data
 }
 
 export async function triggerCronJob() {

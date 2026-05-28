@@ -1,10 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo ,useState} from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Link2, MessageCircle, Phone, ArrowLeft, MoreHorizontal, MapPin, Mail, Calendar, ShieldCheck, Zap, AlertCircle } from 'lucide-react'
+import { Activity, Link2, MessageCircle,Sparkles, Phone, ArrowLeft,ClipboardCopy,ExternalLink ,Star,MessageSquare , MoreHorizontal, MapPin, Mail, Calendar, ShieldCheck, Zap, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import StatCard from '../../components/analytics/StatCard'
-import ReviewCard from '../../components/reviews/ReviewCard'
+// import ReviewCard from '../../components/reviews/ReviewCard'
 import Button from '../../components/ui/button'
 import StatusBadge from '../../components/feedback/StatusBadge'
 import { Card } from '../../components/ui/card'
@@ -27,6 +27,127 @@ const stagger = {
 const item = {
   hidden: { opacity: 0, y: 10 },
   show: { opacity: 1, y: 0 }
+}
+
+function StarRating({ rating }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={`h-3.5 w-3.5 ${n <= rating ? 'fill-amber-400 text-amber-400' : 'text-slatey-200'}`}
+        />
+      ))}
+    </div>
+  )
+}
+
+
+function ReviewCard({ review }) {
+  const [expanded, setExpanded] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const aiResponse = review.aiResponse || review.replySuggestion || ''
+  const reviewUrl = review.reviewUrl || review.raw?.reviewUrl || ''
+
+  const handleCopy = async () => {
+    if (!aiResponse) return
+    try {
+      await navigator.clipboard.writeText(aiResponse)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ duration: 0.25 }}
+      className="rounded-2xl border border-slatey-200 bg-white/80 p-5 shadow-sm"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
+            {review.customerName[0]}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slatey-900">{review.customerName}</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <StarRating rating={review.rating} />
+              <span className="text-xs text-slatey-400">
+                {formatTimestamp(review.reviewTimestamp || review.createdAt)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <StatusBadge status={review.status} />
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-slatey-600">{review.text}</p>
+
+      {aiResponse && (
+        <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-brand-600">
+              <Sparkles className="h-3 w-3" /> AI Reply
+            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-brand-700 transition hover:bg-brand-100"
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <ClipboardCopy className="h-3.5 w-3.5" />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-slatey-600">{aiResponse}</p>
+          {reviewUrl ? (
+            <a
+              href={reviewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-brand-700 transition hover:bg-brand-100"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open in Google review
+            </a>
+          ) : null}
+        </div>
+      )}
+
+      {review.status === 'escalated' && (
+        <div className="mt-3 space-y-2 rounded-xl border border-red-100 bg-red-50/70 px-3 py-2 text-xs text-red-600">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+            WhatsApp alert sent to outlet manager
+          </div>
+          {review.processedAt ? (
+            <p className="text-[11px] text-red-500/80">
+              Processed at {formatTimestamp(review.processedAt)}
+            </p>
+          ) : null}
+        </div>
+      )}
+
+      {review.status === 'pending' && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-xs text-amber-700">
+          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+          Awaiting AI processing — will be handled in the next cron run
+        </div>
+      )}
+
+      {review.status === 'failed' && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-xs text-rose-700">
+          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+          Processing failed. Check logs for retry details.
+        </div>
+      )}
+    </motion.div>
+  )
 }
 
 export default function AdminOutletDetailPage() {
@@ -122,7 +243,7 @@ export default function AdminOutletDetailPage() {
         <motion.div className="space-y-4" variants={item}>
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slatey-800">Recent Review Activity</h3>
-            <Button variant="ghost" size="sm" className="text-brand-600">View all reviews</Button>
+            {/* <Button variant="ghost" size="sm" className="text-brand-600">View all reviews</Button> */}
           </div>
           {reviewsLoading ? (
             <div className="grid gap-4">

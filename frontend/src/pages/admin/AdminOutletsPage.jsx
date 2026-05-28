@@ -241,10 +241,6 @@ export default function AdminOutletsPage() {
                 </button>
               ))}
             </div>
-            <Button variant="outline" size="sm">
-              <Filter className="h-3.5 w-3.5" />
-              Advanced
-            </Button>
           </div>
         </div>
       </Card>

@@ -23,7 +23,11 @@ const app = express();
 
 // CORS middleware to allow requests from frontend
 const corsOptions = {
-  origin: 'http://localhost:5173', // Update this to match your frontend's URL
+ origin: [
+    'http://localhost:5173',
+    'https://onerepute.com',
+    'https://www.onerepute.com'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };

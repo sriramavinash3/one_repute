@@ -11,6 +11,8 @@ import EmptyState from '../../components/feedback/EmptyState'
 import { fetchReviews } from '../../services/reviewService'
 import { fetchAdminOutlets } from '../../services/outletService'
 import { formatTimestamp } from '../../utils/format'
+import { Link } from 'react-router-dom'
+
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -101,9 +103,6 @@ export default function AdminReviewsPage() {
               <option value="2">2 Stars</option>
               <option value="1">1 Star</option>
             </select>
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </Card>
@@ -170,10 +169,22 @@ export default function AdminReviewsPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem className="gap-2">
-                        <ExternalLink className="h-4 w-4" /> View on Google
+                        {review.reviewUrl ? (
+                          <a
+                            href={review.reviewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 inline-flex  gap-1.5  transition hover:bg-brand-100"
+                          >
+                            <ExternalLink className="h-4 w-4" /> View on Google
+                          </a>
+                        ) : null}
                       </DropdownMenuItem>
                       <DropdownMenuItem className="gap-2">
-                        <Store className="h-4 w-4" /> View Outlet
+                        <Link to={`/admin-dashboard/outlets/${review.outletId}`} className="flex items-center gap-2">
+                          {/* <ExternalLink className="h-4 w-4" /> View Details */}
+                          <Store className="h-4 w-4" /> View Outlet
+                        </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

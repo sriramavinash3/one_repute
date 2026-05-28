@@ -10,6 +10,8 @@ import Skeleton from '../../components/feedback/Skeleton'
 import { fetchEscalations } from '../../services/reviewService'
 import { fetchAdminOutlets } from '../../services/outletService'
 import { formatTimestamp } from '../../utils/format'
+import { Link } from 'react-router-dom'
+
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -93,9 +95,11 @@ function EscalationRow({ item: escalation }) {
               Queued for WhatsApp Dispatch
             </div>
           )}
+        <Link to={`/admin-dashboard/outlets/${escalation.outletId}`} className="flex items-center gap-2">                                 
           <Button variant="ghost" size="sm" className="h-7 text-brand-600 px-2 dark:text-brand-400">
             View Outlet Profile <ArrowRight className="ml-1 h-3 w-3" />
           </Button>
+        </Link>
         </div>
       </div>
 
@@ -166,12 +170,6 @@ export default function AdminEscalationsPage() {
         <div>
           <h2 className="text-2xl font-bold text-slatey-900">Global Escalations</h2>
           <p className="text-sm text-slatey-500">Managing {normalized.length} high-priority customer issues across the network.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="bg-white">
-            <ShieldAlert className="mr-2 h-4 w-4 text-rose-500" />
-            Critical Only
-          </Button>
         </div>
       </div>
 

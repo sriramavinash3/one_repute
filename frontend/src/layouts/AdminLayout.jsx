@@ -7,7 +7,6 @@ import {
   MessageSquareWarning,
   Sparkles,
   CreditCard,
-  Settings,
   LayoutDashboard,
   LogOut,
   Menu
@@ -36,7 +35,6 @@ export default function AdminLayout() {
       { to: '/admin-dashboard/analytics', label: 'Analytics', icon: <BarChart3 className="h-4 w-4" /> },
       { to: '/admin-dashboard/ai-logs', label: 'System Logs', icon: <Sparkles className="h-4 w-4" /> },
       { to: '/admin-dashboard/billing', label: 'Billing', icon: <CreditCard className="h-4 w-4" /> },
-      { to: '/admin-dashboard/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> }
     ],
     []
   )

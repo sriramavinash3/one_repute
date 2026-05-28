@@ -336,7 +336,7 @@ export default function AdminDashboardPage() {
       >
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-semibold text-slatey-800 dark:text-slatey-200">Top Performing Outlets</h3>
-          <Button variant="ghost" size="sm" className="text-brand-600 dark:text-brand-400">View all</Button>
+          {/* <Button variant="ghost" size="sm" className="text-brand-600 dark:text-brand-400">View all</Button> */}
         </div>
         {topOutlets.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

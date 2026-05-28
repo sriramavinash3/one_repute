@@ -39,6 +39,34 @@ async function processSingleReview(outlet, docId, review) {
   await processReviewWithSafety(outlet, { ...review, docId });
 }
 
+
+/**
+ * Immediately processes reviews for a single outlet, bypassing cooldowns.
+ * This is intended for use during outlet onboarding.
+ *
+ * @param {string} outletId - The ID of the outlet to process.
+ */
+async function processSingleOutletReviewsImmediately(outletId) {
+  logger.info(`[ReviewService] Triggering immediate review processing for outlet: ${outletId}`);
+  try {
+    const outlet = await outletRepo.getOutletById(outletId);
+    if (!outlet) {
+      logger.warn(`[ReviewService] Outlet not found for immediate processing: ${outletId}`);
+      return;
+    }
+    // Bypass cooldown and deduplication for immediate processing
+    await processOutletReviews(outlet, { skipCooldown: true, skipDeduplication: false });
+    logger.info(`[ReviewService] Immediate review processing complete for outlet: ${outletId}`);
+  } catch (err) {
+    logger.error(`[ReviewService] Failed immediate review processing for outlet: ${outletId}`, {
+      error: err.message,
+      stack: err.stack,
+    });
+  }
+}
+
+
+
 // ─── Process All Reviews for One Outlet ──────────────────────────────────────
 
 /**
@@ -370,4 +398,5 @@ module.exports = {
   processReviewsSequentially,
   randomDelay,
   processReviewWithSafety,
+  processSingleOutletReviewsImmediately,
 };

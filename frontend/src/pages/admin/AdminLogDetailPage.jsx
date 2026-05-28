@@ -32,13 +32,17 @@ function LogIcon({ type }) {
 
 export default function AdminLogDetailPage() {
   const { id } = useParams()
-  const { data: logs = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['admin-logs'],
     queryFn: fetchSystemLogs
   })
 
-  const log = useMemo(() => logs.find((entry) => entry.id === id), [logs, id])
+  const logs = data?.logs || []
+  
 
+  const log = useMemo(() => logs.find((entry) => entry.id === id), [logs, id])
+  
+  
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -46,7 +50,7 @@ export default function AdminLogDetailPage() {
       </div>
     )
   }
-
+  
   if (!log) {
     return (
       <div className="flex flex-col items-center justify-center py-20">

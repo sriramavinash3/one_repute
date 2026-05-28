@@ -10,7 +10,7 @@ const axios = require('axios');
 const env = require('../config/env');
 const outletRepo = require('../repositories/outletRepo');
 const logger = require('../utils/logger');
-
+const { processSingleOutletReviewsImmediately } = require("../services/reviewService"); // Add this line
 /**
  * GET /api/admin/credits
  * Return best-effort credit / balance info for external providers.
@@ -267,6 +267,74 @@ router.get('/outlets', async (req, res) => {
   }
 });
 
+
+/**
+ * DELETE /api/admin/logs/delete-old
+ * Delete oldest activity logs
+ */
+router.delete('/logs/delete-old', async (req, res) => {
+  try {
+    const db = require('../config/firebase').getDb();
+
+    const limit = Math.min(
+      parseInt(req.body.limit, 10) || 50,
+      1000 // safety limit
+    );
+
+    logger.info('[AdminRoute] Bulk deleting old logs', {
+      limit
+    });
+
+    /*
+     * Fetch oldest logs first
+     */
+    const snapshot = await db
+      .collection('activityLogs')
+      .orderBy('timestamp', 'asc')
+      .limit(limit)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(200).json({
+        success: true,
+        deleted: 0,
+        message: 'No logs found to delete',
+      });
+    }
+
+    /*
+     * Batch delete
+     */
+    const batch = db.batch();
+
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
+    logger.info('[AdminRoute] Old logs deleted successfully', {
+      deleted: snapshot.size,
+    });
+
+    return res.status(200).json({
+      success: true,
+      deleted: snapshot.size,
+      message: `${snapshot.size} old logs deleted successfully`,
+    });
+
+  } catch (err) {
+    logger.error('[AdminRoute] Failed to delete old logs', {
+      error: err.message,
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete old logs',
+    });
+  }
+});
+
 /**
  * POST /api/admin/outlets
  * Create a new outlet
@@ -302,6 +370,11 @@ router.post('/outlets', async (req, res) => {
       ...(phone ? { whatsappNumber: phone } : {}),
       ...(email ? { email } : {}),
       ...(authUid ? { ownerId: authUid } : {}),
+    });
+
+     // Trigger immediate review processing for the new outlet
+    processSingleOutletReviewsImmediately(id).catch(err => {
+      logger.error(`[AdminRoute] Failed to trigger immediate review processing for new outlet ${id}`, { error: err.message });
     });
 
     if (authUid) {
@@ -446,34 +519,85 @@ router.delete('/outlets/:id', async (req, res) => {
  */
 router.get('/logs', async (req, res) => {
   try {
-    const db = require('../config/firebase').getDb();
-    const page = parseInt(req.query.page, 10) || 1;
-    const pageSize = parseInt(req.query.pageSize, 10) || 10;
-    const offset = (page - 1) * pageSize;
+    const db = require('../config/firebase').getDb()
 
-    // Get total count for pagination (optional, can be removed if not needed)
-    const totalSnap = await db.collection('activityLogs').get();
-    const total = totalSnap.size;
+    const page = parseInt(req.query.page, 10) || 1
+    const pageSize = parseInt(req.query.pageSize, 10) || 25
 
-    // Paginated query
-    let query = db.collection('activityLogs').orderBy('timestamp', 'desc');
-    if (offset > 0) {
-      // Firestore does not support offset directly, so we need to use cursors
-      const offsetSnap = await query.limit(offset).get();
-      const lastVisible = offsetSnap.docs[offsetSnap.docs.length - 1];
-      if (lastVisible) {
-        query = query.startAfter(lastVisible);
-      }
+    const status = req.query.status || 'all'
+    const search = (req.query.search || '').toLowerCase()
+
+    let query = db
+      .collection('activityLogs')
+      .orderBy('timestamp', 'desc')
+
+    /*
+     * Status filter
+     */
+    if (status !== 'all') {
+      const firestoreStatus =
+        status === 'danger'
+          ? 'error'
+          : status
+
+      query = query.where('status', '==', firestoreStatus)
     }
-    const snap = await query.limit(pageSize).get();
-    const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.status(200).json({ logs, total });
-  } catch (err) {
-    logger.error('[AdminRoute] Failed to fetch logs', { error: err.message });
-    res.status(500).json({ error: 'Failed to fetch system logs' });
-  }
-});
 
+    /*
+     * Fetch ALL filtered docs
+     */
+    const snapshot = await query.get()
+
+    let logs = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    /*
+     * Search filter
+     */
+    if (search) {
+      logs = logs.filter((log) => {
+        const eventType = log.eventType || ''
+
+        const details =
+          log.errorMessage ||
+          log.payload?.message ||
+          JSON.stringify(log.payload || {})
+
+        return `${eventType} ${details}`
+          .toLowerCase()
+          .includes(search)
+      })
+    }
+
+    /*
+     * Pagination AFTER filtering
+     */
+    const total = logs.length
+
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+
+    const paginatedLogs = logs.slice(start, end)
+
+    return res.status(200).json({
+      logs: paginatedLogs,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+      currentPage: page
+    })
+
+  } catch (err) {
+    logger.error('[AdminRoute] Failed to fetch logs', {
+      error: err.message
+    })
+
+    return res.status(500).json({
+      error: 'Failed to fetch logs'
+    })
+  }
+})
 /**
  * POST /api/admin/trigger-cron
  */

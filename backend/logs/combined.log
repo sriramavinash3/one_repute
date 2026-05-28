@@ -2067,3 +2067,141 @@
 2026-05-27T09:00:03.748Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"fUJCqqTZj6WHS8QZahh4","cooldownMinutes":180,"elapsedMinutes":40}
 2026-05-27T09:00:03.749Z [INFO]: [ReviewAutomationJob] Run complete {"outlets":2,"totalFetched":0,"totalNew":0,"totalProcessed":0,"errors":0,"durationMs":3417}
 2026-05-27T09:00:23.487Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-05-27T11:28:26.895Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-27T11:28:26.908Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-27T11:28:26.911Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-27T11:28:53.187Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,17,21 * * *" {}
+2026-05-27T11:28:53.196Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-27T11:28:53.200Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-27T11:30:00.812Z [INFO]: [ReviewAutomationJob] Starting run {}
+2026-05-27T11:30:01.226Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-05-27T11:30:03.024Z [INFO]: [ReviewAutomationJob] Processing 3 active outlet(s) {}
+2026-05-27T11:30:03.028Z [INFO]: [ReviewService] Processing outlet {"outletId":"D7ID63kW8KXeXZZhVRtV","name":"Prores India"}
+2026-05-27T11:30:03.030Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"D7ID63kW8KXeXZZhVRtV","cooldownMinutes":180,"elapsedMinutes":70}
+2026-05-27T11:30:03.031Z [INFO]: [ReviewService] Processing outlet {"outletId":"W7DOGD915CNJBe6taPp5","name":"SolBe Solar"}
+2026-05-27T11:30:18.278Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"W7DOGD915CNJBe6taPp5","placeId":"ChIJqR9VTUznK2ERQFhKUX5GU-A","count":1}
+2026-05-27T11:30:18.676Z [INFO]: [ReviewService] New reviews to process {"outletId":"W7DOGD915CNJBe6taPp5","fetched":1,"new":0}
+2026-05-27T11:30:18.677Z [INFO]: [ReviewService] Processing outlet {"outletId":"fUJCqqTZj6WHS8QZahh4","name":"Freddie and Me"}
+2026-05-27T11:30:18.679Z [WARN]: [ReviewService] SCRAPER placeId missing; using googleLocationId fallback {"outletId":"fUJCqqTZj6WHS8QZahh4","googleLocationId":"ChIJ5ytFdOthUjoRstynBWlA-EM"}
+2026-05-27T11:30:20.708Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-05-27T11:30:30.228Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-27T11:30:30.238Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-27T11:30:30.241Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-27T11:30:31.294Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-05-28T07:37:55.416Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T07:37:55.421Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T07:37:55.422Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T07:46:50.538Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-05-28T07:47:09.687Z [INFO]: [OutletRepo] Created outlet {"id":"ZL1iHGIbX9hsCH78BNbh","name":"SolBe Solar"}
+2026-05-28T07:47:09.689Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: ZL1iHGIbX9hsCH78BNbh {}
+2026-05-28T07:47:09.946Z [INFO]: [ReviewService] Processing outlet {"outletId":"ZL1iHGIbX9hsCH78BNbh","name":"SolBe Solar"}
+2026-05-28T07:47:32.142Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"ZL1iHGIbX9hsCH78BNbh","placeId":"ChIJqR9VTUznK2ERQFhKUX5GU-A","count":1}
+2026-05-28T07:47:32.568Z [INFO]: [ReviewService] New reviews to process {"outletId":"ZL1iHGIbX9hsCH78BNbh","fetched":1,"new":0}
+2026-05-28T07:47:32.569Z [INFO]: [ReviewService] Immediate review processing complete for outlet: ZL1iHGIbX9hsCH78BNbh {}
+2026-05-28T07:53:55.530Z [INFO]: [OutletRepo] Created outlet {"id":"5KgO2CBZM7ae3zLfekYS","name":"Velan bakery"}
+2026-05-28T07:53:55.531Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: 5KgO2CBZM7ae3zLfekYS {}
+2026-05-28T07:53:55.667Z [INFO]: [ReviewService] Processing outlet {"outletId":"5KgO2CBZM7ae3zLfekYS","name":"Velan bakery"}
+2026-05-28T07:54:26.791Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"5KgO2CBZM7ae3zLfekYS","placeId":"ChIJz8VbSgC5qjsRqB97n60f4Nc","count":3}
+2026-05-28T07:54:27.914Z [INFO]: [ReviewService] New reviews to process {"outletId":"5KgO2CBZM7ae3zLfekYS","fetched":3,"new":3}
+2026-05-28T07:54:30.972Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"5KgO2CBZM7ae3zLfekYS","reviewId":"c17cd84ba012ad198d175389e310fcaa8bdc8e33e7ea949a28e9c3f039fe3a7d","rating":5}
+2026-05-28T07:54:41.681Z [INFO]: [WhatsApp] Alert sent to manager {"to":"+919384926154","outletName":"Velan bakery","rating":3,"provider":"twilio"}
+2026-05-28T07:54:42.006Z [INFO]: [ReviewService] Review escalated {"outletId":"5KgO2CBZM7ae3zLfekYS","reviewId":"d7c24c3092d8721158b1ecb2da37559ee7c0100d45b8e8182dbe78972a8ddbfd","rating":3}
+2026-05-28T07:54:51.263Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"5KgO2CBZM7ae3zLfekYS","reviewId":"4d7e4e839cdf978145e4927a526e30e70558328b31ad196a87e10af72d3196dc","rating":5}
+2026-05-28T07:55:00.042Z [INFO]: [ReviewService] Immediate review processing complete for outlet: 5KgO2CBZM7ae3zLfekYS {}
+2026-05-28T08:46:09.894Z [INFO]: [OutletRepo] Outlet ZL1iHGIbX9hsCH78BNbh status set to false {}
+2026-05-28T09:30:00.681Z [INFO]: [ReviewAutomationJob] Starting run {}
+2026-05-28T09:30:01.117Z [INFO]: [ReviewAutomationJob] Processing 5 active outlet(s) {}
+2026-05-28T09:30:01.118Z [INFO]: [ReviewService] Processing outlet {"outletId":"5KgO2CBZM7ae3zLfekYS","name":"Velan bakery"}
+2026-05-28T09:30:01.120Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"5KgO2CBZM7ae3zLfekYS","cooldownMinutes":180,"elapsedMinutes":96}
+2026-05-28T09:30:01.121Z [INFO]: [ReviewService] Processing outlet {"outletId":"D7ID63kW8KXeXZZhVRtV","name":"Prores India"}
+2026-05-28T09:30:30.271Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"D7ID63kW8KXeXZZhVRtV","placeId":"ChIJCxdeoLFjUjoR9-kylfOoW3w","count":1}
+2026-05-28T09:30:30.654Z [INFO]: [ReviewService] New reviews to process {"outletId":"D7ID63kW8KXeXZZhVRtV","fetched":1,"new":0}
+2026-05-28T09:30:30.655Z [INFO]: [ReviewService] Processing outlet {"outletId":"fUJCqqTZj6WHS8QZahh4","name":"Freddie and Me"}
+2026-05-28T09:30:30.656Z [WARN]: [ReviewService] SCRAPER placeId missing; using googleLocationId fallback {"outletId":"fUJCqqTZj6WHS8QZahh4","googleLocationId":"ChIJ5ytFdOthUjoRstynBWlA-EM"}
+2026-05-28T09:30:55.879Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"fUJCqqTZj6WHS8QZahh4","placeId":"ChIJ5ytFdOthUjoRstynBWlA-EM","count":7}
+2026-05-28T09:30:56.632Z [INFO]: [ReviewService] New reviews to process {"outletId":"fUJCqqTZj6WHS8QZahh4","fetched":7,"new":0}
+2026-05-28T09:30:56.633Z [INFO]: [ReviewService] Processing outlet {"outletId":"nIoCKU5juYl5j3NgaLDv","name":"Copper Kitchen Mogappair"}
+2026-05-28T09:31:11.324Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"nIoCKU5juYl5j3NgaLDv","placeId":"ChIJ12ZnXY1jUjoRSvWK9wEBFoU","count":15}
+2026-05-28T09:31:12.453Z [INFO]: [ReviewService] New reviews to process {"outletId":"nIoCKU5juYl5j3NgaLDv","fetched":15,"new":1}
+2026-05-28T09:31:16.010Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"nIoCKU5juYl5j3NgaLDv","reviewId":"383cc999482c3e666df2ffd55d14b6fdf8d06e44a7cf5ebf2891ecd5a6b65ca9","rating":5}
+2026-05-28T09:31:23.233Z [INFO]: [ReviewService] Processing outlet {"outletId":"qtMHGhPNUoQqXxSRa8YU","name":"Arumugam Cow Foods(Suguna feed dealer)"}
+2026-05-28T09:31:46.580Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"qtMHGhPNUoQqXxSRa8YU","placeId":"ChIJt0FQa0R5ADsRIvbo9crO3hI","count":1}
+2026-05-28T09:31:46.914Z [INFO]: [ReviewService] New reviews to process {"outletId":"qtMHGhPNUoQqXxSRa8YU","fetched":1,"new":0}
+2026-05-28T09:31:46.916Z [INFO]: [ReviewAutomationJob] Run complete {"outlets":5,"totalFetched":24,"totalNew":1,"totalProcessed":1,"errors":0,"durationMs":106234}
+2026-05-28T09:33:49.974Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:33:49.984Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:33:49.987Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T09:34:33.404Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-05-28T09:35:52.066Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:35:52.076Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:35:52.079Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T09:36:03.813Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:36:03.822Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:36:03.826Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T09:36:22.262Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:36:22.271Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:36:22.275Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T09:36:26.450Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-05-28T09:39:07.403Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:39:07.412Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:39:07.414Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T09:39:14.821Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-05-28T09:39:23.613Z [INFO]: [AdminRoute] Bulk deleting old logs {"limit":50}
+2026-05-28T09:39:24.152Z [INFO]: [AdminRoute] Old logs deleted successfully {"deleted":50}
+2026-05-28T09:39:52.255Z [INFO]: [AdminRoute] Bulk deleting old logs {"limit":100}
+2026-05-28T09:39:53.208Z [INFO]: [AdminRoute] Old logs deleted successfully {"deleted":100}
+2026-05-28T09:44:53.728Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:44:53.738Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:44:53.741Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T09:45:41.652Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-05-28T09:51:04.647Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:51:04.656Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:51:04.659Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T09:51:21.181Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:51:21.193Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:51:21.196Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T09:58:58.965Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T09:58:58.975Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T09:58:58.978Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T10:02:28.979Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-05-28T10:05:56.516Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-05-28T10:05:56.526Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-05-28T10:05:56.529Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-05-28T10:06:00.582Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-05-28T10:06:01.711Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:06:10.667Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:06:11.827Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:06:14.855Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:06:16.008Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:06:24.748Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:06:25.883Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:07:43.332Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:07:45.969Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:08:17.280Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:08:18.404Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:05.786Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:07.311Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:10.209Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:12.140Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:16.342Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:17.470Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:18.585Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:19.714Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:20.757Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:09:21.891Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:08.800Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:09.939Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:11.416Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:12.560Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:13.281Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:14.406Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:16.456Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:19.094Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:23.540Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:36.323Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:41.194Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:43.844Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:44.766Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:45.694Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T10:10:47.670Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
+2026-05-28T11:19:20.991Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}

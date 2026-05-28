@@ -127,20 +127,28 @@ export function groupReviewsByOutlet(reviews, outlets) {
   for (const review of reviews) {
     const outletId = review.outletId
     if (!outletId) continue
-    const entry = stats.get(outletId) || { outletId, reviews: [], avgRating: 0 }
+
+    const entry = stats.get(outletId) || {
+      outletId,
+      reviews: [],
+      avgRating: 0
+    }
+
     entry.reviews.push(review)
     stats.set(outletId, entry)
   }
 
-  return Array.from(stats.values())
+  const result = Array.from(stats.values())
     .map((entry) => {
       const ratingStats = computeRatingStats(entry.reviews)
       return {
         outletId: entry.outletId,
-        name: outletMap.get(entry.outletId)?.name || entry.outletId,
+        name: outletMap.get(entry.outletId)?.name || "____________",
         avgRating: ratingStats.averageRating,
         reviewCount: entry.reviews.length
       }
     })
     .sort((a, b) => b.avgRating - a.avgRating)
+    .slice(0, 4) // Only top 4 outlets
+  return result
 }

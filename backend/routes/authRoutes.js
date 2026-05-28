@@ -10,6 +10,9 @@ const env = require('../config/env');
 const logger = require('../utils/logger');
 const outletRepo = require('../repositories/outletRepo');
 const googleOAuth = require('../services/googleOAuthService');
+const { processSingleOutletReviewsImmediately } = require("../services/reviewService");
+
+
 
 /**
  * GET /api/auth/google
@@ -100,6 +103,13 @@ router.post('/google/active-location', async (req, res) => {
     if (!selected) return res.status(400).json({ error: 'Location not found' });
 
     await outletRepo.setActiveGoogleLocation(outletId, selected.id, selected.name);
+
+    // Trigger immediate review processing for the newly configured outlet
+    processSingleOutletReviewsImmediately(outletId).catch(err => {
+      logger.error(`[AuthRoute] Failed to trigger immediate review processing for outlet ${outletId} after setting active location`, { error: err.message });
+    });
+
+
     return res.status(200).json({ success: true });
   } catch (err) {
     logger.error('[AuthRoute] Failed to set location', { error: err.message });

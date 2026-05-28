@@ -18,7 +18,7 @@ const AdminAnalyticsPage = lazy(() => import('../pages/admin/AdminAnalyticsPage'
 const AdminLogsPage = lazy(() => import('../pages/admin/AdminLogsPage'))
 const AdminLogDetailPage = lazy(() => import('../pages/admin/AdminLogDetailPage'))
 const AdminBillingPage = lazy(() => import('../pages/admin/AdminBillingPage'))
-const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'))
+
 
 const OutletDashboardPage = lazy(() => import('../pages/outlet/OutletDashboardPage'))
 const OutletReviewsPage = lazy(() => import('../pages/outlet/OutletReviewsPage'))
@@ -56,7 +56,6 @@ export default function AppRouter() {
             <Route path="ai-logs" element={<AdminLogsPage />} />
             <Route path="ai-logs/:id" element={<AdminLogDetailPage />} />
             <Route path="billing" element={<AdminBillingPage />} />
-            <Route path="settings" element={<AdminSettingsPage />} />
           </Route>
 
           <Route

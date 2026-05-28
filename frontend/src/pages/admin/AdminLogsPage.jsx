@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState,useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Activity, Zap, ShieldCheck, AlertTriangle, MessageSquare, RefreshCw, Search, Clock, ChevronRight } from 'lucide-react'
@@ -9,6 +9,9 @@ import { fetchSystemLogs } from '../../services/adminService'
 import EmptyState from '../../components/feedback/EmptyState'
 import Skeleton from '../../components/feedback/Skeleton'
 import { formatTimestamp } from '../../utils/format'
+import { Trash2 } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -35,17 +38,38 @@ export default function AdminLogsPage() {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
 
+  const [deleteCount, setDeleteCount] = useState(50)
+  const queryClient = useQueryClient()
+
   // Pagination state
   const [page, setPage] = useState(1)
-
+  
+  
   const PAGE_SIZE = 25
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-logs', page],
-    queryFn: () => fetchSystemLogs(page, PAGE_SIZE)
+    queryKey: ['admin-logs', page, filter, search],
+
+    queryFn: () =>
+      fetchSystemLogs({
+        page,
+        pageSize: PAGE_SIZE,
+        status: filter,
+        search
+      }),
+
+    keepPreviousData: false
   })
+  
+  console.log(data);
   const logs = data?.logs || []
   const total = data?.total || 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const totalPages = data?.totalPages || 1
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(1)
+    }
+  }, [totalPages])
 
   const normalizedLogs = useMemo(() => {
     return logs.map((log) => {
@@ -71,6 +95,33 @@ export default function AdminLogsPage() {
     })
   }, [logs])
 
+
+  const deleteLogsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/admin/logs/delete-old`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            limit: deleteCount
+          })
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to delete logs')
+      }
+
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin-logs'])
+    }
+  })
+
   const filteredLogs = normalizedLogs.filter((log) => {
     const matchesFilter = filter === 'all' || log.status === filter
     const matchesSearch = `${log.event} ${log.details}`.toLowerCase().includes(search.toLowerCase())
@@ -84,6 +135,60 @@ export default function AdminLogsPage() {
           <h2 className="text-2xl font-bold text-slatey-900 dark:text-slatey-100">System Logs</h2>
           <p className="text-sm text-slatey-500 dark:text-slatey-400">Real-time audit trail of all automated system events.</p>
         </div>
+
+        <Card className="p-4 border-none shadow-glow">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slatey-900 dark:text-slatey-100">
+                Bulk Delete Logs
+              </h3>
+              <p className="text-xs text-slatey-500">
+                Delete oldest logs if they were not needed.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={deleteCount}
+                onChange={(e) => setDeleteCount(Number(e.target.value))}
+                className="rounded-lg border border-slatey-200 bg-white px-3 py-2 text-sm dark:border-slatey-700 dark:bg-slatey-900 dark:text-slatey-200"
+              >
+                <option value={50}>Delete Older 50</option>
+                <option value={100}>Delete Older 100</option>
+                <option value={250}>Delete Older 250</option>
+                <option value={500}>Delete Older 500</option>
+                <option value={1000}>Delete Older 1000</option>
+              </select>
+
+              <Button
+                variant="solid"
+                className="bg-rose-600 text-white hover:bg-rose-700"
+                disabled={deleteLogsMutation.isPending}
+                onClick={() => {
+                  const confirmed = window.confirm(
+                    `Delete oldest ${deleteCount} logs?`
+                  )
+
+                  if (confirmed) {
+                    deleteLogsMutation.mutate()
+                  }
+                }}
+              >
+                {deleteLogsMutation.isPending ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Logs
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </Card>
         {/* <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="bg-white dark:bg-slatey-800 dark:border-slatey-700 dark:text-slatey-200">
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -125,101 +230,89 @@ export default function AdminLogsPage() {
       </Card>
 
       <div className="overflow-hidden rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40">
-        <div className="divide-y divide-slatey-100 dark:divide-slatey-800">
-          {isLoading ? (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-14 w-full" />
-              ))}
-            </div>
-          ) : filteredLogs.length > 0 ? (
-            filteredLogs.map((log) => (
-              <Link key={log.id} to={`/admin-dashboard/ai-logs/${log.id}`}>
-                <motion.div
-                  variants={item}
-                  className="flex items-center justify-between p-4 transition-colors hover:bg-slatey-50/50 dark:hover:bg-slatey-800/30 group"
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-slatey-100 shadow-sm group-hover:border-brand-100 transition-colors dark:bg-slatey-900 dark:border-slatey-800 dark:group-hover:border-brand-500/50">
-                      <LogIcon type={log.type} />
-                    </div>
-                    <div className="min-w-0 max-w-[320px]">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-slatey-900 dark:text-slatey-100 truncate max-w-[180px]">{log.event}</p>
-                        <span className={`h-1.5 w-1.5 rounded-full ${
-                          log.status === 'success' ? 'bg-emerald-500' : 
-                          log.status === 'warning' ? 'bg-amber-500' : 'bg-rose-500'
-                        }`} />
-                      </div>
-                      <p className="text-xs text-slatey-500 truncate max-w-[300px] overflow-ellipsis whitespace-nowrap dark:text-slatey-400">{log.details}</p>
-                    </div>
+              <div className="divide-y divide-slatey-100 dark:divide-slatey-800">
+                {isLoading ? (
+                  <div className="p-4 space-y-3">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-14 w-full" />
+                    ))}
                   </div>
-                  <div className="flex items-center gap-4 shrink-0 pl-4">
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="flex items-center gap-1.5 text-[10px] font-medium text-slatey-400">
-                        <Clock className="h-3 w-3" />
-                        {log.time}
-                      </span>
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                        log.type === 'security' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' :
-                        log.type === 'ai' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                        'bg-slatey-100 text-slatey-600 dark:bg-slatey-800 dark:text-slatey-400'
-                      }`}>
-                        {log.type}
-                      </span>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-slatey-300 group-hover:text-slatey-500 transition-colors" />
+                ) : filteredLogs.length > 0 ? (
+                  filteredLogs.map((log) => (
+                    <Link key={log.id} to={`/admin-dashboard/ai-logs/${log.id}`}>
+                      <motion.div
+                        variants={item}
+                        className="flex items-center justify-between p-4 transition-colors hover:bg-slatey-50/50 dark:hover:bg-slatey-800/30 group"
+                      >
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-slatey-100 shadow-sm group-hover:border-brand-100 transition-colors dark:bg-slatey-900 dark:border-slatey-800 dark:group-hover:border-brand-500/50">
+                            <LogIcon type={log.type} />
+                          </div>
+                          <div className="min-w-0 max-w-[320px]">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-slatey-900 dark:text-slatey-100 truncate max-w-[180px]">{log.event}</p>
+                              <span className={`h-1.5 w-1.5 rounded-full ${
+                                log.status === 'success' ? 'bg-emerald-500' : 
+                                log.status === 'warning' ? 'bg-amber-500' : 'bg-rose-500'
+                              }`} />
+                            </div>
+                            <p className="text-xs text-slatey-500 truncate max-w-[300px] overflow-ellipsis whitespace-nowrap dark:text-slatey-400">{log.details}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0 pl-4">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slatey-400">
+                              <Clock className="h-3 w-3" />
+                              {log.time}
+                            </span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                              log.type === 'security' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' :
+                              log.type === 'ai' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                              'bg-slatey-100 text-slatey-600 dark:bg-slatey-800 dark:text-slatey-400'
+                            }`}>
+                              {log.type}
+                            </span>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-slatey-300 group-hover:text-slatey-500 transition-colors" />
+                        </div>
+                      </motion.div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="p-6">
+                    <EmptyState
+                      title="No logs found"
+                      description="System activity will appear here as automation runs."
+                    />
                   </div>
-                </motion.div>
-              </Link>
-            ))
-          ) : (
-            <div className="p-6">
-              <EmptyState
-                title="No logs found"
-                description="System activity will appear here as automation runs."
-              />
+                )}
+              </div>
             </div>
-          )}
+            
+            <div className="flex items-center justify-between pt-4">
+        <p className="text-sm text-slatey-500">
+          Page {page} of {totalPages}
+        </p>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Previous
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={page === totalPages || totalPages === 0}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
         </div>
-      </div>
-      
-      <div className="flex justify-center items-center gap-2 py-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-slatey-400 px-2"
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-        >
-          {'<'}
-        </Button>
-        {Array.from({ length: Math.min(5, totalPages) }).map((_, idx) => {
-          let start = Math.max(1, Math.min(page - 2, totalPages - 4))
-          const pageNum = start + idx
-          if (pageNum > totalPages) return null
-          return (
-            <Button
-              key={pageNum}
-              variant={pageNum === page ? 'solid' : 'ghost'}
-              size="sm"
-              className={`mx-1 ${pageNum === page ? 'bg-brand-600 text-white' : 'text-slatey-400'}`}
-              onClick={() => setPage(pageNum)}
-              disabled={pageNum < 1}
-            >
-              {pageNum}
-            </Button>
-          )
-        })}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-slatey-400 px-2"
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          disabled={page === totalPages}
-        >
-          {'>'}
-        </Button>
       </div>
     </motion.div>
   )
