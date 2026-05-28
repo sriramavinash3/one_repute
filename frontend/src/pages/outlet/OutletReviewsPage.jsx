@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Star, MessageSquare, Sparkles, Filter, ClipboardCopy,Check, ExternalLink, Check } from 'lucide-react'
+import { Search, Star, MessageSquare, Sparkles, Filter, ClipboardCopy,Check, ExternalLink } from 'lucide-react'
 import StatusBadge from '../../components/feedback/StatusBadge'
 import EmptyState from '../../components/feedback/EmptyState'
 import Skeleton from '../../components/feedback/Skeleton'

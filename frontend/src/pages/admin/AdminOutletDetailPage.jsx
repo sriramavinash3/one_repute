@@ -1,7 +1,7 @@
 import { useMemo ,useState} from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Link2, MessageCircle,Sparkles, Phone, ArrowLeft,ClipboardCopy,ExternalLink ,Star,MessageSquare , MoreHorizontal, MapPin, Mail, Calendar, ShieldCheck, Zap, AlertCircle } from 'lucide-react'
+import { Activity, Link2, MessageCircle,Sparkles, Phone, ArrowLeft, ClipboardCopy, Check,ExternalLink ,Star,MessageSquare , MoreHorizontal, MapPin, Mail, Calendar, ShieldCheck, Zap, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import StatCard from '../../components/analytics/StatCard'
 // import ReviewCard from '../../components/reviews/ReviewCard'
