@@ -13,6 +13,10 @@
 // Load .env FIRST — before any other require
 require('dotenv').config();
 
+const { getDb } = require('./config/firebase');
+// Initialize Firebase immediately so admin.auth() is available for incoming requests
+getDb();
+
 const app = require('./app');
 const { startCron } = require('./jobs/reviewCron');
 const { initReportJobs } = require('./jobs/reportCron');
