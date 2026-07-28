@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600&family=Sora:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --brand-primary: #6366f1;
+    --bg-main: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --card-bg: rgba(255, 255, 255, 0.8);
+    --border-color: #e2e8f0;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --bg-main: #020617;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --card-bg: rgba(15, 23, 42, 0.6);
+    --border-color: rgba(30, 41, 59, 0.5);
+  }
+
+  body {
+    @apply font-sans antialiased;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    background-image: theme('backgroundImage.radial-fade'), theme('backgroundImage.grid-lines');
+    background-size: 100% 100%, 48px 48px;
+    background-position: top center, center;
+    min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .dark body {
+    background-image: 
+      radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 40%),
+      radial-gradient(circle at bottom left, rgba(79, 70, 229, 0.1), transparent 40%),
+      theme('backgroundImage.grid-lines');
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+    color: var(--text-primary);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background-color: var(--card-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    @apply rounded-2xl transition-all duration-300;
+  }
+
+  .dark .glass-panel {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
+  }
+
+  .dashboard-shell {
+    @apply min-h-screen;
+    background-color: var(--bg-main);
+  }
+
+  /* Custom Scrollbar for Dark Mode */
+  .dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .dark ::-webkit-scrollbar-track {
+    background: #020617;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 4px;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+  }
+
+  .badge-ring {
+    @apply inline-flex items-center gap-2 rounded-full border border-brand-200/60 bg-brand-50 px-4 py-1 text-sm font-medium text-brand-700 transition-colors dark:border-brand-500/20 dark:bg-brand-500/10 dark:text-brand-400;
+  }
+}
+
+/* Global Dark Mode Fixes */
+.dark .bg-white {
+  background-color: #0f172a !important; /* slatey-900 */
+}
+
+.dark .bg-white\/80 {
+  background-color: rgba(15, 23, 42, 0.8) !important;
+}
+
+.dark .text-slatey-800 {
+  color: #e2e8f0 !important; /* slatey-200 */
+}
+
+.dark .text-slatey-900 {
+  color: #f8fafc !important; /* slatey-50 */
+}
+
+.dark .border-slatey-200 {
+  border-color: #1f2937 !important; /* slatey-800 */
+}
+
+.dark .border-slatey-100 {
+  border-color: rgba(31, 41, 55, 0.5) !important;
+}
+
+.dark .bg-slatey-50 {
+  background-color: #020617 !important; /* slatey-950 */
+}
+
+.dark .bg-brand-50 {
+  background-color: rgba(30, 27, 75, 0.4) !important; /* brand-950/40 */
+}
+
+.dark .text-brand-600 {
+  color: #818cf8 !important; /* brand-400 */
+}
+
+.dark .text-brand-700 {
+  color: #a5b4fc !important; /* brand-300 */
+}
+
+.dark input, .dark select, .dark textarea {
+  background-color: #0f172a !important;
+  border-color: #1f2937 !important;
+  color: #f8fafc !important;
+}
+
+.dark input::placeholder {
+  color: #475569 !important; /* slatey-600 */
+}

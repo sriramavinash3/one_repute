@@ -37,7 +37,15 @@ app.use(cors(corsOptions));
 // ─── Security Middleware ──────────────────────────────────────────────────────
 
 // Set security headers (CSP, HSTS, X-Frame-Options, etc.)
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "script-src": ["'self'", "'unsafe-inline'"],
+    },
+  },
+  crossOriginOpenerPolicy: { policy: "unsafe-none" },
+}));
 
 // Parse JSON bodies (max 10kb to prevent large payload attacks)
 app.use(express.json({ limit: '10kb' }));
@@ -82,13 +90,24 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const outletRoutes = require('./routes/outletRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const ticketRoutes = require('./routes/ticketRoutes');
+const discountRoutes = require('./routes/discountRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const { verifyToken, requireRole } = require('./middleware/auth');
 
 // Use routers
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/outlets', outletRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/analytics', reviewRoutes); // Analytics are shared with review routes for now
+app.use('/api/payments', paymentRoutes); // Webhooks shouldn't require our auth token
+
+// Protected routes
+app.use('/api/admin', verifyToken, requireRole(['SUPER_ADMIN']), adminRoutes);
+app.use('/api/outlets', verifyToken, outletRoutes);
+app.use('/api/reviews', verifyToken, reviewRoutes);
+app.use('/api/analytics', verifyToken, reviewRoutes);
+app.use('/api/customers', verifyToken, customerRoutes);
+app.use('/api/tickets', verifyToken, ticketRoutes);
+app.use('/api/discounts', verifyToken, discountRoutes);
 
 // Google Specific Sync (Legacy or specialized)
 app.post('/api/google/sync-business-data', async (req, res) => {
@@ -311,7 +330,7 @@ app.get('/api/test-live-reviews', async (req, res) => {
         results.push({
           outletId: outlet.id,
           outletName: outlet.name,
-          providerType: outlet.providerType || 'APIFY',
+          providerType: outlet.providerType || 'GBP',
           status: 'success',
           ...summary,
         });
@@ -326,7 +345,7 @@ app.get('/api/test-live-reviews', async (req, res) => {
         results.push({
           outletId: outlet.id,
           outletName: outlet.name,
-          providerType: outlet.providerType || 'APIFY',
+          providerType: outlet.providerType || 'GBP',
           status: 'error',
           error: err.message,
           fetched: 0,

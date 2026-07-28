@@ -25,6 +25,7 @@ const COLLECTIONS = {
   activityLogs: 'activityLogs',
   syncLogs: 'syncLogs',
   quotaLogs: 'quotaLogs',
+  onboardingSessions: 'onboardingSessions',
 };
 
 /**
@@ -239,6 +240,49 @@ async function logQuotaEvent(payload) {
   });
 }
 
+/**
+ * Save an onboarding session containing Google tokens and locations.
+ * @param {string} uid User ID
+ * @param {Object} data Session data
+ */
+async function saveOnboardingSession(uid, data) {
+  const db = getDb();
+  
+  if (data.googleRefreshToken) {
+    data.googleRefreshToken = encrypt(data.googleRefreshToken);
+  }
+
+  await db.collection(COLLECTIONS.onboardingSessions).doc(uid).set({
+    ...data,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+/**
+ * Get an onboarding session.
+ * @param {string} uid User ID
+ * @returns {Promise<Object|null>}
+ */
+async function getOnboardingSession(uid) {
+  const db = getDb();
+  const doc = await db.collection(COLLECTIONS.onboardingSessions).doc(uid).get();
+  if (!doc.exists) return null;
+  const data = doc.data();
+  if (data.googleRefreshToken) {
+    data.googleRefreshToken = decrypt(data.googleRefreshToken);
+  }
+  return data;
+}
+
+/**
+ * Delete an onboarding session.
+ * @param {string} uid User ID
+ */
+async function deleteOnboardingSession(uid) {
+  const db = getDb();
+  await db.collection(COLLECTIONS.onboardingSessions).doc(uid).delete();
+}
+
 module.exports = {
   getActiveOutlets,
   getOutletById,
@@ -251,6 +295,9 @@ module.exports = {
   getAllOutlets,
   toggleOutletStatus,
   updateReviewSyncState,
+  saveOnboardingSession,
+  getOnboardingSession,
+  deleteOnboardingSession,
   COLLECTIONS,
   logActivity,
   logQuotaEvent,

@@ -15,6 +15,8 @@ require('dotenv').config();
 
 const app = require('./app');
 const { startCron } = require('./jobs/reviewCron');
+const { initReportJobs } = require('./jobs/reportCron');
+const { initSubscriptionCron } = require('./jobs/subscriptionCron');
 const logger = require('./utils/logger');
 const env = require('./config/env');
 
@@ -30,6 +32,8 @@ const server = app.listen(env.PORT, () => {
 
 try {
   startCron();
+  initReportJobs();
+  initSubscriptionCron();
 } catch (err) {
   logger.error('[Server] Failed to start cron job — shutting down', { error: err.message });
   process.exit(1);

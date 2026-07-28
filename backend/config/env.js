@@ -14,7 +14,6 @@ const requiredVars = [
   'FIREBASE_PROJECT_ID',
   'FIREBASE_CLIENT_EMAIL',
   'FIREBASE_PRIVATE_KEY',
-  'APIFY_TOKEN',
   'GOOGLE_PLACES_API_KEY',
 ];
 
@@ -84,22 +83,6 @@ module.exports = {
     lockTtlMs: parseInt(process.env.CRON_LOCK_TTL_MS, 10) || 240000,
   },
 
-  // Scraper (temporary provider)
-  scraper: {
-    maxReviews: parseInt(process.env.SCRAPER_MAX_REVIEWS, 10) || 15,
-    cooldownMinutes: parseInt(process.env.SCRAPER_COOLDOWN_MINUTES, 10) || 360,
-    maxHashHistory: parseInt(process.env.SCRAPER_MAX_HASH_HISTORY, 10) || 1000,
-    stopOnExistingCount: parseInt(process.env.SCRAPER_STOP_ON_EXISTING_COUNT, 10) || 3,
-    apifyTimeoutMs: parseInt(process.env.APIFY_TIMEOUT_MS, 10) || 45000,
-  },
-
-  // Apify
-  apify: {
-    token: process.env.APIFY_TOKEN,
-    taskId: process.env.APIFY_TASK_ID,
-    actorId: process.env.APIFY_ACTOR_ID,
-    waitForFinishSeconds: parseInt(process.env.APIFY_WAIT_FOR_FINISH_SECONDS, 10) || 120,
-  },
 
   // Google Places (search/autocomplete)
   googlePlaces: {
@@ -110,5 +93,10 @@ module.exports = {
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 60000,
     max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+  },
+
+  // Scraper limits
+  scraper: {
+    maxReviews: parseInt(process.env.SCRAPER_MAX_REVIEWS, 10) || 50,
   },
 };

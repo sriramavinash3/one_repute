@@ -62,3 +62,17 @@ export async function updateOutletSettings(outletId, settings) {
   const { data } = await apiClient.post(`/api/outlets/${outletId}`, settings)
   return { message: 'Settings updated', ...data }
 }
+
+export async function fetchOutletReputationInsights(params = {}) {
+  // Using the new outlet-specific endpoint
+  const { data } = await apiClient.get('/api/outlets/reputation-insights', { params })
+  return data
+}
+
+export async function submitCategoryRule(outletId, rulePayload) {
+  const { data } = await apiClient.post('/api/outlets/reputation-insights/rules', {
+    outletId,
+    ...rulePayload
+  })
+  return data
+}

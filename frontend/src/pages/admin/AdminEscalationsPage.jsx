@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertCircle, Clock, CheckCircle2, MessageSquare, Star, ChevronDown, ChevronRight, ShieldAlert, Store, ArrowRight } from 'lucide-react'
+import { AlertCircle, Clock, CheckCircle2, MessageSquare, Star, ChevronDown, ChevronRight, ShieldAlert, Store, ArrowRight, Search } from 'lucide-react'
 import { Card } from '../../components/ui/card'
 import StatusBadge from '../../components/feedback/StatusBadge'
 import Button from '../../components/ui/button'
@@ -9,9 +9,10 @@ import EmptyState from '../../components/feedback/EmptyState'
 import Skeleton from '../../components/feedback/Skeleton'
 import { fetchEscalations } from '../../services/reviewService'
 import { fetchAdminOutlets } from '../../services/outletService'
+import { USE_MOCK_DATA } from '../../config/env'
+import { MOCK_CUSTOMERS, MOCK_ESCALATIONS, MOCK_OUTLETS } from '../../config/mockData'
 import { formatTimestamp } from '../../utils/format'
 import { Link } from 'react-router-dom'
-
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -23,133 +24,51 @@ const item = {
   show: { opacity: 1, y: 0 }
 }
 
-function EscalationRow({ item: escalation }) {
-  const [expanded, setExpanded] = useState(false)
-  const isCritical = escalation.rating === 1
-
-  return (
-    <motion.div
-      variants={item}
-      layout
-      className={`rounded-2xl border transition-all duration-300 ${
-        isCritical 
-          ? 'border-rose-100 bg-rose-50/30 dark:border-rose-900/30 dark:bg-rose-500/5' 
-          : 'border-slatey-100 bg-white dark:border-slatey-800 dark:bg-slatey-900/40'
-      } ${expanded ? 'ring-2 ring-brand-100 dark:ring-brand-900/50' : ''}`}
-    >
-      <div className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-start gap-4 flex-1">
-            <div className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-              isCritical ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
-            }`}>
-              {isCritical ? <ShieldAlert className="h-6 w-6" /> : <AlertCircle className="h-6 w-6" />}
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <p className="font-bold text-slatey-900 dark:text-slatey-100">{escalation.customerName}</p>
-                <span className="text-slatey-300 dark:text-slatey-700">·</span>
-                <div className="flex items-center gap-1 text-xs font-medium text-slatey-500 dark:text-slatey-400">
-                  <Store className="h-3.5 w-3.5" />
-                  {escalation.outletName}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slatey-400">
-                <div className="flex items-center gap-0.5">
-                  {[1,2,3,4,5].map(n => (
-                    <Star key={n} className={`h-3 w-3 ${n <= escalation.rating ? 'fill-amber-400 text-amber-400' : 'text-slatey-100'}`} />
-                  ))}
-                </div>
-                <span>·</span>
-                <Clock className="h-3 w-3" />
-                <span>{escalation.date}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <StatusBadge status={escalation.status} />
-            <button 
-              onClick={() => setExpanded(!expanded)}
-              className="rounded-lg p-2 text-slatey-400 hover:bg-slatey-100 hover:text-slatey-700 transition-colors"
-            >
-              {expanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-4 pl-14">
-          <p className="text-sm text-slatey-700 leading-relaxed italic border-l-2 border-slatey-100 pl-4 dark:text-slatey-300 dark:border-slatey-800">
-            "{escalation.text}"
-          </p>
-        </div>
-
-        <div className="mt-4 pl-14 flex flex-wrap items-center gap-3">
-          {escalation.whatsappSent ? (
-            <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-              <CheckCircle2 className="h-3 w-3" />
-              WhatsApp Alert Sent to {escalation.managerContacted}
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 rounded-full bg-slatey-100 px-3 py-1 text-[11px] font-semibold text-slatey-500 dark:bg-slatey-800 dark:text-slatey-400">
-              <Clock className="h-3 w-3" />
-              Queued for WhatsApp Dispatch
-            </div>
-          )}
-        <Link to={`/admin-dashboard/outlets/${escalation.outletId}`} className="flex items-center gap-2">                                 
-          <Button variant="ghost" size="sm" className="h-7 text-brand-600 px-2 dark:text-brand-400">
-            View Outlet Profile <ArrowRight className="ml-1 h-3 w-3" />
-          </Button>
-        </Link>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden bg-slatey-50/50 border-t border-slatey-100"
-          >
-            <div className="p-6 pl-20">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slatey-400">AI Proposed Resolution</label>
-                  <div className="mt-2 rounded-xl border border-brand-100 bg-white p-4 shadow-sm">
-                    <div className="flex items-start gap-3">
-                      <MessageSquare className="mt-0.5 h-4 w-4 text-brand-500" />
-                      <p className="text-sm text-slatey-600 leading-relaxed">{escalation.aiSuggestion}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" className="bg-brand-600 shadow-brand">Approve and Post</Button>
-                  <Button size="sm" variant="outline">Edit Response</Button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  )
-}
-
 export default function AdminEscalationsPage() {
+  const [query, setQuery] = useState('')
+  const [dateFilter, setDateFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [severityFilter, setSeverityFilter] = useState('all')
+  const [issueFilter, setIssueFilter] = useState('all')
+  const [whatsappFilter, setWhatsappFilter] = useState('all')
+
   const { data: escalations = [], isLoading } = useQuery({
     queryKey: ['admin-escalations'],
-    queryFn: () => fetchEscalations({ limit: 200 })
+    queryFn: async () => {
+      if (USE_MOCK_DATA) return MOCK_ESCALATIONS;
+      return fetchEscalations({ limit: 500 })
+    }
   })
 
   const { data: outletPayload } = useQuery({
     queryKey: ['admin-outlets'],
-    queryFn: fetchAdminOutlets
+    queryFn: async () => {
+      if (USE_MOCK_DATA) return { outlets: MOCK_OUTLETS, total: MOCK_OUTLETS.length }
+      return fetchAdminOutlets()
+    }
+  })
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ['admin-customers'],
+    queryFn: async () => {
+      if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
+      const { collection, getDocs } = await import('firebase/firestore')
+      const { db } = await import('../../firebase/firebase')
+      const snap = await getDocs(collection(db, 'customers'))
+      return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    }
   })
 
   const outletMap = useMemo(() => {
     const list = outletPayload?.outlets || []
     return new Map(list.map((outlet) => [outlet.id, outlet]))
   }, [outletPayload])
+
+  const issueTypes = useMemo(() => {
+    const set = new Set()
+    escalations.forEach(e => set.add(e.issueCategory || 'Unknown'))
+    return Array.from(set).sort()
+  }, [escalations])
 
   const normalized = useMemo(() => {
     return escalations.map((item) => ({
@@ -161,7 +80,33 @@ export default function AdminEscalationsPage() {
     }))
   }, [escalations, outletMap])
 
-  const criticalCount = normalized.filter((esc) => Number(esc.rating) === 1).length
+  const filtered = useMemo(() => {
+    return normalized.filter(esc => {
+      const outlet = outletMap.get(esc.outletId) || {}
+      const customer = customers.find(c => c.id === outlet.customerId) || {}
+      
+      const searchMatch = esc.text?.toLowerCase().includes(query.toLowerCase()) || 
+                       customer.name?.toLowerCase().includes(query.toLowerCase()) ||
+                       outlet.name?.toLowerCase().includes(query.toLowerCase())
+
+      let dateMatch = true
+      if (dateFilter !== 'all') {
+        const ts = (esc.reviewTimestamp || esc.createdAt)?.seconds * 1000 || Date.now()
+        const now = Date.now()
+        const days = parseInt(dateFilter)
+        dateMatch = now - ts <= days * 86400000
+      }
+
+      const statMatch = statusFilter === 'all' || esc.status === statusFilter
+      const sevMatch = severityFilter === 'all' || (severityFilter === 'high' ? esc.rating === 1 : esc.rating > 1)
+      const issMatch = issueFilter === 'all' || esc.issueCategory === issueFilter
+      const waMatch = whatsappFilter === 'all' || (whatsappFilter === 'sent' ? esc.whatsappSent : !esc.whatsappSent)
+
+      return searchMatch && dateMatch && statMatch && sevMatch && issMatch && waMatch
+    })
+  }, [normalized, query, dateFilter, statusFilter, severityFilter, issueFilter, whatsappFilter, outletMap, customers])
+
+  const criticalCount = normalized.filter((esc) => Number(esc.rating) === 1 && esc.status !== 'resolved').length
   const suggestedCount = normalized.filter((esc) => Boolean(esc.aiSuggestion)).length
 
   return (
@@ -197,6 +142,66 @@ export default function AdminEscalationsPage() {
         </Card>
       </div>
 
+      <Card className="p-4 border-none shadow-glow">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-1 min-w-[280px] items-center gap-3 rounded-xl border border-slatey-200 bg-slatey-50/50 px-4 py-2 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100 transition-all">
+            <Search className="h-4 w-4 text-slatey-400" />
+            <input
+              className="w-full bg-transparent text-sm text-slatey-700 outline-none"
+              placeholder="Search by customer, outlet, or content..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select 
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 outline-none focus:border-brand-400"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            >
+              <option value="all">All Dates</option>
+              <option value="7">Last 7 Days</option>
+              <option value="30">Last 30 Days</option>
+            </select>
+            <select 
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 outline-none focus:border-brand-400"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="Open">Open</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <select 
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 outline-none focus:border-brand-400"
+              value={severityFilter}
+              onChange={(e) => setSeverityFilter(e.target.value)}
+            >
+              <option value="all">All Severities</option>
+              <option value="high">High Severity (1★)</option>
+              <option value="medium">Medium Severity (2★)</option>
+            </select>
+            <select 
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 outline-none focus:border-brand-400"
+              value={issueFilter}
+              onChange={(e) => setIssueFilter(e.target.value)}
+            >
+              <option value="all">All Issues</option>
+              {issueTypes.map(iss => <option key={iss} value={iss}>{iss}</option>)}
+            </select>
+            <select 
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 outline-none focus:border-brand-400"
+              value={whatsappFilter}
+              onChange={(e) => setWhatsappFilter(e.target.value)}
+            >
+              <option value="all">All WhatsApp</option>
+              <option value="sent">Alert Sent</option>
+              <option value="failed">Alert Failed/Pending</option>
+            </select>
+          </div>
+        </div>
+      </Card>
+
       <div className="space-y-4">
         {isLoading ? (
           <div className="grid gap-4">
@@ -204,14 +209,84 @@ export default function AdminEscalationsPage() {
               <Skeleton key={index} className="h-28 w-full" />
             ))}
           </div>
-        ) : normalized.length > 0 ? (
-          normalized.map((esc) => (
-            <EscalationRow key={esc.id} item={esc} />
-          ))
+        ) : filtered.length > 0 ? (
+          <div className="overflow-hidden rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40 overflow-x-auto">
+            <table className="w-full border-collapse text-left text-sm whitespace-nowrap">
+              <thead className="bg-slatey-50/80 text-xs font-medium uppercase tracking-wider text-slatey-500 dark:bg-slatey-900 dark:text-slatey-400">
+                <tr>
+                  <th className="px-4 py-3">Customer & Outlet</th>
+                  <th className="px-4 py-3">Rating & Content</th>
+                  <th className="px-4 py-3">Timestamp & Platform</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Link</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slatey-100 dark:divide-slatey-800/50">
+                <AnimatePresence mode="popLayout">
+                  {filtered.map((esc) => {
+                    const outlet = outletMap.get(esc.outletId) || {}
+                    const customer = customers.find(c => c.id === outlet.customerId) || {}
+                    return (
+                      <motion.tr
+                        key={esc.id}
+                        variants={item}
+                        layout
+                        className={`group transition-colors ${esc.rating === 1 ? 'bg-rose-50/30 dark:bg-rose-500/5' : 'hover:bg-slatey-50/50 dark:hover:bg-slatey-800/30'}`}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slatey-900 dark:text-slatey-100">{customer.name || 'Unknown'}</span>
+                            <span className="text-xs text-brand-600 dark:text-brand-400 mt-0.5">{outlet.name || 'Unknown'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 max-w-[300px]" title={esc.text}>
+                          <div className="flex items-center gap-1 mb-1">
+                            {[1,2,3,4,5].map(n => (
+                              <Star key={n} className={`h-3 w-3 ${n <= esc.rating ? 'fill-amber-400 text-amber-400' : 'text-slatey-100 dark:text-slatey-800'}`} />
+                            ))}
+                          </div>
+                          <p className="text-xs text-slatey-600 dark:text-slatey-300 truncate mb-1">{esc.text}</p>
+                          {esc.aiSuggestion && (
+                            <p className="text-[11px] text-slatey-500 italic truncate border-l-2 border-brand-200 pl-1.5 mt-1 bg-slatey-50 p-1 rounded-r">Resp: {esc.aiSuggestion}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="text-xs text-slatey-600 dark:text-slatey-400">
+                              {formatTimestamp(esc.reviewTimestamp || esc.createdAt)}
+                            </span>
+                            <span className="text-[11px] bg-slatey-100 text-slatey-600 px-1.5 py-0.5 rounded mt-1 w-fit">
+                              {esc.providerType || 'Google'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="text-[11px] bg-slatey-100 text-slatey-700 px-2 py-0.5 rounded font-medium">
+                              {esc.status === 'resolved' ? 'Closed' : esc.whatsappSent ? 'Sent on Whatsapp' : 'Open'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {esc.reviewUrl ? (
+                            <a href={esc.reviewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 transition">
+                              <ExternalLink className="h-3 w-3" /> View original
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slatey-400">N/A</span>
+                          )}
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
+                </AnimatePresence>
+              </tbody>
+            </table>
+          </div>
         ) : (
           <EmptyState
-            title="No escalations yet"
-            description="Escalated reviews will appear here after sync."
+            title="No escalations match criteria"
+            description="Try adjusting your filters or search terms."
           />
         )}
       </div>

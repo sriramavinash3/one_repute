@@ -32,13 +32,70 @@ router.get('/google', async (req, res) => {
 });
 
 /**
+ * GET /api/auth/google/onboard
+ */
+router.get('/google/onboard', async (req, res) => {
+  try {
+    const uid = req.query.uid;
+    if (!uid) {
+      return res.status(400).json({ error: 'Missing uid' });
+    }
+    const url = googleOAuth.getConsentUrl(`onboard_${uid}`);
+    return res.redirect(url);
+  } catch (err) {
+    logger.error('[AuthRoute] Failed to create onboard consent URL', { error: err.message });
+    return res.status(500).json({ error: 'Failed to start Google OAuth' });
+  }
+});
+
+/**
  * GET /api/auth/google/callback
  */
 router.get('/google/callback', async (req, res) => {
   const { code, state, error } = req.query;
-  if (error) return res.status(400).json({ error: `Google OAuth error: ${error}` });
+  if (error) {
+    if (state && state.startsWith('onboard_')) {
+      return res.send(`<script>window.opener.postMessage({ type: "gmb-error", error: "${error}" }, "*"); window.close();</script>`);
+    }
+    return res.status(400).json({ error: `Google OAuth error: ${error}` });
+  }
 
-  const outletId = state ? decodeURIComponent(state) : req.query.outletId;
+  const stateStr = state ? decodeURIComponent(state) : req.query.outletId;
+
+  // Handle Onboarding OAuth flow
+  if (stateStr && stateStr.startsWith('onboard_')) {
+    const uid = stateStr.replace('onboard_', '');
+    if (!code) {
+      return res.send('<script>window.opener.postMessage({ type: "gmb-error", error: "Missing code" }, "*"); window.close();</script>');
+    }
+
+    try {
+      const { oauth2Client, tokens } = await googleOAuth.exchangeCodeForTokens(code);
+      if (!tokens.refresh_token) {
+        return res.send('<script>window.opener.postMessage({ type: "gmb-error", error: "Missing refresh token. Please reconnect and ensure you grant all permissions." }, "*"); window.close();</script>');
+      }
+
+      const accountEmail = await googleOAuth.fetchAccountEmail(oauth2Client);
+      const { accountId, locations } = await googleOAuth.fetchAccountsAndLocations(oauth2Client);
+
+      await outletRepo.saveOnboardingSession(uid, {
+        googleRefreshToken: tokens.refresh_token,
+        googleAccountEmail: accountEmail,
+        googleAccountId: accountId,
+        googleLocations: locations,
+        googleTokenScope: tokens.scope || null,
+        googleTokenExpiresAt: tokens.expiry_date || null,
+      });
+
+      return res.send('<script>window.opener.postMessage({ type: "gmb-connected" }, "*"); window.close();</script>');
+    } catch (err) {
+      logger.error('[AuthRoute] Onboard OAuth callback failed', { error: err.message });
+      return res.send(`<script>window.opener.postMessage({ type: "gmb-error", error: "${err.message}" }, "*"); window.close();</script>`);
+    }
+  }
+
+  // Handle existing outlet OAuth flow
+  const outletId = stateStr;
   if (!code || !outletId) return res.status(400).json({ error: 'Missing code or outletId' });
 
   try {
@@ -164,6 +221,122 @@ router.post('/verify-user', async (req, res) => {
   } catch (err) {
     logger.error('[AuthRoute] Verification failed', { error: err.message });
     return res.status(500).json({ error: 'Internal verification error' });
+  }
+});
+
+/**
+ * GET /api/auth/onboarding-session/:uid
+ */
+router.get('/onboarding-session/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    if (!uid) return res.status(400).json({ error: 'Missing uid' });
+
+    const session = await outletRepo.getOnboardingSession(uid);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    // Expose only needed info to frontend
+    return res.status(200).json({
+      googleAccountEmail: session.googleAccountEmail,
+      googleLocations: session.googleLocations || [],
+    });
+  } catch (err) {
+    logger.error('[AuthRoute] Fetch onboarding session failed', { error: err.message });
+    return res.status(500).json({ error: 'Failed to fetch session' });
+  }
+});
+
+/**
+ * POST /api/auth/onboard
+ * Handle new user onboarding, bypasses frontend security rules
+ */
+router.post('/onboard', async (req, res) => {
+  const { form, paymentData, isTrial, discountData, userUid, userEmail } = req.body;
+  
+  if (!userUid || !userEmail) return res.status(400).json({ error: 'Missing user data' });
+
+  try {
+    const session = await outletRepo.getOnboardingSession(userUid);
+    if (!session || !session.googleRefreshToken) {
+      return res.status(400).json({ error: 'Missing Google authorization. Please connect Google My Business.' });
+    }
+
+    const selectedLocation = session.googleLocations?.find(l => l.id === form.placeId) || {};
+    const businessName = form.businessName || selectedLocation.name || 'Unknown Business';
+
+    const db = require('../config/firebase').getDb();
+    const batch = db.batch();
+
+    const customerRef = db.collection('customers').doc();
+    const outletRef = db.collection('outlets').doc();
+    const userRef = db.collection('users').doc(userUid);
+
+    const now = new Date();
+    const trialEndsAt = isTrial ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
+
+    batch.set(customerRef, {
+      name: businessName,
+      email: userEmail,
+      phone: form.managerPhone,
+      plan: form.planId,
+      subscriptionStatus: isTrial ? 'trialing' : 'active',
+      trialEndsAt: trialEndsAt,
+      razorpaySubscriptionId: paymentData?.razorpay_subscription_id || null,
+      razorpayPaymentId: paymentData?.razorpay_payment_id || null,
+      appliedDiscount: discountData || null,
+      createdAt: now
+    });
+
+    const encrypt = require('../utils/crypto').encrypt;
+
+    batch.set(outletRef, {
+      name: businessName,
+      businessType: form.businessType,
+      managerPhone: form.managerPhone,
+      whatsappNumber: form.managerPhone,
+      address: form.address || '',
+      placeId: form.placeId || '',
+      providerType: 'GBP',
+      googleLocationId: form.placeId || '',
+      googleLocationName: selectedLocation.name || '',
+      googleAccountId: session.googleAccountId || '',
+      googleRefreshToken: encrypt(session.googleRefreshToken),
+      googleAccountEmail: session.googleAccountEmail || '',
+      googleTokenScope: session.googleTokenScope || '',
+      googleTokenExpiresAt: session.googleTokenExpiresAt || null,
+      googleLocations: session.googleLocations || [],
+      googleConnectedAt: now,
+      ownerId: userUid,
+      customerId: customerRef.id,
+      email: userEmail,
+      isActive: true,
+      createdAt: now
+    });
+
+    batch.update(userRef, {
+      businessName: businessName,
+      outletId: outletRef.id,
+      customerId: customerRef.id,
+      isSetupComplete: true,
+      role: 'outlet',
+      updatedAt: now
+    });
+
+    await batch.commit();
+
+    // Clean up temporary session
+    await outletRepo.deleteOnboardingSession(userUid);
+
+    // Trigger initial review scrape in the background
+    const { processSingleOutletReviewsImmediately } = require('../services/reviewService');
+    processSingleOutletReviewsImmediately(outletRef.id).catch(err => {
+      logger.error('[AuthRoute] Background review scrape failed', { error: err.message, outletId: outletRef.id });
+    });
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    logger.error('[AuthRoute] Onboarding failed', { error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 

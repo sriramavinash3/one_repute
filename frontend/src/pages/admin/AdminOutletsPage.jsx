@@ -8,6 +8,8 @@ import Button from '../../components/ui/button'
 import Input from '../../components/ui/input'
 import StatusBadge from '../../components/feedback/StatusBadge'
 import { fetchAdminOutlets, toggleAdminOutletStatus, createAdminOutlet, fetchPlaceDetails, fetchPlaceSuggestions } from '../../services/outletService'
+import { USE_MOCK_DATA } from '../../config/env'
+import { MOCK_CUSTOMERS, MOCK_OUTLETS } from '../../config/mockData'
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle } from '../../components/ui/dialog'
 import Skeleton from '../../components/feedback/Skeleton'
 import { Card } from '../../components/ui/card'
@@ -32,6 +34,7 @@ export default function AdminOutletsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedOutlet, setSelectedOutlet] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [ratingFilter, setRatingFilter] = useState('all')
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [newOutlet, setNewOutlet] = useState({
     email: '',
@@ -53,8 +56,22 @@ export default function AdminOutletsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-outlets'],
-    queryFn: fetchAdminOutlets,
+    queryFn: async () => {
+      if (USE_MOCK_DATA) return { outlets: MOCK_OUTLETS, total: MOCK_OUTLETS.length }
+      return fetchAdminOutlets()
+    },
     staleTime: 60 * 1000
+  })
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ['admin-customers'],
+    queryFn: async () => {
+      if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
+      // Use dynamic import for apiClient to avoid top-level import conflicts if any, though it's better to just import at top. Let's just use standard import logic. Wait, AdminOutletsPage doesn't import apiClient.
+      const { default: apiClient } = await import('../../services/apiClient');
+      const { data } = await apiClient.get('/api/admin/customers')
+      return data
+    }
   })
 
   const toggleStatusMutation = useMutation({
@@ -187,13 +204,24 @@ export default function AdminOutletsPage() {
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
+      const addressMatch = (row.address || '').toLowerCase().includes(query.toLowerCase())
       const matchesSearch = row.name.toLowerCase().includes(query.toLowerCase()) || 
-                           row.id.toLowerCase().includes(query.toLowerCase())
+                           row.id.toLowerCase().includes(query.toLowerCase()) || addressMatch
+                           
       const status = row.isActive ? 'active' : 'inactive'
       const matchesStatus = statusFilter === 'all' || status === statusFilter
-      return matchesSearch && matchesStatus
+
+      let matchesRating = true
+      if (ratingFilter !== 'all') {
+        const r = row.avgRating || 0
+        if (ratingFilter === 'high') matchesRating = r >= 4.0
+        else if (ratingFilter === 'medium') matchesRating = r >= 3.0 && r < 4.0
+        else if (ratingFilter === 'low') matchesRating = r < 3.0
+      }
+
+      return matchesSearch && matchesStatus && matchesRating
     })
-  }, [rows, query, statusFilter])
+  }, [rows, query, statusFilter, ratingFilter])
 
   return (
     <motion.div className="space-y-6" initial="hidden" animate="show" variants={stagger}>
@@ -226,6 +254,16 @@ export default function AdminOutletsPage() {
             />
           </div>
           <div className="flex items-center gap-2">
+            <select
+              value={ratingFilter}
+              onChange={(e) => setRatingFilter(e.target.value)}
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-sm text-slatey-700 outline-none focus:border-brand-400 dark:border-slatey-800 dark:bg-slatey-900/50 dark:text-slatey-300"
+            >
+              <option value="all">All Ratings</option>
+              <option value="high">High (4.0+)</option>
+              <option value="medium">Medium (3.0-3.9)</option>
+              <option value="low">Low (&lt;3.0)</option>
+            </select>
             <div className="flex gap-1 rounded-lg border border-slatey-100 bg-slatey-50 p-1 dark:border-slatey-800 dark:bg-slatey-950">
               {['all', 'active', 'inactive'].map((s) => (
                 <button
@@ -249,9 +287,11 @@ export default function AdminOutletsPage() {
         <table className="w-full border-collapse text-left text-sm">
           <thead className="bg-slatey-50/80 text-xs font-medium uppercase tracking-wider text-slatey-500 dark:bg-slatey-900 dark:text-slatey-400">
             <tr>
-              <th className="px-6 py-4">Outlet Info</th>
-              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Outlet Name</th>
+              <th className="px-6 py-4">Address</th>
+              <th className="px-6 py-4">Total Reviews</th>
               <th className="px-6 py-4">Rating</th>
+              <th className="px-6 py-4">Connected Account</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
@@ -260,15 +300,13 @@ export default function AdminOutletsPage() {
               {isLoading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i}>
-                    <td className="px-6 py-4"><Skeleton className="h-10 w-48" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-6 w-20" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-6 w-12" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-6 w-16" /></td>
-                    <td className="px-6 py-4"><Skeleton className="h-8 w-8 ml-auto" /></td>
+                    <td className="px-6 py-4" colSpan={8}><Skeleton className="h-10 w-full" /></td>
                   </tr>
                 ))
               ) : filtered.length > 0 ? (
-                filtered.map((row) => (
+                filtered.map((row) => {
+                  const customer = customers.find(c => c.id === row.customerId) || {}
+                  return (
                   <motion.tr
                     key={row.id}
                     variants={rowVariants}
@@ -284,20 +322,26 @@ export default function AdminOutletsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <StatusBadge status={row.isActive ? 'active' : 'inactive'} />
+                      <span className="text-sm text-slatey-600 dark:text-slatey-400">{row.address || 'N/A'}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <div className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-bold ${
-                          row.avgRating >= 4.5 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 
-                          row.avgRating >= 4.0 ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 
-                          'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
-                        }`}>
-                          {row.avgRating ? row.avgRating : '—'}
-                        </div>
-                        <span className="text-[10px] text-slatey-400">
-                          Sync {row.lastReviewFetchAt ? formatTimestamp(row.lastReviewFetchAt) : '—'}
+                      <span className="font-medium text-slatey-800 dark:text-slatey-200">{row.reviewCount || 0}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className={`inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-bold ${
+                        row.avgRating >= 4.5 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 
+                        row.avgRating >= 4.0 ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 
+                        'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
+                      }`}>
+                        {row.avgRating ? `${row.avgRating} ★` : '—'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-slatey-800 dark:text-slatey-200">
+                          {customer.name || 'Unknown'}
                         </span>
+                        <span className="text-[11px] text-slatey-400">{customer.email || row.customerId}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -326,10 +370,11 @@ export default function AdminOutletsPage() {
                       </DropdownMenu>  
                     </td>
                   </motion.tr>
-                ))
+                  )
+                })
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center">
+                  <td colSpan={8} className="py-20 text-center">
                     <div className="flex flex-col items-center">
                       <div className="rounded-full bg-slatey-50 p-4">
                         <Search className="h-8 w-8 text-slatey-300" />

@@ -2205,3 +2205,452 @@
 2026-05-28T10:10:45.694Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
 2026-05-28T10:10:47.670Z [ERROR]: [AdminRoute] Failed to fetch logs {"error":"9 FAILED_PRECONDITION: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/gmb-onerepute/firestore/indexes?create_composite=ClJwcm9qZWN0cy9nbWItb25lcmVwdXRlL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hY3Rpdml0eUxvZ3MvaW5kZXhlcy9fEAEaCgoGc3RhdHVzEAEaDQoJdGltZXN0YW1wEAIaDAoIX19uYW1lX18QAg"}
 2026-05-28T11:19:20.991Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-06-12T14:36:56.437Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-12T14:36:56.446Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-12T14:36:56.448Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-12T14:36:56.450Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-12T14:45:22.186Z [WARN]: [AdminRoute] Twilio usage lookup failed {"error":"timeout of 10000ms exceeded"}
+2026-06-12T14:53:56.800Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-12T15:30:00.997Z [INFO]: [ReviewAutomationJob] Starting run {}
+2026-06-12T15:30:01.900Z [INFO]: [ReviewAutomationJob] Processing 5 active outlet(s) {}
+2026-06-12T15:30:01.902Z [INFO]: [ReviewService] Processing outlet {"outletId":"1wb8fLJqLICRilrzjMGH","name":"One Repute"}
+2026-06-12T15:30:01.904Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"1wb8fLJqLICRilrzjMGH","cooldownMinutes":180,"elapsedMinutes":30}
+2026-06-12T15:30:01.904Z [INFO]: [ReviewService] Processing outlet {"outletId":"5KgO2CBZM7ae3zLfekYS","name":"Velan bakery"}
+2026-06-12T15:30:01.905Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"5KgO2CBZM7ae3zLfekYS","cooldownMinutes":180,"elapsedMinutes":30}
+2026-06-12T15:30:01.905Z [INFO]: [ReviewService] Processing outlet {"outletId":"D7ID63kW8KXeXZZhVRtV","name":"Prores India"}
+2026-06-12T15:30:01.911Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"D7ID63kW8KXeXZZhVRtV","cooldownMinutes":180,"elapsedMinutes":30}
+2026-06-12T15:30:01.915Z [INFO]: [ReviewService] Processing outlet {"outletId":"fUJCqqTZj6WHS8QZahh4","name":"Freddie and Me"}
+2026-06-12T15:30:01.916Z [WARN]: [ReviewService] SCRAPER placeId missing; using googleLocationId fallback {"outletId":"fUJCqqTZj6WHS8QZahh4","googleLocationId":"ChIJ5ytFdOthUjoRstynBWlA-EM"}
+2026-06-12T15:30:01.917Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"fUJCqqTZj6WHS8QZahh4","cooldownMinutes":180,"elapsedMinutes":29}
+2026-06-12T15:30:01.918Z [INFO]: [ReviewService] Processing outlet {"outletId":"sL414nhllji81V1In1Zz","name":"Kolapasi - St. Augustine"}
+2026-06-12T15:30:01.918Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"sL414nhllji81V1In1Zz","cooldownMinutes":180,"elapsedMinutes":29}
+2026-06-12T15:30:01.918Z [INFO]: [ReviewAutomationJob] Run complete {"outlets":5,"totalFetched":0,"totalNew":0,"totalProcessed":0,"errors":0,"durationMs":921}
+2026-06-12T16:45:05.855Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-06-12T19:01:01.791Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-12T19:01:01.800Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-12T19:01:01.802Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-12T19:01:01.805Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-12T19:08:15.998Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-12T19:42:29.103Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-12T19:42:29.115Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-12T19:42:29.118Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-12T19:42:29.120Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-22T14:54:55.921Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-22T14:54:55.928Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-22T14:54:55.929Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-22T14:54:55.931Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-22T15:28:40.042Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-06-22T15:28:47.725Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-22T15:28:47.730Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-22T15:28:47.731Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-22T15:28:47.733Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-22T15:30:00.465Z [INFO]: [ReviewAutomationJob] Starting run {}
+2026-06-22T15:30:00.767Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-22T15:30:02.597Z [INFO]: [ReviewAutomationJob] Processing 5 active outlet(s) {}
+2026-06-22T15:30:02.598Z [INFO]: [ReviewService] Processing outlet {"outletId":"1wb8fLJqLICRilrzjMGH","name":"One Repute"}
+2026-06-22T15:30:02.599Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"1wb8fLJqLICRilrzjMGH","cooldownMinutes":180,"elapsedMinutes":30}
+2026-06-22T15:30:02.600Z [INFO]: [ReviewService] Processing outlet {"outletId":"5KgO2CBZM7ae3zLfekYS","name":"Velan bakery"}
+2026-06-22T15:30:02.601Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"5KgO2CBZM7ae3zLfekYS","cooldownMinutes":180,"elapsedMinutes":29}
+2026-06-22T15:30:02.601Z [INFO]: [ReviewService] Processing outlet {"outletId":"D7ID63kW8KXeXZZhVRtV","name":"Prores India"}
+2026-06-22T15:30:02.601Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"D7ID63kW8KXeXZZhVRtV","cooldownMinutes":180,"elapsedMinutes":29}
+2026-06-22T15:30:02.602Z [INFO]: [ReviewService] Processing outlet {"outletId":"fUJCqqTZj6WHS8QZahh4","name":"Freddie and Me"}
+2026-06-22T15:30:02.602Z [WARN]: [ReviewService] SCRAPER placeId missing; using googleLocationId fallback {"outletId":"fUJCqqTZj6WHS8QZahh4","googleLocationId":"ChIJ5ytFdOthUjoRstynBWlA-EM"}
+2026-06-22T15:30:02.602Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"fUJCqqTZj6WHS8QZahh4","cooldownMinutes":180,"elapsedMinutes":29}
+2026-06-22T15:30:02.603Z [INFO]: [ReviewService] Processing outlet {"outletId":"sL414nhllji81V1In1Zz","name":"Kolapasi - St. Augustine"}
+2026-06-22T15:30:02.603Z [INFO]: [ReviewService] Cooldown active - skipping fetch {"outletId":"sL414nhllji81V1In1Zz","cooldownMinutes":180,"elapsedMinutes":29}
+2026-06-22T15:30:02.604Z [INFO]: [ReviewAutomationJob] Run complete {"outlets":5,"totalFetched":0,"totalNew":0,"totalProcessed":0,"errors":0,"durationMs":2138}
+2026-06-22T15:35:26.579Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-22T15:35:26.586Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-22T15:35:26.588Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-22T15:35:26.590Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-22T15:44:58.028Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-06-22T15:45:01.315Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-22T15:45:01.321Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-22T15:45:01.322Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-22T15:45:01.324Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-22T16:19:41.431Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-22T16:19:41.437Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-22T16:19:41.438Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-22T16:19:41.441Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-22T19:05:20.914Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-06-23T19:13:52.462Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T19:13:52.471Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T19:13:52.473Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T19:13:52.475Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-23T19:14:51.986Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-23T19:39:57.046Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T19:39:57.069Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T19:39:57.076Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T19:39:57.082Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-23T19:40:17.348Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-23T19:40:22.800Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T19:40:22.812Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T19:40:22.813Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T19:40:22.816Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-23T19:44:26.900Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-23T19:54:28.552Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T19:54:28.561Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T19:54:28.564Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T19:54:28.566Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-23T19:54:54.325Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T19:54:54.334Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T19:54:54.336Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T19:54:54.339Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-23T19:57:45.109Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-23T19:58:38.865Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T19:58:38.875Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T19:58:38.877Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T19:58:38.879Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-23T19:58:56.309Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T19:58:56.318Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T19:58:56.321Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T19:58:56.324Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-23T19:59:37.665Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T19:59:37.679Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T19:59:37.681Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T19:59:37.683Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-23T20:08:39.302Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-23T20:08:39.324Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-23T20:08:39.325Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-23T20:08:39.327Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T15:24:55.872Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T15:24:55.883Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T15:24:55.885Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T15:24:55.887Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T15:30:00.758Z [INFO]: [ReviewAutomationJob] Starting run {}
+2026-06-24T15:30:01.090Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T15:30:02.784Z [INFO]: [ReviewAutomationJob] No active outlets found — nothing to do {}
+2026-06-24T19:19:33.136Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T19:19:33.149Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T19:19:33.152Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T19:19:33.156Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T19:21:04.047Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T19:25:35.739Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T19:25:35.750Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T19:25:35.752Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T19:25:35.755Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T19:25:59.069Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T19:26:17.365Z [WARN]: [AdminRoute] Twilio usage lookup failed {"error":"timeout of 10000ms exceeded"}
+2026-06-24T19:28:58.503Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T19:28:58.514Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T19:28:58.517Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T19:28:58.520Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T19:29:41.242Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T19:55:15.423Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T19:55:15.433Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T19:55:15.436Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T19:55:15.439Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T19:56:56.520Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T19:59:48.321Z [WARN]: [AdminRoute] Twilio usage lookup failed {"error":"timeout of 10000ms exceeded"}
+2026-06-24T20:02:28.295Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T20:02:28.319Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T20:02:28.322Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T20:02:28.325Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T20:02:28.788Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T20:06:23.541Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T20:06:23.551Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T20:06:23.554Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T20:06:23.556Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T20:08:11.293Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T20:08:11.301Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T20:08:11.303Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T20:08:11.306Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T20:10:20.841Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T20:10:20.850Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T20:10:20.852Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T20:10:20.855Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T20:10:50.755Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T20:10:54.816Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: fF8ayyeLa3mbVT010era {}
+2026-06-24T20:10:55.004Z [INFO]: [ReviewService] Processing outlet {"outletId":"fF8ayyeLa3mbVT010era","name":"SolBe Solar – Solar Mounting Structure Manufacturer"}
+2026-06-24T20:11:06.108Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"fF8ayyeLa3mbVT010era","placeId":"ChIJqR9VTUznK2ERQFhKUX5GU-A","count":1}
+2026-06-24T20:11:06.763Z [INFO]: [ReviewService] New reviews to process {"outletId":"fF8ayyeLa3mbVT010era","fetched":1,"new":1}
+2026-06-24T20:11:09.304Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"fF8ayyeLa3mbVT010era","reviewId":"deb44cb917e47263b33ccb54ff1ac58ff49cf47c4adde244dcf2b329c5cb1908","rating":5}
+2026-06-24T20:11:20.005Z [INFO]: [ReviewService] Immediate review processing complete for outlet: fF8ayyeLa3mbVT010era {}
+2026-06-24T20:11:53.901Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T20:16:52.788Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T20:16:52.801Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T20:16:52.803Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T20:16:52.805Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T20:17:26.021Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T20:23:26.951Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-24T20:23:26.964Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-24T20:23:26.967Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-24T20:23:26.972Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-24T20:23:35.240Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-24T20:29:25.097Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-06-25T06:56:51.451Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-25T06:56:51.465Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-25T06:56:51.468Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-25T06:56:51.470Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-25T06:59:27.637Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-25T07:42:00.304Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: 6NyoaUfjshfe4WlgFbaW {}
+2026-06-25T07:42:00.501Z [INFO]: [ReviewService] Processing outlet {"outletId":"6NyoaUfjshfe4WlgFbaW","name":"Kolapasi Indian Canteen - Anna Nagar, Chennai"}
+2026-06-25T07:42:10.245Z [INFO]: [ApifyProvider] Reviews fetched {"outletId":"6NyoaUfjshfe4WlgFbaW","placeId":"ChIJ6d-mz8VlUjoRfZ3l33GORjk","count":15}
+2026-06-25T07:42:17.935Z [INFO]: [ReviewService] New reviews to process {"outletId":"6NyoaUfjshfe4WlgFbaW","fetched":15,"new":15}
+2026-06-25T07:42:17.938Z [ERROR]: [ReviewService] Failed to process review safely {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"62d6ee9d47f33fd88698bab42943b38d81bcf40a3ae2aee23dbe30bcf13cc9c7","error":"Invalid WhatsApp number: undefined"}
+2026-06-25T07:42:24.735Z [ERROR]: [ReviewService] Failed to process review safely {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"6b597542197a48a3dc008db6e7e644a0088aa8d27f198bbfea278ab3227b1c48","error":"Invalid WhatsApp number: undefined"}
+2026-06-25T07:42:29.799Z [ERROR]: [ReviewService] Failed to process review safely {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"4ad117e4ec30608389cc920881f943802d74782bd226816377bcddf496b3311a","error":"Invalid WhatsApp number: undefined"}
+2026-06-25T07:42:43.922Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"ad14368fd55a2a2fdc595699c1f02ee9c193eebb9788ed993854d7d3b2757394","rating":5}
+2026-06-25T07:42:54.475Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"270b51b21fc2b40ec85f2c111652300373f6387526ef9e5e7fc8479e7a41a86f","rating":5}
+2026-06-25T07:43:05.932Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"71ad8d32940a2d3aa5e7811f59c6851ed25692bbac063c6f73344e3bfaaefb3b","rating":5}
+2026-06-25T07:43:17.107Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"bb9ffb7cfb246651ebf1388aa4db65e431ce9914a1a0563889f43f924d00983b","rating":4}
+2026-06-25T07:43:23.608Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"1250f7f241fed7f11d86eff22e30482e526196b0839f5d51a90097d50721cea2","rating":5}
+2026-06-25T07:43:31.682Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"2e1a504223ba06840ea28f2f1033f0d94b77e77ad6f9f215e60b269b8145e3c8","rating":5}
+2026-06-25T07:43:47.368Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"922763010381a7876769602cb88e1f7761b33a5aa5649fa64818e98c2d03745c","rating":5}
+2026-06-25T07:44:01.056Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"d8942ff5b514881cd7a9357bfa29c7488c48b149227bddf82d0ffbdaf7c25a6e","rating":4}
+2026-06-25T07:44:13.842Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"11bc2e5388bb64db26ec67c3d08fa762407c7bb197641e29dec527c3e4203f9e","rating":5}
+2026-06-25T07:44:22.357Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"268634bbeed2de3d65a0356efbe00ec9ae4aa4d0fbbfeff24e428bd6e944951d","rating":5}
+2026-06-25T07:44:35.329Z [INFO]: [ReviewService] Reply saved for posting {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"64c5f61480696dc4f983830985336a3a5655f13bc01e4ebd0ec43ce9b1bbe217","rating":5}
+2026-06-25T07:44:40.802Z [ERROR]: [ReviewService] Failed to process review safely {"outletId":"6NyoaUfjshfe4WlgFbaW","reviewId":"f953f7dc5d86e0401aed6e7a26b78a1edf2dbefdc6dcaab52f39e64f3db25c85","error":"Invalid WhatsApp number: undefined"}
+2026-06-25T07:44:46.529Z [INFO]: [ReviewService] Immediate review processing complete for outlet: 6NyoaUfjshfe4WlgFbaW {}
+2026-06-25T07:45:30.090Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-25T07:45:30.103Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-25T07:45:30.106Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-25T07:45:30.108Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-25T07:45:56.315Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-25T07:45:56.329Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-25T07:45:56.333Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-25T07:45:56.337Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-25T07:46:07.669Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-25T07:54:59.564Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-25T07:54:59.574Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-25T07:54:59.576Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-25T07:54:59.578Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-25T07:55:21.069Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-25T07:55:52.354Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-25T07:55:52.368Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-25T07:55:52.371Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-25T07:55:52.373Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-25T07:56:27.232Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-25T07:57:22.356Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-25T07:57:22.365Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-25T07:57:22.367Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-25T07:57:22.370Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-25T07:58:09.939Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-06-25T07:58:09.948Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-06-25T07:58:09.950Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-06-25T07:58:09.952Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-06-25T07:58:22.889Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-25T07:58:29.900Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-06-25T08:11:01.129Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-07-17T19:22:26.600Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-17T19:22:26.611Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-17T19:22:26.614Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-17T19:22:26.616Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-27T19:16:47.477Z [ERROR]: Error creating Razorpay subscription {"error":{}}
+2026-07-27T19:16:47.479Z [ERROR]: Failed to create subscription {"error":"Cannot read properties of undefined (reading 'length')"}
+2026-07-27T19:16:47.489Z [ERROR]: Payment verification failed {"error":"Cannot read properties of undefined (reading 'length')"}
+2026-07-27T19:17:26.998Z [ERROR]: [AuthRoute] Onboarding failed {"error":"Cannot read properties of undefined (reading 'length')"}
+2026-07-27T19:17:27.021Z [ERROR]: Error creating Razorpay subscription {"error":{}}
+2026-07-27T19:17:27.022Z [ERROR]: Failed to create subscription {"error":"Cannot read properties of undefined (reading 'length')"}
+2026-07-27T19:17:27.030Z [ERROR]: Payment verification failed {"error":"Cannot read properties of undefined (reading 'length')"}
+2026-07-27T19:18:26.903Z [ERROR]: [Firebase] Failed to initialize Admin SDK {"error":"db.settings is not a function"}
+2026-07-27T19:18:26.906Z [ERROR]: [AuthRoute] Onboarding failed {"error":"db.settings is not a function"}
+2026-07-27T19:18:26.927Z [ERROR]: [Firebase] Failed to initialize Admin SDK {"error":"db.settings is not a function"}
+2026-07-27T19:18:26.928Z [ERROR]: Error creating Razorpay subscription {"error":{}}
+2026-07-27T19:18:26.929Z [ERROR]: Failed to create subscription {"error":"db.settings is not a function"}
+2026-07-27T19:18:26.942Z [ERROR]: [Firebase] Failed to initialize Admin SDK {"error":"db.settings is not a function"}
+2026-07-27T19:18:26.943Z [ERROR]: Payment verification failed {"error":"db.settings is not a function"}
+2026-07-27T19:18:52.212Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-27T19:18:52.216Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: undefined {}
+2026-07-27T19:18:52.220Z [WARN]: [ReviewService] Outlet not found for immediate processing: undefined {}
+2026-07-27T19:22:20.861Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-27T19:22:20.865Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: undefined {}
+2026-07-27T19:22:20.867Z [WARN]: [ReviewService] Outlet not found for immediate processing: undefined {}
+2026-07-27T20:20:18.247Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-27T20:20:18.256Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-27T20:20:18.258Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-27T20:20:18.261Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-27T20:36:26.397Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-27T20:44:11.211Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-27T20:44:11.219Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-27T20:44:11.222Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-27T20:44:11.224Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-27T20:44:16.471Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T14:44:25.035Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T14:44:25.045Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T14:44:25.047Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T14:44:25.050Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T14:49:47.478Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T14:49:47.485Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T14:49:47.487Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T14:49:47.489Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T14:50:34.143Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T14:50:34.150Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T14:50:34.152Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T14:50:34.154Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T15:15:11.592Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T15:17:58.442Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T15:17:58.449Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T15:17:58.451Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T15:17:58.453Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T15:22:44.549Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T15:23:35.305Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T15:23:35.312Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T15:23:35.313Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T15:23:35.316Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T15:25:07.095Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T15:30:00.559Z [INFO]: [ReviewAutomationJob] Starting run {}
+2026-07-28T15:30:01.150Z [INFO]: [ReviewAutomationJob] No active outlets found — nothing to do {}
+2026-07-28T17:45:18.849Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: gFr4wttmnLYWz3dDvMqX {}
+2026-07-28T17:45:18.984Z [INFO]: [ReviewService] Processing outlet {"outletId":"gFr4wttmnLYWz3dDvMqX","name":"Freddie and Me"}
+2026-07-28T17:45:19.030Z [ERROR]: [ReviewService] Failed to fetch reviews from provider {"outletId":"gFr4wttmnLYWz3dDvMqX","providerType":"GBP","error":"Cannot read properties of undefined (reading 'maxReviews')"}
+2026-07-28T17:45:19.136Z [INFO]: [ReviewService] Immediate review processing complete for outlet: gFr4wttmnLYWz3dDvMqX {}
+2026-07-28T17:46:27.728Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T17:46:27.737Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T17:46:27.739Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T17:46:27.741Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T17:49:53.084Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T17:50:17.443Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: rbdeT4HqnhZUyvJK1t1E {}
+2026-07-28T17:50:17.665Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T17:50:17.671Z [ERROR]: [ReviewService] Failed to fetch reviews from provider {"outletId":"rbdeT4HqnhZUyvJK1t1E","providerType":"GBP","error":"google.mybusinessreviews is not a function"}
+2026-07-28T17:50:17.766Z [INFO]: [ReviewService] Immediate review processing complete for outlet: rbdeT4HqnhZUyvJK1t1E {}
+2026-07-28T17:54:27.581Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T17:54:27.591Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T17:54:27.593Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T17:54:27.595Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T17:56:43.946Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T17:56:45.342Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T17:56:45.820Z [ERROR]: [ReviewService] Failed to fetch reviews from provider {"outletId":"rbdeT4HqnhZUyvJK1t1E","providerType":"GBP","error":"<!DOCTYPE html>\n<html lang=en>\n  <meta charset=utf-8>\n  <meta name=viewport content=\"initial-scale=1, minimum-scale=1, width=device-width\">\n  <title>Error 404 (Not Found)!!1</title>\n  <style>\n    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}\n  </style>\n  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>\n  <p><b>404.</b> <ins>That’s an error.</ins>\n  <p>The requested URL <code>/v1/locations/3533097786741032230/reviews</code> was not found on this server.  <ins>That’s all we know.</ins>\n"}
+2026-07-28T17:57:44.864Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T17:57:44.876Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T17:57:44.881Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T17:57:44.885Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T17:59:33.599Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T17:59:34.854Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T17:59:35.282Z [ERROR]: [ReviewService] Failed to fetch reviews from provider {"outletId":"rbdeT4HqnhZUyvJK1t1E","providerType":"GBP","error":"<!DOCTYPE html>\n<html lang=en>\n  <meta charset=utf-8>\n  <meta name=viewport content=\"initial-scale=1, minimum-scale=1, width=device-width\">\n  <title>Error 404 (Not Found)!!1</title>\n  <style>\n    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}\n  </style>\n  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>\n  <p><b>404.</b> <ins>That’s an error.</ins>\n  <p>The requested URL <code>/v1/accounts/111487357075090273121/locations/3533097786741032230/reviews</code> was not found on this server.  <ins>That’s all we know.</ins>\n"}
+2026-07-28T18:01:21.107Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T18:01:21.115Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T18:01:21.118Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T18:01:21.120Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T18:01:41.426Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T18:01:42.716Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:01:43.225Z [ERROR]: [ReviewService] Failed to fetch reviews from provider {"outletId":"rbdeT4HqnhZUyvJK1t1E","providerType":"GBP","error":"Google My Business API has not been used in project 111717206874 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/mybusiness.googleapis.com/overview?project=111717206874 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."}
+2026-07-28T18:03:48.011Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:03:48.779Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":3}
+2026-07-28T18:03:49.806Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":3,"new":3}
+2026-07-28T18:03:53.809Z [INFO]: [GoogleService] Reply posted successfully {"outletId":"rbdeT4HqnhZUyvJK1t1E","reviewName":"accounts/111487357075090273121/locations/3533097786741032230/reviews/AbFvOqnMbDv0Y4LIjBJWEGYbggCmNg6cB_eMZbuC-6lXqLTr2GHh9WN269o7xLuG8QaVuLpkpWmpTg"}
+2026-07-28T18:03:54.196Z [INFO]: [ReviewService] Positive review handled {"outletId":"rbdeT4HqnhZUyvJK1t1E","reviewId":"aa535360a0a0fd35607b1cbd72cc943cd3c19cebe0d33a6bb992e7bf94ccb443","rating":5}
+2026-07-28T18:04:07.135Z [INFO]: [GoogleService] Reply posted successfully {"outletId":"rbdeT4HqnhZUyvJK1t1E","reviewName":"accounts/111487357075090273121/locations/3533097786741032230/reviews/AbFvOqlz8pM5xwvHQKewUGRzDfGG2pLq4064Z9p8Qn7QCcuHmbeXoUl3h6UQpNhZ7i0Y3OhqRwCvIg"}
+2026-07-28T18:04:07.407Z [INFO]: [ReviewService] Positive review handled {"outletId":"rbdeT4HqnhZUyvJK1t1E","reviewId":"71085e1c949d2f0f67892bc1973eb6a034a20114d1598ce366f7a26dc00074cb","rating":4}
+2026-07-28T18:04:14.408Z [INFO]: [GoogleService] Reply posted successfully {"outletId":"rbdeT4HqnhZUyvJK1t1E","reviewName":"accounts/111487357075090273121/locations/3533097786741032230/reviews/AbFvOqkrtKNmAQZzU_6h-zUXpZ4f_EcjUrSxQDrNlEtpB8eYkxkU9OrARGpH8r1l52CC9D2aG58lKA"}
+2026-07-28T18:04:14.617Z [INFO]: [ReviewService] Positive review handled {"outletId":"rbdeT4HqnhZUyvJK1t1E","reviewId":"31f93504564ae1ce5af324d661b19ca1ed400e50b31261d39f002f88b7483491","rating":5}
+2026-07-28T18:12:49.077Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:12:49.960Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":3}
+2026-07-28T18:12:50.686Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":3,"new":0}
+2026-07-28T18:13:40.747Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:13:41.554Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":3}
+2026-07-28T18:13:42.303Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":3,"new":0}
+2026-07-28T18:22:58.105Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:22:58.954Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:23:00.001Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":1}
+2026-07-28T18:23:03.064Z [INFO]: [WhatsApp] Alert sent to manager {"to":"+919384926154","outletName":"Freddie and Me","rating":2,"provider":"twilio"}
+2026-07-28T18:23:03.403Z [INFO]: [ReviewService] Review escalated {"outletId":"rbdeT4HqnhZUyvJK1t1E","reviewId":"4cab370888bb2dcf2a4294ecca0b46ec1eeba6e85fdd773e938fea2fe433e853","rating":2}
+2026-07-28T18:28:21.137Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:28:21.994Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:28:22.862Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:29:09.074Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:29:09.843Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:29:10.615Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:30:01.865Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:30:02.707Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:30:03.330Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:30:06.942Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:30:08.536Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:30:08.983Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:31:54.100Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:31:54.951Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:31:55.586Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:32:04.951Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:32:05.732Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:32:06.355Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:32:09.359Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:32:10.184Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:32:10.766Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:32:13.576Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:32:14.273Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:32:14.816Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:32:31.656Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:32:32.410Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:32:32.875Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:33:11.855Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:33:12.659Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":4}
+2026-07-28T18:33:13.191Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":4,"new":0}
+2026-07-28T18:34:19.890Z [INFO]: [ReviewService] Processing outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","name":"Freddie and Me"}
+2026-07-28T18:34:20.781Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"rbdeT4HqnhZUyvJK1t1E","total":5}
+2026-07-28T18:34:21.542Z [INFO]: [ReviewService] New reviews to process {"outletId":"rbdeT4HqnhZUyvJK1t1E","fetched":5,"new":1}
+2026-07-28T18:34:23.138Z [INFO]: [WhatsApp] Alert sent to manager {"to":"+919384926154","outletName":"Freddie and Me","rating":2,"provider":"twilio"}
+2026-07-28T18:34:23.380Z [INFO]: [ReviewService] Review escalated {"outletId":"rbdeT4HqnhZUyvJK1t1E","reviewId":"d36f73deff8a67bb8243efe56c275a2096178f9baee74204a260d741e384585a","rating":2}
+2026-07-28T18:48:26.920Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T18:48:26.930Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T18:48:26.932Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T18:48:26.934Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T18:49:14.209Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T18:49:14.218Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T18:49:14.221Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T18:49:14.224Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T18:50:56.579Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T18:50:56.588Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T18:50:56.590Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T18:50:56.593Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T18:51:05.818Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T18:51:05.828Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T18:51:05.831Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T18:51:05.833Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T18:51:24.414Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T18:51:24.423Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T18:51:24.426Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T18:51:24.429Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T18:51:40.619Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T18:51:40.629Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T18:51:40.631Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T18:51:40.632Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-07-28T18:51:40.635Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T19:03:56.624Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-28T19:03:56.635Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-28T19:03:56.638Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-28T19:03:56.639Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-07-28T19:03:56.642Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-07-28T19:10:42.585Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-28T19:11:03.727Z [INFO]: [ReviewService] Triggering immediate review processing for outlet: ASEl4hMBxCZH94t6yoIX {}
+2026-07-28T19:11:03.916Z [INFO]: [ReviewService] Processing outlet {"outletId":"ASEl4hMBxCZH94t6yoIX","name":"Freddie and Me"}
+2026-07-28T19:11:04.765Z [INFO]: [GoogleService] Fetched reviews for outlet {"outletId":"ASEl4hMBxCZH94t6yoIX","total":5}
+2026-07-28T19:11:06.258Z [INFO]: [ReviewService] New reviews to process {"outletId":"ASEl4hMBxCZH94t6yoIX","fetched":5,"new":5}
+2026-07-28T19:11:08.847Z [INFO]: [WhatsApp] Alert sent to manager {"to":"+919384926154","outletName":"Freddie and Me","rating":2,"provider":"twilio"}
+2026-07-28T19:11:09.095Z [INFO]: [ReviewService] Review escalated {"outletId":"ASEl4hMBxCZH94t6yoIX","reviewId":"d36f73deff8a67bb8243efe56c275a2096178f9baee74204a260d741e384585a","rating":2}
+2026-07-28T19:11:17.855Z [INFO]: [WhatsApp] Alert sent to manager {"to":"+919384926154","outletName":"Freddie and Me","rating":2,"provider":"twilio"}
+2026-07-28T19:11:18.024Z [INFO]: [ReviewService] Review escalated {"outletId":"ASEl4hMBxCZH94t6yoIX","reviewId":"4cab370888bb2dcf2a4294ecca0b46ec1eeba6e85fdd773e938fea2fe433e853","rating":2}
+2026-07-28T19:11:27.619Z [INFO]: [GoogleService] Reply posted successfully {"outletId":"ASEl4hMBxCZH94t6yoIX","reviewName":"accounts/111487357075090273121/locations/3533097786741032230/reviews/AbFvOqnMbDv0Y4LIjBJWEGYbggCmNg6cB_eMZbuC-6lXqLTr2GHh9WN269o7xLuG8QaVuLpkpWmpTg"}
+2026-07-28T19:11:27.821Z [INFO]: [ReviewService] Positive review handled {"outletId":"ASEl4hMBxCZH94t6yoIX","reviewId":"aa535360a0a0fd35607b1cbd72cc943cd3c19cebe0d33a6bb992e7bf94ccb443","rating":5}
+2026-07-28T19:11:36.701Z [INFO]: [GoogleService] Reply posted successfully {"outletId":"ASEl4hMBxCZH94t6yoIX","reviewName":"accounts/111487357075090273121/locations/3533097786741032230/reviews/AbFvOqlz8pM5xwvHQKewUGRzDfGG2pLq4064Z9p8Qn7QCcuHmbeXoUl3h6UQpNhZ7i0Y3OhqRwCvIg"}
+2026-07-28T19:11:36.915Z [INFO]: [ReviewService] Positive review handled {"outletId":"ASEl4hMBxCZH94t6yoIX","reviewId":"71085e1c949d2f0f67892bc1973eb6a034a20114d1598ce366f7a26dc00074cb","rating":4}
+2026-07-28T19:11:46.497Z [INFO]: [GoogleService] Reply posted successfully {"outletId":"ASEl4hMBxCZH94t6yoIX","reviewName":"accounts/111487357075090273121/locations/3533097786741032230/reviews/AbFvOqkrtKNmAQZzU_6h-zUXpZ4f_EcjUrSxQDrNlEtpB8eYkxkU9OrARGpH8r1l52CC9D2aG58lKA"}
+2026-07-28T19:11:46.694Z [INFO]: [ReviewService] Positive review handled {"outletId":"ASEl4hMBxCZH94t6yoIX","reviewId":"31f93504564ae1ce5af324d661b19ca1ed400e50b31261d39f002f88b7483491","rating":5}
+2026-07-28T19:11:50.176Z [INFO]: [ReviewService] Immediate review processing complete for outlet: ASEl4hMBxCZH94t6yoIX {}
+2026-07-28T19:12:44.541Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:12:44.546Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:12:44.554Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:12:45.612Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:12:45.621Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:48.632Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:48.640Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:48.650Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:49.712Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:49.731Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:53.380Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:53.402Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:53.428Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:54.495Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:54.511Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:54.518Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:56.711Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:56.762Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:57.816Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:57.829Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:58.956Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:58.962Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:13:58.968Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:14:00.055Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:14:00.070Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:14:00.080Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
+2026-07-28T19:21:45.334Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}

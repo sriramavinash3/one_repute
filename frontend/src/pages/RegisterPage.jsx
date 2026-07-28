@@ -2,99 +2,494 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { toast } from 'sonner'
+import { motion, AnimatePresence } from 'framer-motion'
+import { CheckCircle2, ChevronRight, Store, CreditCard, Sparkles, Tag, X } from 'lucide-react'
 import { db } from '../firebase/firebase'
 import Button from '../components/ui/button'
 import Input from '../components/ui/input'
 import { useAuth } from '../contexts/AuthContext'
+import apiClient from '../services/apiClient'
+import { createSubscription, verifyPayment, loadRazorpayScript } from '../services/paymentService'
+import { fetchPlaceSuggestions, fetchPlaceDetails } from '../services/outletService'
+
+const PLANS = [
+  {
+    id: 'plan_starter',
+    name: 'Starter',
+    price: '$29',
+    description: 'Essential reputation management for single locations.',
+    features: [
+      '100 Review Responses',
+      'Google Review Auto Reply',
+      'Positive Review Replies',
+      'WhatsApp Alerts (30 min)',
+      'Basic Sentiment & Dashboard',
+      'Monthly Summary Report',
+      '1 User Access',
+      '1-Step Escalation'
+    ]
+  },
+  {
+    id: 'plan_growth',
+    name: 'Growth',
+    price: '$79',
+    description: 'For growing businesses wanting deeper insights.',
+    features: [
+      '250 Review Responses',
+      '<=2 Star AI Response',
+      'WhatsApp + Email Alerts (5 min)',
+      'Full Dashboard & Trend Insights',
+      'Low Rating Pattern Detection',
+      'Competitor Tracking (Up to 2)',
+      '2 User Access',
+      '2-Step Escalation'
+    ],
+    recommended: true
+  },
+  {
+    id: 'plan_premium',
+    name: 'Premium',
+    price: '$199',
+    description: 'Advanced analytics and premium support.',
+    features: [
+      '500 Review Responses',
+      'Priority Escalation (30 sec)',
+      'Advanced Sentiment & Dashboard',
+      'Keyword & Competitor (5) Tracking',
+      'Reply Approval Mode',
+      'Monthly Strategy Call & Premium Support',
+      '5 User Access',
+      '3-Step Escalation'
+    ]
+  }
+]
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [step, setStep] = useState(1)
+  
   const [form, setForm] = useState({
     businessName: '',
     businessType: '',
-    managerPhone: ''
+    managerPhone: '',
+    address: '',
+    placeId: '',
+    planId: 'plan_growth'
   })
 
+  const [googleConnected, setGoogleConnected] = useState(false)
+  const [gmbLocations, setGmbLocations] = useState([])
+  
+  const [discountCode, setDiscountCode] = useState('')
+  const [discountData, setDiscountData] = useState(null)
+  const [validatingDiscount, setValidatingDiscount] = useState(false)
+
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) return;
+    setValidatingDiscount(true);
+    try {
+      const { data } = await apiClient.post('/api/discounts/validate', { code: discountCode });
+      if (data.valid) {
+        setDiscountData(data.discount);
+        toast.success('Discount applied!');
+      }
+    } catch (err) {
+      setDiscountData(null);
+      toast.error(err?.response?.data?.error || 'Invalid discount code');
+    } finally {
+      setValidatingDiscount(false);
+    }
+  }
+
+  const handleRemoveDiscount = () => {
+    setDiscountCode('');
+    setDiscountData(null);
+  }
+
   useEffect(() => {
-    // If user is already set up, skip onboarding
-    if (profile?.outletId) {
+    if (profile?.outletId && profile?.isSetupComplete) {
       navigate('/outlet-dashboard')
     }
   }, [profile, navigate])
 
-  const handleSetup = async (event) => {
-    event.preventDefault()
-    if (!user || !profile) return
+  useEffect(() => {
+    const handleMessage = async (event) => {
+      if (event.data?.type === 'gmb-connected') {
+        toast.success('Google My Business connected successfully!')
+        try {
+          const { data } = await apiClient.get(`/api/auth/onboarding-session/${user.uid}`)
+          setGmbLocations(data.googleLocations || [])
+          setGoogleConnected(true)
+          if (data.googleLocations?.length === 1) {
+            handleSelectLocation(data.googleLocations[0].id, data.googleLocations)
+          }
+        } catch (error) {
+          toast.error('Failed to load locations. Please try again.')
+        }
+      } else if (event.data?.type === 'gmb-error') {
+        toast.error(`Google Connection failed: ${event.data.error}`)
+      }
+    }
 
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [user?.uid])
+
+  const handleConnectGoogle = () => {
+    const width = 500
+    const height = 600
+    const left = window.screenX + (window.outerWidth - width) / 2
+    const top = window.screenY + (window.outerHeight - height) / 2
+    
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+    const url = `${baseUrl}/api/auth/google/onboard?uid=${user.uid}`
+    
+    window.open(url, 'Connect GMB', `width=${width},height=${height},left=${left},top=${top}`)
+  }
+
+  const handleSelectLocation = (locationId, locationsArray = gmbLocations) => {
+    const loc = locationsArray.find(l => l.id === locationId)
+    setForm(prev => ({
+      ...prev,
+      placeId: locationId,
+      businessName: loc?.name || prev.businessName
+    }))
+  }
+
+  useEffect(() => {
+    if (profile?.outletId && profile?.isSetupComplete) {
+      navigate('/outlet-dashboard')
+    }
+  }, [profile, navigate])
+
+  const handleNextStep = (e) => {
+    e.preventDefault()
+    if (!googleConnected || !form.placeId) {
+      toast.error('Please connect your Google My Business account and select a location.')
+      return
+    }
+    if (step === 1 && form.businessName && form.businessType && form.managerPhone) {
+      setStep(2)
+    }
+  }
+
+  const completeSetup = async (paymentData = null, isTrial = false) => {
     setLoading(true)
     try {
-      // 1. Create the Outlet document
-      const outletRef = await addDoc(collection(db, 'outlets'), {
-        name: form.businessName,
-        businessType: form.businessType,
-        managerPhone: form.managerPhone,
-        ownerId: user.uid,
-        email: user.email,
-        isActive: true,
-        createdAt: serverTimestamp()
+      // Call backend API to bypass restrictive frontend Firestore rules
+      const { data } = await apiClient.post('/api/auth/onboard', {
+        form,
+        paymentData,
+        isTrial,
+        discountData,
+        userUid: user.uid,
+        userEmail: user.email
       })
 
-      // 2. Update the User profile
-      await updateDoc(doc(db, 'users', user.uid), {
-        businessName: form.businessName,
-        outletId: outletRef.id,
-        isSetupComplete: true,
-        updatedAt: serverTimestamp()
-      })
+      if (!data.success) {
+        throw new Error('Onboarding failed on the server.')
+      }
 
-      toast.success('Business profile created! Now connect your Google Business account.')
-      navigate('/connect-google')
+      toast.success(isTrial ? '14-Day Free Trial started!' : 'Subscription activated successfully!')
+      
+      // Reload the page to refresh AuthContext completely with the new profile data
+      window.location.href = '/outlet-dashboard'
     } catch (error) {
-      toast.error(error.message)
+      toast.error('Setup failed: ' + (error.response?.data?.error || error.message))
     } finally {
       setLoading(false)
     }
   }
 
+  const startTrial = () => {
+    completeSetup(null, true)
+  }
+
+  const handlePayment = async () => {
+    setLoading(true)
+    try {
+      const isLoaded = await loadRazorpayScript()
+      if (!isLoaded) {
+        throw new Error('Razorpay SDK failed to load. Are you online?')
+      }
+
+      // Temporary dummy customer ID for subscription creation before saving to DB
+      const tempCustomerId = 'cust_' + Date.now()
+      
+      // Call backend to create Razorpay Subscription
+      const subscription = await createSubscription(tempCustomerId, form.planId, discountData?.code)
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummy',
+        subscription_id: subscription.id,
+        name: 'One Repute',
+        description: 'Monthly Subscription',
+        handler: async function (response) {
+          try {
+            await verifyPayment(response.razorpay_payment_id, response.razorpay_signature, response.razorpay_subscription_id, tempCustomerId)
+            completeSetup(response, false)
+          } catch (err) {
+            toast.error('Payment verification failed.')
+            setLoading(false)
+          }
+        },
+        prefill: {
+          name: form.businessName,
+          email: user?.email || '',
+          contact: form.managerPhone
+        },
+        theme: {
+          color: '#4f46e5'
+        }
+      }
+
+      const rzp = new window.Razorpay(options)
+      rzp.on('payment.failed', function (response) {
+        toast.error(response.error.description)
+        setLoading(false)
+      })
+      rzp.open()
+    } catch (error) {
+      toast.error(error.message || 'Payment initiation failed')
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <div className="glass-panel w-full max-w-lg rounded-3xl p-8">
-        <h1 className="text-2xl font-semibold text-slatey-900">Finalize your setup</h1>
-        <p className="mt-2 text-sm text-slatey-500">Provide your business details to complete authorized onboarding.</p>
-        <form onSubmit={handleSetup} className="mt-6 grid gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slatey-500 ml-1">Business Name</label>
-            <Input
-              placeholder="e.g. The Grand Bistro"
-              value={form.businessName}
-              onChange={(event) => setForm({ ...form, businessName: event.target.value })}
-              required
-            />
+    <div className="flex min-h-screen bg-slatey-50 items-center justify-center p-4">
+      <div className="w-full max-w-4xl grid md:grid-cols-5 bg-white rounded-3xl shadow-2xl overflow-hidden border border-slatey-100">
+        
+        {/* Left Sidebar Steps */}
+        <div className="hidden md:block col-span-2 bg-brand-600 p-8 text-white relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+          <h2 className="text-2xl font-bold relative z-10 flex items-center gap-2">
+            <Sparkles className="h-6 w-6 text-brand-100" />
+            One Repute
+          </h2>
+          <p className="text-brand-100 mt-2 text-sm relative z-10">Set up your workspace in minutes.</p>
+          
+          <div className="mt-12 space-y-8 relative z-10">
+            <div className={`flex items-start gap-4 transition-opacity ${step === 1 ? 'opacity-100' : 'opacity-50'}`}>
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${step === 1 ? 'border-white bg-brand-500 text-white' : 'border-brand-400 text-brand-200'}`}>1</div>
+              <div>
+                <h3 className="font-semibold">Business Details</h3>
+                <p className="text-xs text-brand-100 mt-1">Basic information</p>
+              </div>
+            </div>
+            <div className={`flex items-start gap-4 transition-opacity ${step === 2 ? 'opacity-100' : 'opacity-50'}`}>
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${step === 2 ? 'border-white bg-brand-500 text-white' : 'border-brand-400 text-brand-200'}`}>2</div>
+              <div>
+                <h3 className="font-semibold">Select Plan</h3>
+                <p className="text-xs text-brand-100 mt-1">Start your 14-day free trial</p>
+              </div>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slatey-500 ml-1">Business Type</label>
-            <Input
-              placeholder="e.g. Fine Dining"
-              value={form.businessType}
-              onChange={(event) => setForm({ ...form, businessType: event.target.value })}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slatey-500 ml-1">Manager WhatsApp Number</label>
-            <Input
-              placeholder="e.g. +1234567890"
-              value={form.managerPhone}
-              onChange={(event) => setForm({ ...form, managerPhone: event.target.value })}
-              required
-            />
-          </div>
-          <Button type="submit" size="lg" className="mt-4" disabled={loading}>
-            {loading ? 'Saving details...' : 'Complete Onboarding'}
-          </Button>
-        </form>
+        </div>
+
+        {/* Right Content Area */}
+        <div className="col-span-3 p-8 md:p-12 relative">
+          <AnimatePresence mode="wait">
+            
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full flex flex-col justify-center"
+              >
+                <div>
+                  <h1 className="text-2xl font-bold text-slatey-900">Tell us about your business</h1>
+                  <p className="mt-2 text-sm text-slatey-500">We'll tailor your AI models based on these details.</p>
+                </div>
+                
+                <form onSubmit={handleNextStep} className="mt-8 space-y-5">
+                  {!googleConnected ? (
+                    <div className="space-y-3 rounded-2xl border border-slatey-200 bg-slatey-50 p-5 text-center">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
+                        <Store className="h-6 w-6 text-brand-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-slatey-800">Connect Google My Business</h3>
+                        <p className="mt-1 text-xs text-slatey-500">Sign in to fetch your business locations and start replying to reviews.</p>
+                      </div>
+                      <Button type="button" onClick={handleConnectGoogle} className="w-full shadow-brand mt-2">
+                        Sign in with Google
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slatey-700 ml-1">Select Business Location</label>
+                      {gmbLocations.length > 0 ? (
+                        <select
+                          className="w-full h-12 rounded-xl border border-slatey-200 bg-slatey-50 px-4 text-sm text-slatey-700 outline-none transition focus:border-brand-400 focus:bg-white"
+                          value={form.placeId}
+                          onChange={(e) => handleSelectLocation(e.target.value)}
+                          required
+                        >
+                          <option value="" disabled>-- Select a location --</option>
+                          {gmbLocations.map(loc => (
+                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                          No locations found in this Google Account. Please ensure you manage a Google Business Profile.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {!googleConnected && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slatey-700 ml-1">Business Name</label>
+                      <Input
+                        placeholder="e.g. The Grand Bistro"
+                        value={form.businessName}
+                        onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                        required
+                        className="h-12 bg-slatey-50"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slatey-700 ml-1">Business Category</label>
+                    <Input
+                      placeholder="e.g. Fine Dining, Cafe, Fast Food"
+                      value={form.businessType}
+                      onChange={(e) => setForm({ ...form, businessType: e.target.value })}
+                      required
+                      className="h-12 bg-slatey-50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slatey-700 ml-1">Manager WhatsApp Number</label>
+                    <Input
+                      type="tel"
+                      pattern="^\+[1-9]\d{1,14}$"
+                      title="Please include your country code (e.g. +1234567890)"
+                      placeholder="e.g. +1234567890"
+                      value={form.managerPhone}
+                      onChange={(e) => setForm({ ...form, managerPhone: e.target.value })}
+                      required
+                      className="h-12 bg-slatey-50"
+                    />
+                    <p className="text-[10px] text-slatey-400 ml-1">Used for critical escalation alerts. Must include country code (e.g., +1).</p>
+                  </div>
+                  
+                  <div className="pt-4">
+                    <Button type="submit" size="lg" className="w-full flex items-center justify-center gap-2">
+                      Continue <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <div>
+                  <h1 className="text-2xl font-bold text-slatey-900">Choose your plan</h1>
+                  <p className="mt-2 text-sm text-slatey-500">Start with a 14-day free trial. No credit card required.</p>
+                </div>
+                
+                <div className="mt-6 space-y-4">
+                  {PLANS.map(plan => (
+                    <div 
+                      key={plan.id}
+                      onClick={() => setForm({...form, planId: plan.id})}
+                      className={`relative cursor-pointer rounded-2xl border-2 p-5 transition-all ${
+                        form.planId === plan.id 
+                          ? 'border-brand-500 bg-brand-50 shadow-md shadow-brand-100/50' 
+                          : 'border-slatey-200 hover:border-brand-300 hover:bg-slatey-50'
+                      }`}
+                    >
+                      {plan.recommended && (
+                        <span className="absolute -top-3 left-4 bg-brand-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          Recommended
+                        </span>
+                      )}
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-bold text-slatey-900 text-lg">{plan.name}</h3>
+                          <p className="text-xs text-slatey-500 mt-1">{plan.description}</p>
+                        </div>
+                        <div className="text-right">
+                          {discountData && form.planId === plan.id ? (
+                            <div className="flex flex-col items-end">
+                              <span className="text-sm font-bold text-slatey-400 line-through">{plan.price}</span>
+                              <span className="text-xl font-bold text-brand-600">
+                                {discountData.type === 'Percentage' 
+                                  ? `$${(Number(plan.price.replace('$','')) * (1 - discountData.value / 100)).toFixed(2)}`
+                                  : `$${Math.max(0, Number(plan.price.replace('$','')) - discountData.value).toFixed(2)}`}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xl font-bold text-brand-600">{plan.price}</span>
+                          )}
+                          <span className="text-xs text-slatey-500">/mo</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-6 p-4 rounded-xl border border-slatey-200 bg-slatey-50 flex flex-col gap-3">
+                  <label className="text-xs font-semibold text-slatey-700">Have a discount code?</label>
+                  {!discountData ? (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slatey-400" />
+                        <Input 
+                          placeholder="Enter code" 
+                          value={discountCode} 
+                          onChange={(e) => setDiscountCode(e.target.value)} 
+                          className="pl-9 h-10 bg-white"
+                        />
+                      </div>
+                      <Button variant="outline" size="sm" onClick={handleApplyDiscount} disabled={validatingDiscount || !discountCode.trim()} className="h-10">
+                        {validatingDiscount ? 'Validating...' : 'Apply'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <span className="text-sm font-bold text-emerald-800">{discountData.code} Applied</span>
+                        <span className="text-xs font-medium text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">
+                          {discountData.type === 'Percentage' ? `${discountData.value}% OFF` : `$${discountData.value} OFF`}
+                        </span>
+                      </div>
+                      <button onClick={handleRemoveDiscount} className="text-emerald-700 hover:text-emerald-900 p-1">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-8 flex flex-col gap-3">
+                  <Button size="lg" className="w-full shadow-brand text-md" onClick={startTrial} disabled={loading}>
+                    {loading ? 'Processing...' : 'Start 14-Day Free Trial'}
+                  </Button>
+                  <Button variant="outline" className="w-full text-slatey-500 flex items-center justify-center gap-2" onClick={handlePayment} disabled={loading}>
+                    <CreditCard className="h-4 w-4" /> Skip trial & Pay Now
+                  </Button>
+                  <button onClick={() => setStep(1)} className="text-xs text-center text-slatey-400 hover:text-slatey-700 mt-2 font-medium">
+                    Back to details
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )

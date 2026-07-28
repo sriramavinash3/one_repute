@@ -63,24 +63,21 @@ function createOAuthClient(outlet) {
 async function fetchReviews(outlet) {
   const auth = createOAuthClient(outlet);
 
-  // Use the mybusinessreviews API v1 (newer endpoint)
-  const mybusiness = google.mybusinessreviews({
-    version: 'v1',
-    auth,
-  });
-
   const allReviews = [];
   let nextPageToken = undefined;
-  const locationName = `locations/${outlet.googleLocationId}`;
+  const locationName = `accounts/${outlet.googleAccountId}/locations/${outlet.googleLocationId}`;
 
   do {
     const response = await handleQuotaErrors(
       async () => {
-        const res = await mybusiness.locations.reviews.list({
-          parent: locationName,
-          pageSize: 50,
-          pageToken: nextPageToken,
-          orderBy: 'updateTime desc',
+        const res = await auth.request({
+          url: `https://mybusiness.googleapis.com/v4/${locationName}/reviews`,
+          method: 'GET',
+          params: {
+            pageSize: 50,
+            pageToken: nextPageToken,
+            orderBy: 'updateTime desc',
+          },
         });
         return res.data;
       },
@@ -126,16 +123,12 @@ async function fetchReviews(outlet) {
 async function postReply(outlet, reviewResourceName, replyText) {
   const auth = createOAuthClient(outlet);
 
-  const mybusiness = google.mybusinessreviews({
-    version: 'v1',
-    auth,
-  });
-
   await handleQuotaErrors(
     async () => {
-      await mybusiness.locations.reviews.updateReply({
-        name: reviewResourceName,
-        requestBody: {
+      await auth.request({
+        url: `https://mybusiness.googleapis.com/v4/${reviewResourceName}/reply`,
+        method: 'PUT',
+        data: {
           comment: replyText,
         },
       });

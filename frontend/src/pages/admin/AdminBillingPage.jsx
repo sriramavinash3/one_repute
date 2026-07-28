@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { motion } from 'framer-motion'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../../firebase/firebase'
+import apiClient from '../../services/apiClient'
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -16,27 +17,48 @@ const fadeUp = {
 
 
 export default function AdminBillingPage() {
-  const [activeOutlets, setActiveOutlets] = useState(0)
-  const [totalOutlets, setTotalOutlets] = useState(0)
+  const [activeCustomers, setActiveCustomers] = useState(0)
+  const [totalCustomers, setTotalCustomers] = useState(0)
   const [loading, setLoading] = useState(true)
-  const costPerOutlet = Number(import.meta.env.VITE_COST_PER_OUTLET || 0)
   const [error, setError] = useState('')
-
+  const [totalRevenue, setTotalRevenue] = useState(0)
+  const [potentialRevenue, setPotentialRevenue] = useState(0)
   const [trendData, setTrendData] = useState([])
 
+  const PLAN_PRICES = {
+    plan_starter: 29,
+    plan_growth: 79,
+    plan_premium: 199
+  }
+
   useEffect(() => {
-    async function fetchOutletStats() {
+    async function fetchBillingStats() {
       setLoading(true)
       setError('')
       try {
-        // Fetch active outlets
-        const activeQ = query(collection(db, 'outlets'), where('isActive', '==', true))
-        const activeSnap = await getDocs(activeQ)
-        setActiveOutlets(activeSnap.size)
+        const { data } = await apiClient.get('/api/admin/customers')
+        const allCustomers = Array.isArray(data) ? data : (data.customers || [])
+        
+        let activeCount = 0
+        let currentRev = 0
+        let potentialRev = 0
 
-        // Fetch total outlets
-        const allSnap = await getDocs(collection(db, 'outlets'))
-        setTotalOutlets(allSnap.size)
+        allCustomers.forEach(cust => {
+          const price = PLAN_PRICES[cust.plan] || 0
+          potentialRev += price
+          
+          if (cust.subscriptionStatus === 'active' || cust.subscriptionStatus === 'trialing') {
+            activeCount++
+            if (cust.subscriptionStatus === 'active') {
+              currentRev += price
+            }
+          }
+        })
+
+        setActiveCustomers(activeCount)
+        setTotalCustomers(allCustomers.length)
+        setTotalRevenue(currentRev)
+        setPotentialRevenue(potentialRev)
 
         // Trend analytics: group by month for last 12 months
         const now = new Date()
@@ -47,33 +69,38 @@ export default function AdminBillingPage() {
             key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
             label: d.toLocaleString('default', { month: 'short', year: '2-digit' }),
             active: 0,
-            total: 0
+            total: 0,
+            revenue: 0
           })
         }
-        allSnap.forEach(doc => {
-          const data = doc.data()
-          const created = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : null)
+        
+        allCustomers.forEach(cust => {
+          const created = cust.createdAt ? new Date(cust.createdAt) : null
           if (!created) return
           const key = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}`
           const idx = months.findIndex(m => m.key === key)
           if (idx !== -1) {
             months[idx].total += 1
-            if (data.isActive) months[idx].active += 1
+            if (cust.subscriptionStatus === 'active' || cust.subscriptionStatus === 'trialing') {
+              months[idx].active += 1
+            }
+            if (cust.subscriptionStatus === 'active') {
+              months[idx].revenue += (PLAN_PRICES[cust.plan] || 0)
+            }
           }
         })
         setTrendData(months)
       } catch (err) {
-        setError('Failed to fetch outlets')
+        console.error('Billing fetch error:', err)
+        setError('Failed to fetch billing data')
       } finally {
         setLoading(false)
       }
     }
-    fetchOutletStats()
+    fetchBillingStats()
   }, [])
 
-  const inactiveOutlets = totalOutlets - activeOutlets
-  const totalRevenue = activeOutlets * costPerOutlet
-  const potentialRevenue = totalOutlets * costPerOutlet
+  const inactiveCustomers = totalCustomers - activeCustomers
 
   return (
     <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
@@ -90,28 +117,30 @@ export default function AdminBillingPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-xl bg-white dark:bg-slatey-900/40 p-6 shadow border border-slatey-100 dark:border-slatey-800">
-              <div className="text-3xl font-bold text-brand-600">{activeOutlets}</div>
-              <div className="text-slatey-500 text-sm mt-1">Active Outlets</div>
+              <div className="text-3xl font-bold text-brand-600">{activeCustomers}</div>
+              <div className="text-slatey-500 text-sm mt-1">Active Customers</div>
             </div>
             <div className="rounded-xl bg-white dark:bg-slatey-900/40 p-6 shadow border border-slatey-100 dark:border-slatey-800">
-              <div className="text-3xl font-bold text-slatey-700 dark:text-slatey-200">{totalOutlets}</div>
-              <div className="text-slatey-500 text-sm mt-1">Total Outlets</div>
+              <div className="text-3xl font-bold text-slatey-700 dark:text-slatey-200">{totalCustomers}</div>
+              <div className="text-slatey-500 text-sm mt-1">Total Customers</div>
             </div>
             <div className="rounded-xl bg-white dark:bg-slatey-900/40 p-6 shadow border border-slatey-100 dark:border-slatey-800">
-              <div className="text-3xl font-bold text-amber-600">{inactiveOutlets}</div>
-              <div className="text-slatey-500 text-sm mt-1">Inactive Outlets</div>
+              <div className="text-3xl font-bold text-amber-600">{inactiveCustomers}</div>
+              <div className="text-slatey-500 text-sm mt-1">Inactive Customers</div>
             </div>
             <div className="rounded-xl bg-white dark:bg-slatey-900/40 p-6 shadow border border-slatey-100 dark:border-slatey-800">
-              <div className="text-3xl font-bold text-emerald-600">₹{totalRevenue.toLocaleString()}</div>
-              <div className="text-slatey-500 text-sm mt-1">Total Revenue (Cash)</div>
+              <div className="text-3xl font-bold text-emerald-600">${totalRevenue.toLocaleString()}</div>
+              <div className="text-slatey-500 text-sm mt-1">Monthly Recurring Revenue (MRR)</div>
             </div>
             <div className="rounded-xl bg-white dark:bg-slatey-900/40 p-6 shadow border border-slatey-100 dark:border-slatey-800">
-              <div className="text-3xl font-bold text-blue-600">₹{potentialRevenue.toLocaleString()}</div>
-              <div className="text-slatey-500 text-sm mt-1">Potential Revenue (if all active)</div>
+              <div className="text-3xl font-bold text-blue-600">${potentialRevenue.toLocaleString()}</div>
+              <div className="text-slatey-500 text-sm mt-1">Potential MRR (if all active)</div>
             </div>
             <div className="rounded-xl bg-white dark:bg-slatey-900/40 p-6 shadow border border-slatey-100 dark:border-slatey-800">
-              <div className="text-3xl font-bold text-slatey-700 dark:text-slatey-200">₹{costPerOutlet}</div>
-              <div className="text-slatey-500 text-sm mt-1">Cost Per Outlet</div>
+              <div className="text-3xl font-bold text-slatey-700 dark:text-slatey-200">
+                ${totalCustomers > 0 ? Math.round(totalRevenue / totalCustomers).toLocaleString() : 0}
+              </div>
+              <div className="text-slatey-500 text-sm mt-1">ARPU (Avg Revenue Per User)</div>
             </div>
           </div>
         )}
@@ -120,16 +149,17 @@ export default function AdminBillingPage() {
          {/* Trend Graph */}
         {!loading && !error && trendData.length > 0 && (
           <div className="bg-white dark:bg-slatey-900/40 rounded-xl p-6 mb-8 border border-slatey-100 dark:border-slatey-800">
-            <h3 className="font-semibold mb-4 text-slatey-800 dark:text-slatey-100">Yearly Trend (Active Outlets & Revenue)</h3>
+            <h3 className="font-semibold mb-4 text-slatey-800 dark:text-slatey-100">Yearly Trend (Active Customers & Revenue)</h3>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={trendData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" />
-                <YAxis />
-                <Tooltip formatter={(value, name) => name === 'revenue' ? `₹${value}` : value} />
+                <YAxis yAxisId="left" />
+                <YAxis yAxisId="right" orientation="right" />
+                <Tooltip formatter={(value, name) => name === 'Revenue' ? `$${value}` : value} />
                 <Legend />
-                <Line type="monotone" dataKey="active" stroke="#10b981" name="Active Outlets" strokeWidth={2} />
-                <Line type="monotone" dataKey={d => d.active * costPerOutlet} stroke="#6366f1" name="Revenue" strokeWidth={2} dot={false} legendType="rect" />
+                <Line yAxisId="left" type="monotone" dataKey="active" stroke="#10b981" name="Active Customers" strokeWidth={2} />
+                <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#6366f1" name="Revenue" strokeWidth={2} dot={false} legendType="rect" />
               </LineChart>
             </ResponsiveContainer>
           </div>

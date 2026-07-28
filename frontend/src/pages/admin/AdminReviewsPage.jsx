@@ -10,6 +10,8 @@ import Skeleton from '../../components/feedback/Skeleton'
 import EmptyState from '../../components/feedback/EmptyState'
 import { fetchReviews } from '../../services/reviewService'
 import { fetchAdminOutlets } from '../../services/outletService'
+import { USE_MOCK_DATA } from '../../config/env'
+import { MOCK_CUSTOMERS, MOCK_OUTLETS, MOCK_REVIEWS } from '../../config/mockData'
 import { formatTimestamp } from '../../utils/format'
 import { Link } from 'react-router-dom'
 
@@ -27,20 +29,40 @@ const item = {
 export default function AdminReviewsPage() {
   const [query, setQuery] = useState('')
   const [ratingFilter, setRatingFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState('all')
+  const [industryFilter, setIndustryFilter] = useState('all')
+  const [selectedOutlets, setSelectedOutlets] = useState([])
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
 
   const { data: reviewsPayload, isLoading } = useQuery({
-    queryKey: ['admin-reviews', page, ratingFilter, query],
-    queryFn: () => fetchReviews({ page, limit, rating: ratingFilter, search: query })
+    queryKey: ['admin-reviews'],
+    queryFn: async () => {
+      if (USE_MOCK_DATA) return { reviews: MOCK_REVIEWS, total: MOCK_REVIEWS.length }
+      return fetchReviews({ limit: 100 })
+    }
   })
 
-  const reviews = reviewsPayload?.data || []
+  const reviews = reviewsPayload?.reviews || reviewsPayload?.data || []
   const pagination = reviewsPayload?.pagination || { total: 0, page: 1, limit: 10, totalPages: 1 }
 
   const { data: outletPayload } = useQuery({
     queryKey: ['admin-outlets'],
-    queryFn: fetchAdminOutlets
+    queryFn: async () => {
+      if (USE_MOCK_DATA) return { outlets: MOCK_OUTLETS, total: MOCK_OUTLETS.length }
+      return fetchAdminOutlets()
+    }
+  })
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ['admin-customers'],
+    queryFn: async () => {
+      if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
+      const { collection, getDocs } = await import('firebase/firestore')
+      const { db } = await import('../../firebase/firebase')
+      const snap = await getDocs(collection(db, 'customers'))
+      return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    }
   })
 
   const outletMap = useMemo(() => {
@@ -48,7 +70,39 @@ export default function AdminReviewsPage() {
     return new Map(list.map((outlet) => [outlet.id, outlet]))
   }, [outletPayload])
 
-  const filtered = reviews
+  const industries = useMemo(() => {
+    const set = new Set()
+    customers.forEach(c => set.add(c.industry || 'General'))
+    return Array.from(set).sort()
+  }, [customers])
+
+  const filtered = useMemo(() => {
+    return reviews.filter(review => {
+      const outlet = outletMap.get(review.outletId) || {}
+      const customer = customers.find(c => c.id === outlet.customerId) || {}
+      
+      const textMatch = review.text?.toLowerCase().includes(query.toLowerCase()) || 
+                       customer.name?.toLowerCase().includes(query.toLowerCase()) ||
+                       outlet.name?.toLowerCase().includes(query.toLowerCase()) ||
+                       review.id.toLowerCase().includes(query.toLowerCase())
+
+      const ratingMatch = ratingFilter === 'all' || review.rating.toString() === ratingFilter
+
+      let dateMatch = true
+      if (dateFilter !== 'all') {
+        const ts = (review.reviewTimestamp || review.createdAt)?.seconds * 1000 || Date.now()
+        const now = Date.now()
+        const days = parseInt(dateFilter)
+        dateMatch = now - ts <= days * 86400000
+      }
+
+      const indMatch = industryFilter === 'all' || (customer.industry || 'General') === industryFilter
+
+      const outMatch = selectedOutlets.length === 0 || selectedOutlets.includes('all') || selectedOutlets.includes(review.outletId)
+
+      return textMatch && ratingMatch && dateMatch && indMatch && outMatch
+    })
+  }, [reviews, query, ratingFilter, dateFilter, industryFilter, selectedOutlets, outletMap, customers])
 
   const handleQueryChange = (val) => {
     setQuery(val)
@@ -90,7 +144,27 @@ export default function AdminReviewsPage() {
               onChange={(e) => handleQueryChange(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <select 
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 outline-none focus:border-brand-400"
+              value={dateFilter}
+              onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
+            >
+              <option value="all">All Dates</option>
+              <option value="7">Last 7 Days</option>
+              <option value="30">Last 30 Days</option>
+              <option value="90">Last 90 Days</option>
+            </select>
+
+            <select 
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 outline-none focus:border-brand-400"
+              value={industryFilter}
+              onChange={(e) => { setIndustryFilter(e.target.value); setPage(1); }}
+            >
+              <option value="all">All Industries</option>
+              {industries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+            </select>
+
             <select 
               className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 outline-none focus:border-brand-400"
               value={ratingFilter}
@@ -103,6 +177,53 @@ export default function AdminReviewsPage() {
               <option value="2">2 Stars</option>
               <option value="1">1 Star</option>
             </select>
+
+            <div className="relative group">
+              <select 
+                multiple
+                className="hidden peer"
+                value={selectedOutlets}
+                onChange={(e) => {
+                  const opts = Array.from(e.target.selectedOptions, o => o.value)
+                  setSelectedOutlets(opts)
+                  setPage(1)
+                }}
+              >
+                <option value="all">All Outlets</option>
+                {outletPayload?.outlets?.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+              <div className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-xs font-medium text-slatey-600 cursor-pointer hover:border-brand-400 min-w-[120px]">
+                {selectedOutlets.length === 0 || selectedOutlets.includes('all') 
+                  ? 'All Outlets' 
+                  : `${selectedOutlets.length} Outlets Selected`}
+              </div>
+              <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-50 bg-white border border-slatey-200 rounded-xl shadow-lg p-2 max-h-48 overflow-y-auto w-48">
+                <label className="flex items-center gap-2 p-1 text-xs text-slatey-700 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedOutlets.includes('all') || selectedOutlets.length === 0} 
+                    onChange={() => { setSelectedOutlets(['all']); setPage(1); }}
+                  /> 
+                  All Outlets
+                </label>
+                {outletPayload?.outlets?.map(o => (
+                  <label key={o.id} className="flex items-center gap-2 p-1 text-xs text-slatey-700 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedOutlets.includes(o.id)} 
+                      onChange={(e) => {
+                        let newOpts = selectedOutlets.filter(v => v !== 'all')
+                        if (e.target.checked) newOpts.push(o.id)
+                        else newOpts = newOpts.filter(v => v !== o.id)
+                        setSelectedOutlets(newOpts)
+                        setPage(1)
+                      }}
+                    /> 
+                    {o.name}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </Card>
@@ -115,90 +236,81 @@ export default function AdminReviewsPage() {
             ))}
           </div>
         ) : (
-          <AnimatePresence mode="popLayout">
-            {filtered.map((review) => {
-              const outletName = outletMap.get(review.outletId)?.name || 'Unknown Outlet'
-              const aiHandled = Boolean(review.aiResponse)
-              const status = review.status === 'reply_pending' ? 'suggested' : review.status
-              return (
-            <motion.div
-              key={review.id}
-              variants={item}
-              layout
-              className="group rounded-2xl border border-slatey-100 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-brand-100"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slatey-50 text-slatey-400 group-hover:bg-brand-50 group-hover:text-brand-600 transition-colors">
-                    <MessageSquare className="h-5 w-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slatey-900">{review.customerName || 'Customer'}</span>
-                      <span className="text-slatey-300">·</span>
-                      <div className="flex items-center gap-1 text-xs font-semibold text-brand-600">
-                        <Store className="h-3.5 w-3.5" />
-                        {outletName}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-slatey-400">
-                      <div className="flex items-center gap-0.5">
-                        {[1,2,3,4,5].map(n => (
-                          <Star key={n} className={`h-3 w-3 ${n <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-slatey-100'}`} />
-                        ))}
-                      </div>
-                      <span>·</span>
-                      <Clock className="h-3 w-3" />
-                      <span>{formatTimestamp(review.reviewTimestamp || review.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {aiHandled && (
-                    <div className="flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-[10px] font-bold text-brand-600">
-                      <CheckCircle2 className="h-3 w-3" />
-                      AI Managed
-                    </div>
-                  )}
-                  <StatusBadge status={status} />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="rounded-lg p-1.5 text-slatey-400 hover:bg-slatey-50">
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="gap-2">
-                        {review.reviewUrl ? (
-                          <a
-                            href={review.reviewUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-3 inline-flex  gap-1.5  transition hover:bg-brand-100"
-                          >
-                            <ExternalLink className="h-4 w-4" /> View on Google
-                          </a>
-                        ) : null}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
-                        <Link to={`/admin-dashboard/outlets/${review.outletId}`} className="flex items-center gap-2">
-                          {/* <ExternalLink className="h-4 w-4" /> View Details */}
-                          <Store className="h-4 w-4" /> View Outlet
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-              <div className="mt-4 pl-14">
-                <p className="text-sm text-slatey-600 leading-relaxed">
-                  {review.text}
-                </p>
-              </div>
-            </motion.div>
-              )
-            })}
-          </AnimatePresence>
+          <div className="overflow-hidden rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40 overflow-x-auto">
+            <table className="w-full border-collapse text-left text-sm whitespace-nowrap">
+              <thead className="bg-slatey-50/80 text-xs font-medium uppercase tracking-wider text-slatey-500 dark:bg-slatey-900 dark:text-slatey-400">
+                <tr>
+                  <th className="px-4 py-3">Customer & Outlet</th>
+                  <th className="px-4 py-3">Rating & Content</th>
+                  <th className="px-4 py-3">Timestamp & Platform</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Link</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slatey-100 dark:divide-slatey-800/50">
+                <AnimatePresence mode="popLayout">
+                  {filtered.map((review) => {
+                    const outlet = outletMap.get(review.outletId) || {}
+                    const customer = customers.find(c => c.id === outlet.customerId) || {}
+                    const aiHandled = Boolean(review.aiResponse)
+                    const status = review.status === 'reply_pending' ? 'suggested' : review.status
+                    return (
+                      <motion.tr
+                        key={review.id}
+                        variants={item}
+                        layout
+                        className="group transition-colors hover:bg-slatey-50/50 dark:hover:bg-slatey-800/30"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slatey-900 dark:text-slatey-100">{customer.name || 'Unknown'}</span>
+                            <span className="text-xs text-brand-600 dark:text-brand-400 mt-0.5">{outlet.name || 'Unknown'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 max-w-[300px]" title={review.text}>
+                          <div className="flex items-center gap-1 mb-1">
+                            {[1,2,3,4,5].map(n => (
+                              <Star key={n} className={`h-3 w-3 ${n <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-slatey-100 dark:text-slatey-800'}`} />
+                            ))}
+                          </div>
+                          <p className="text-xs text-slatey-600 dark:text-slatey-300 truncate mb-1">{review.text}</p>
+                          {review.aiResponse && (
+                            <p className="text-[11px] text-slatey-500 italic truncate border-l-2 border-brand-200 pl-1.5 mt-1 bg-slatey-50 p-1 rounded-r">Resp: {review.aiResponse}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="text-xs text-slatey-600 dark:text-slatey-400">
+                              {formatTimestamp(review.reviewTimestamp || review.createdAt)}
+                            </span>
+                            <span className="text-[11px] bg-slatey-100 text-slatey-600 px-1.5 py-0.5 rounded mt-1 w-fit">
+                              {review.providerType || 'Google'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="text-[11px] bg-slatey-100 text-slatey-700 px-2 py-0.5 rounded font-medium">
+                              {status === 'replied' ? 'Auto replied' : status === 'escalated' ? 'Whatsapp triggered' : status === 'ignored' ? 'Ignored' : status}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {review.reviewUrl ? (
+                            <a href={review.reviewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 transition">
+                              <ExternalLink className="h-3 w-3" /> View original
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slatey-400">N/A</span>
+                          )}
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
+                </AnimatePresence>
+              </tbody>
+            </table>
+          </div>
         )}
 
         {!isLoading && filtered.length === 0 && (

@@ -18,7 +18,12 @@ const AdminAnalyticsPage = lazy(() => import('../pages/admin/AdminAnalyticsPage'
 const AdminLogsPage = lazy(() => import('../pages/admin/AdminLogsPage'))
 const AdminLogDetailPage = lazy(() => import('../pages/admin/AdminLogDetailPage'))
 const AdminBillingPage = lazy(() => import('../pages/admin/AdminBillingPage'))
-
+const AdminCustomersPage = lazy(() => import('../pages/admin/AdminCustomersPage'))
+const AdminTicketsPage = lazy(() => import('../pages/admin/AdminTicketsPage'))
+const AdminDiscountsPage = lazy(() => import('../pages/admin/AdminDiscountsPage'))
+const AdminReportsPage = lazy(() => import('../pages/admin/AdminReportsPage'))
+const AdminUsagePage = lazy(() => import('../pages/admin/AdminUsagePage'))
+const AdminIntelligencePage = lazy(() => import('../pages/admin/AdminIntelligencePage'))
 
 const OutletDashboardPage = lazy(() => import('../pages/outlet/OutletDashboardPage'))
 const OutletReviewsPage = lazy(() => import('../pages/outlet/OutletReviewsPage'))
@@ -26,6 +31,7 @@ const OutletAnalyticsPage = lazy(() => import('../pages/outlet/OutletAnalyticsPa
 const OutletEscalationsPage = lazy(() => import('../pages/outlet/OutletEscalationsPage'))
 const OutletGooglePage = lazy(() => import('../pages/outlet/OutletGooglePage'))
 const OutletSettingsPage = lazy(() => import('../pages/outlet/OutletSettingsPage'))
+const OutletReputationPage = lazy(() => import('../pages/outlet/OutletReputationPage'))
 
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
 
@@ -56,6 +62,12 @@ export default function AppRouter() {
             <Route path="ai-logs" element={<AdminLogsPage />} />
             <Route path="ai-logs/:id" element={<AdminLogDetailPage />} />
             <Route path="billing" element={<AdminBillingPage />} />
+            <Route path="customers" element={<AdminCustomersPage />} />
+            <Route path="tickets" element={<AdminTicketsPage />} />
+            <Route path="discounts" element={<AdminDiscountsPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="usage" element={<AdminUsagePage />} />
+            <Route path="intelligence" element={<AdminIntelligencePage />} />
           </Route>
 
           <Route
@@ -70,6 +82,7 @@ export default function AppRouter() {
             <Route path="reviews" element={<OutletReviewsPage />} />
             <Route path="escalations" element={<OutletEscalationsPage />} />
             <Route path="analytics" element={<OutletAnalyticsPage />} />
+            <Route path="reputation" element={<OutletReputationPage />} />
             {/* Google connection page removed for scraper-only architecture */}
             <Route path="settings" element={<OutletSettingsPage />} />
           </Route>
