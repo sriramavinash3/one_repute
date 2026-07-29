@@ -2654,3 +2654,9 @@
 2026-07-28T19:14:00.070Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
 2026-07-28T19:14:00.080Z [WARN]: [AuthMiddleware] Access denied {"uid":"910d3BZ14CSEwGZ9p53svV2Tgh52","role":"admin","required":["SUPER_ADMIN"]}
 2026-07-28T19:21:45.334Z [INFO]: [Server] Received SIGINT — graceful shutdown initiated {}
+2026-07-29T14:31:36.859Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-07-29T14:31:44.733Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-07-29T14:31:44.737Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-07-29T14:31:44.739Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-07-29T14:31:44.739Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-07-29T14:31:44.743Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
