@@ -54,7 +54,10 @@ const requireRole = (allowedRoles) => {
       return res.status(403).json({ error: 'Forbidden: No role assigned' });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    const userRole = String(req.user.role).toUpperCase();
+    const normalizedAllowed = allowedRoles.map((r) => String(r).toUpperCase());
+
+    if (!normalizedAllowed.includes(userRole)) {
       logger.warn('[AuthMiddleware] Access denied', { uid: req.user.uid, role: req.user.role, required: allowedRoles });
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
     }

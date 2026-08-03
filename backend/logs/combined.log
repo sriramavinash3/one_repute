@@ -2674,3 +2674,10 @@
 2026-08-03T18:39:55.766Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
 2026-08-03T18:39:55.766Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
 2026-08-03T18:39:55.767Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"development"}
+2026-08-03T20:46:39.357Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-03T20:47:52.179Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-03T20:47:53.009Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-08-03T20:47:53.010Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-08-03T20:47:53.011Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-08-03T20:47:53.011Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-08-03T20:47:53.012Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}

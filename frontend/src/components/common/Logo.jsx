@@ -4,7 +4,7 @@ import logoAsset from '../../assets/logo.png'
 export default function Logo({
   className = '',
   size = 'md',
-  showText = true,
+  showText = false,
   subtitle = null,
   to = '/',
   clickable = true
@@ -19,17 +19,19 @@ export default function Logo({
   const imageSize = sizeClasses[size] || sizeClasses.md
 
   const content = (
-    <div className={`inline-flex items-center gap-3 ${className}`}>
+    <div className={`inline-flex items-center gap-2.5 ${className}`}>
       <img
         src={logoAsset}
         alt="One Repute Logo"
         className={`${imageSize} w-auto object-contain shrink-0`}
       />
-      {showText && (
-        <div className="flex flex-col">
-          <span className="text-xl font-extrabold tracking-tight text-slatey-900 dark:text-white leading-none">
-            One Repute
-          </span>
+      {(showText || subtitle) && (
+        <div className="flex flex-col justify-center">
+          {showText && (
+            <span className="text-xl font-extrabold tracking-tight text-slatey-900 dark:text-white leading-none">
+              One Repute
+            </span>
+          )}
           {subtitle && (
             <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 leading-tight mt-0.5">
               {subtitle}

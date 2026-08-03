@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Filter, Plus, Search, MoreVertical, ExternalLink, ShieldAlert, CheckCircle2, XCircle, X } from 'lucide-react'
+import { Plus, Search, MoreVertical, ExternalLink, ShieldAlert, CheckCircle2, XCircle, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import Button from '../../components/ui/button'
 import Input from '../../components/ui/input'
-import StatusBadge from '../../components/feedback/StatusBadge'
 import { fetchAdminOutlets, toggleAdminOutletStatus, createAdminOutlet, fetchPlaceDetails, fetchPlaceSuggestions } from '../../services/outletService'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_CUSTOMERS, MOCK_OUTLETS } from '../../config/mockData'
@@ -14,7 +13,6 @@ import { DialogContent, DialogDescription, DialogRoot, DialogTitle } from '../..
 import Skeleton from '../../components/feedback/Skeleton'
 import { Card } from '../../components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu'
-import { formatTimestamp } from '../../utils/format'
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -97,7 +95,6 @@ export default function AdminOutletsPage() {
 
     const query = newOutlet.placeSearch.trim()
     if (query.length < 3) {
-      setPlaceSuggestions([])
       return
     }
 
@@ -200,20 +197,31 @@ export default function AdminOutletsPage() {
     }
   }
 
-  const rows = data?.outlets || []
+  const rows = useMemo(() => {
+    if (Array.isArray(data?.outlets)) return data.outlets
+    if (Array.isArray(data)) return data
+    return []
+  }, [data])
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
+      const outletName = (row.name || row.googleLocationName || row.businessName || '').toLowerCase()
+      const outletId = (row.id || '').toLowerCase()
+      const outletEmail = (row.email || row.googleAccountEmail || '').toLowerCase()
       const addressMatch = (row.address || '').toLowerCase().includes(query.toLowerCase())
-      const matchesSearch = row.name.toLowerCase().includes(query.toLowerCase()) || 
-                           row.id.toLowerCase().includes(query.toLowerCase()) || addressMatch
-                           
+      
+      const matchesSearch =
+        outletName.includes(query.toLowerCase()) ||
+        outletId.includes(query.toLowerCase()) ||
+        outletEmail.includes(query.toLowerCase()) ||
+        addressMatch
+
       const status = row.isActive ? 'active' : 'inactive'
       const matchesStatus = statusFilter === 'all' || status === statusFilter
 
       let matchesRating = true
       if (ratingFilter !== 'all') {
-        const r = row.avgRating || 0
+        const r = Number(row.avgRating || 0)
         if (ratingFilter === 'high') matchesRating = r >= 4.0
         else if (ratingFilter === 'medium') matchesRating = r >= 3.0 && r < 4.0
         else if (ratingFilter === 'low') matchesRating = r < 3.0
@@ -305,7 +313,11 @@ export default function AdminOutletsPage() {
                 ))
               ) : filtered.length > 0 ? (
                 filtered.map((row) => {
+                  const displayName = row.name || row.googleLocationName || row.businessName || 'Unnamed Outlet'
                   const customer = customers.find(c => c.id === row.customerId) || {}
+                  const accountTitle = customer.name || row.googleAccountEmail || row.email || 'Google Business Profile'
+                  const accountSub = customer.email || row.googleAccountEmail || row.email || row.id
+
                   return (
                   <motion.tr
                     key={row.id}
@@ -316,7 +328,7 @@ export default function AdminOutletsPage() {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-semibold text-slatey-800 group-hover:text-brand-600 transition-colors dark:text-slatey-200 dark:group-hover:text-brand-400">
-                          {row.name}
+                          {displayName}
                         </span>
                         <span className="text-[11px] text-slatey-400">{row.id}</span>
                       </div>
@@ -339,9 +351,9 @@ export default function AdminOutletsPage() {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-medium text-slatey-800 dark:text-slatey-200">
-                          {customer.name || 'Unknown'}
+                          {accountTitle}
                         </span>
-                        <span className="text-[11px] text-slatey-400">{customer.email || row.customerId}</span>
+                        <span className="text-[11px] text-slatey-400">{accountSub}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">

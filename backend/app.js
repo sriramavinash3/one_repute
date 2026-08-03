@@ -101,7 +101,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes); // Webhooks shouldn't require our auth token
 
 // Protected routes
-app.use('/api/admin', verifyToken, requireRole(['SUPER_ADMIN']), adminRoutes);
+app.use('/api/admin', verifyToken, requireRole(['SUPER_ADMIN', 'ADMIN', 'admin']), adminRoutes);
 app.use('/api/outlets', verifyToken, outletRoutes);
 app.use('/api/reviews', verifyToken, reviewRoutes);
 app.use('/api/analytics', verifyToken, reviewRoutes);
