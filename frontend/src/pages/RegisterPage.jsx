@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext'
 import apiClient from '../services/apiClient'
 import { createSubscription, verifyPayment, loadRazorpayScript } from '../services/paymentService'
 import { fetchPlaceSuggestions, fetchPlaceDetails } from '../services/outletService'
+import Logo from '../components/common/Logo'
 
 const PLANS = [
   {
@@ -264,10 +265,9 @@ export default function OnboardingPage() {
         {/* Left Sidebar Steps */}
         <div className="hidden md:block col-span-2 bg-brand-600 p-8 text-white relative overflow-hidden">
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
-          <h2 className="text-2xl font-bold relative z-10 flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-brand-100" />
-            One Repute
-          </h2>
+          <div className="relative z-10 mb-6">
+            <Logo size="lg" to="/" />
+          </div>
           <p className="text-brand-100 mt-2 text-sm relative z-10">Set up your workspace in minutes.</p>
           
           <div className="mt-12 space-y-8 relative z-10">

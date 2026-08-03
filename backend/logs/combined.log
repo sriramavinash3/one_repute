@@ -2660,3 +2660,17 @@
 2026-07-29T14:31:44.739Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
 2026-07-29T14:31:44.739Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
 2026-07-29T14:31:44.743Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"production"}
+2026-08-03T18:18:38.949Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-03T18:18:40.669Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-08-03T18:18:40.670Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-08-03T18:18:40.670Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-08-03T18:18:40.670Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-08-03T18:18:40.671Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"development"}
+2026-08-03T18:30:00.832Z [INFO]: [SubscriptionCron] Starting daily subscription & trial check {}
+2026-08-03T18:30:01.500Z [ERROR]: [SubscriptionCron] Failed to process subscriptions {"error":"16 UNAUTHENTICATED: Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project."}
+2026-08-03T18:39:54.662Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-03T18:39:55.765Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-08-03T18:39:55.766Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-08-03T18:39:55.766Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-08-03T18:39:55.766Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-08-03T18:39:55.767Z [INFO]: [Server] HTTP server running on port 3000 {"environment":"development"}

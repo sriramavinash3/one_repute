@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Bot, CheckCircle2, ShieldCheck, Stars, Zap, Layout, MessageSquare, PieChart, BellRing } from 'lucide-react'
+import { ArrowRight, Bot, CheckCircle2, ShieldCheck, Zap, Layout, MessageSquare, PieChart, BellRing } from 'lucide-react'
 import Button from '../components/ui/button'
-import { Card } from '../components/ui/card'
+import PricingSection from '../components/pricing/PricingSection'
+import Logo from '../components/common/Logo'
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -19,15 +20,11 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 z-50 w-full border-b border-slatey-100 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-slatey-900">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-brand">
-              <Stars className="h-5 w-5" />
-            </div>
-            <span className="hidden sm:inline">One Repute</span>
-          </div>
+          <Logo to="/" size="md" showText={false} />
           <div className="hidden items-center gap-8 text-sm font-medium text-slatey-500 md:flex">
             <a href="#features" className="hover:text-brand-600 transition-colors">Features</a>
             <a href="#workflow" className="hover:text-brand-600 transition-colors">Workflow</a>
+            <a href="#pricing" className="hover:text-brand-600 transition-colors">Pricing</a>
             <a href="#security" className="hover:text-brand-600 transition-colors">Security</a>
           </div>
           <div className="flex items-center gap-3">
@@ -47,7 +44,7 @@ export default function LandingPage() {
               <span>Enterprise Reputation Management System</span>
             </motion.div>
             <motion.h1 variants={fadeIn} className="mt-8 text-5xl font-extrabold tracking-tight text-slatey-900 sm:text-7xl">
-              Automated Google reviews for <span className="text-brand-600">Premium Outlets.</span>
+              Turn Every Google Review <span className="text-brand-600">Into Trust.</span>
             </motion.h1>
             <motion.p variants={fadeIn} className="mt-8 text-xl leading-relaxed text-slatey-500">
               One Repute provides an exclusive infrastructure for automated reputation management. Authorized outlets get human-like AI replies and instant manager escalations via WhatsApp.
@@ -192,6 +189,9 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Pricing Section */}
+        <PricingSection />
+
         {/* CTA Section */}
         <section className="mx-auto max-w-7xl px-6 py-24">
           <div className="relative overflow-hidden rounded-[40px] bg-brand-600 px-8 py-20 text-center text-white shadow-brand">
@@ -213,7 +213,8 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-slatey-100 bg-white py-12">
-        <div className="mx-auto max-w-7xl px-6 text-center text-sm text-slatey-500">
+        <div className="mx-auto max-w-7xl px-6 flex flex-col items-center justify-center gap-4 text-center text-sm text-slatey-500">
+          <Logo size="sm" clickable={false} showText={false} />
           <p>© 2026 One Repute. All rights reserved.</p>
         </div>
       </footer>

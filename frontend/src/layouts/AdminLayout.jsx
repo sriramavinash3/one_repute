@@ -21,6 +21,7 @@ import Sidebar from '../components/navigation/Sidebar'
 import Topbar from '../components/navigation/Topbar'
 import Button from '../components/ui/button'
 import { useAuth } from '../contexts/AuthContext'
+import Logo from '../components/common/Logo'
 
 export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -63,11 +64,13 @@ export default function AdminLayout() {
     </div>
   )
 
+  const adminHeader = <Logo subtitle="Admin Command" to="/admin-dashboard" size="sm" />
+
   return (
     <div className="dashboard-shell">
       <div className="flex">
         <Sidebar
-          header={<span>One Repute Admin</span>}
+          header={adminHeader}
           items={items}
           footer={footer}
           className="hidden lg:flex"
@@ -78,7 +81,7 @@ export default function AdminLayout() {
             <Button variant="ghost" size="sm" onClick={() => setMobileOpen(true)}>
               <Menu className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-semibold text-slatey-800">One Repute Admin</span>
+            <Logo subtitle="Admin" to="/admin-dashboard" size="sm" />
           </div>
 
           <Topbar title="Admin Command Center" user={profile} onLogout={handleLogout} />
@@ -94,7 +97,7 @@ export default function AdminLayout() {
             className="absolute left-0 top-0 h-full w-64 bg-white px-5 py-6"
             onClick={(event) => event.stopPropagation()}
           >
-            <Sidebar header={<span>One Repute Admin</span>} items={items} footer={footer} className="flex" />
+            <Sidebar header={adminHeader} items={items} footer={footer} className="flex" />
           </div>
         </div>
       ) : null}

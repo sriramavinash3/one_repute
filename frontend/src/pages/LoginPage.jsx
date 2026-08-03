@@ -13,6 +13,7 @@ import { auth, googleProvider } from '../firebase/firebase'
 import Button from '../components/ui/button'
 import Input from '../components/ui/input'
 import { useAuth } from '../contexts/AuthContext'
+import Logo from '../components/common/Logo'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -132,6 +133,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="glass-panel w-full max-w-md rounded-3xl p-8">
+        <div className="mb-6 flex justify-center">
+          <Logo size="lg" to="/" />
+        </div>
         <h1 className="text-2xl font-semibold text-slatey-900">
           {isMagicLink ? 'Sign in with Magic Link' : (isSignUp ? 'Create an Account' : 'Partner Access')}
         </h1>

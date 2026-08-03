@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, FileText, LayoutDashboard, MessageSquareWarning, Settings, Link2, LogOut, Menu, BrainCircuit } from 'lucide-react'
+import { BarChart3, FileText, LayoutDashboard, MessageSquareWarning, Settings, LogOut, Menu, BrainCircuit } from 'lucide-react'
 import Sidebar from '../components/navigation/Sidebar'
 import Topbar from '../components/navigation/Topbar'
 import Button from '../components/ui/button'
 import { useAuth } from '../contexts/AuthContext'
+import Logo from '../components/common/Logo'
 
 export default function OutletLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -42,7 +43,7 @@ export default function OutletLayout() {
 
   const headerContent = (
     <div className="flex flex-col w-full gap-2 mb-4">
-      <span className="text-lg font-bold">Outlet Workspace</span>
+      <Logo subtitle="Outlet Workspace" to="/outlet-dashboard" size="sm" />
       {outlets && outlets.length > 1 && (
         <select
           value={outlet?.id || ''}
