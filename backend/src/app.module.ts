@@ -31,6 +31,7 @@ import { configValidationSchema } from './config/config.validation';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
 import { EscalationModule } from './modules/escalation/escalation.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { EscalationModule } from './modules/escalation/escalation.module';
     WorkflowModule,
     SchedulerModule,
     EscalationModule,
+    AdminModule,
   ],
 })
 export class AppModule implements NestModule {

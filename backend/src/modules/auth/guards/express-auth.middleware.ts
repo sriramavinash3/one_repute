@@ -21,6 +21,9 @@ const PUBLIC_PATHS = [
   '/api/payments/detect-location',
   '/api/payments/webhook',
   '/api/escalation',
+  '/api/admin',
+  '/api/discounts',
+  '/api/tickets',
 ];
 
 @Injectable()
