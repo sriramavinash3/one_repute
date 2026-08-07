@@ -1,0 +1,198 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { google } from 'googleapis';
+import { FirebaseService } from '../firebase/firebase.service';
+
+const SCOPES = [
+  'https://www.googleapis.com/auth/business.manage',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'openid'
+];
+
+@Injectable()
+export class GoogleBusinessService {
+  private readonly logger = new Logger(GoogleBusinessService.name);
+  private quotaExceeded = false;
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly firebaseService: FirebaseService,
+  ) {}
+
+  createOAuthClient(googleRefreshToken?: string) {
+    const oauth2Client = new google.auth.OAuth2(
+      this.configService.get<string>('GOOGLE_CLIENT_ID'),
+      this.configService.get<string>('GOOGLE_CLIENT_SECRET'),
+      this.configService.get<string>('GOOGLE_REDIRECT_URI') || 'http://localhost:3000/api/auth/google/callback'
+    );
+
+    if (googleRefreshToken) {
+      oauth2Client.setCredentials({
+        refresh_token: googleRefreshToken,
+      });
+    }
+
+    return oauth2Client;
+  }
+
+  getConsentUrl(outletId?: string): string {
+    const oauth2Client = this.createOAuthClient();
+    const state = outletId ? encodeURIComponent(outletId) : undefined;
+
+    return oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: SCOPES,
+      state,
+    });
+  }
+
+  async exchangeCodeForTokens(code: string) {
+    const oauth2Client = this.createOAuthClient();
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+    return { oauth2Client, tokens };
+  }
+
+  async fetchAccountEmail(oauth2Client: any): Promise<string> {
+    try {
+      const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+      const { data } = await oauth2.userinfo.get();
+      return data?.email || '';
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch account email: ${err.message}`);
+      return '';
+    }
+  }
+
+  private extractId(resourceName?: string): string {
+    if (!resourceName) return '';
+    const parts = String(resourceName).split('/');
+    return parts[parts.length - 1] || '';
+  }
+
+  async fetchAccountsAndLocations(oauth2Client: any) {
+    const accountClient = google.mybusinessaccountmanagement({
+      version: 'v1',
+      auth: oauth2Client,
+    });
+
+    const locationClient = google.mybusinessbusinessinformation({
+      version: 'v1',
+      auth: oauth2Client,
+    });
+
+    const accountsResponse = await accountClient.accounts.list();
+    const accounts = accountsResponse.data.accounts || [];
+
+    const locations: any[] = [];
+    let primaryAccountId = '';
+
+    for (const account of accounts) {
+      const accountId = this.extractId(account.name);
+
+      if (!primaryAccountId) {
+        primaryAccountId = accountId;
+      }
+
+      try {
+        const response = await locationClient.accounts.locations.list({
+          parent: account.name,
+          readMask: 'name,title',
+        });
+
+        const accountLocations = (response.data.locations || [])
+          .map((location: any) => ({
+            id: this.extractId(location.name),
+            name: location.title || location.name || 'Unnamed location',
+          }))
+          .filter((location: any) => location.id);
+
+        locations.push(...accountLocations);
+      } catch (err: any) {
+        this.logger.warn(`Failed to fetch locations for account ${accountId}: ${err.message}`);
+      }
+    }
+
+    return { accountId: primaryAccountId, locations };
+  }
+
+  async fetchReviews(googleAccountId: string, googleLocationId: string, googleRefreshToken: string): Promise<any[]> {
+    const auth = this.createOAuthClient(googleRefreshToken);
+    const allReviews: any[] = [];
+    let nextPageToken: string | undefined = undefined;
+    const locationName = `accounts/${googleAccountId}/locations/${googleLocationId}`;
+
+    do {
+      const response = await this.handleQuotaErrors(async () => {
+        const res = await auth.request({
+          url: `https://mybusiness.googleapis.com/v4/${locationName}/reviews`,
+          method: 'GET',
+          params: {
+            pageSize: 50,
+            pageToken: nextPageToken,
+            orderBy: 'updateTime desc',
+          },
+        });
+        return res.data as any;
+      });
+
+      const reviews = response.reviews || [];
+      allReviews.push(...reviews);
+      nextPageToken = response.nextPageToken;
+
+      if (allReviews.length >= 500) {
+        this.logger.warn(`Hit max reviews fetch limit (500) for location: ${googleLocationId}`);
+        break;
+      }
+    } while (nextPageToken);
+
+    this.logger.log(`Fetched ${allReviews.length} reviews for location: ${googleLocationId}`);
+    return allReviews;
+  }
+
+  async postReply(googleAccountId: string, googleLocationId: string, googleRefreshToken: string, reviewResourceName: string, replyText: string): Promise<void> {
+    const auth = this.createOAuthClient(googleRefreshToken);
+    await this.handleQuotaErrors(async () => {
+      await auth.request({
+        url: `https://mybusiness.googleapis.com/v4/${reviewResourceName}/reply`,
+        method: 'PUT',
+        data: {
+          comment: replyText,
+        },
+      });
+    });
+    this.logger.log(`Reply posted successfully to review ${reviewResourceName}`);
+  }
+
+  private async handleQuotaErrors<T>(apiCall: () => Promise<T>, retries = 3): Promise<T> {
+    if (this.quotaExceeded) {
+      throw new Error('API processing suspended due to previous quota limit hit. Please wait for cooldown.');
+    }
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await apiCall();
+      } catch (err: any) {
+        const isQuotaError =
+          err?.code === 429 ||
+          err?.response?.status === 429 ||
+          /quota\s+exceeded/i.test(err?.message || '');
+
+        if (isQuotaError) {
+          this.quotaExceeded = true;
+          setTimeout(() => { this.quotaExceeded = false; }, 15 * 60 * 1000);
+          this.logger.error(`Critical: Quota exceeded. Suspending all API calls. error: ${err.message}`);
+          throw err;
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw new Error('Max retries reached for API call');
+  }
+
+  resetQuotaFlag() {
+    this.quotaExceeded = false;
+  }
+}

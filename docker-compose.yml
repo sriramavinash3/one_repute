@@ -1,17 +1,94 @@
-services:
+version: '3.8'
 
-  backend:
-    build: ./backend
-    container_name: restaurant_backend
+services:
+  # ─── PostgreSQL Database ──────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: onerepute_postgres
     restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onerepute}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onerepute_secret_password}
+      POSTGRES_DB: ${POSTGRES_DB:-onerepute_db}
     ports:
-      - "3001:3000"
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-onerepute} -d ${POSTGRES_DB:-onerepute_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - onerepute_net
+
+  # ─── Redis Cache & Queue Manager ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: onerepute_redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel notice
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - onerepute_net
+
+  # ─── NestJS Backend API ───────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: onerepute_backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-onerepute}:${POSTGRES_PASSWORD:-onerepute_secret_password}@postgres:5432/${POSTGRES_DB:-onerepute_db}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     env_file:
       - ./backend/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - onerepute_net
 
-  frontend:
-    build: ./frontend
-    container_name: restaurant_frontend
+  # ─── Nginx Reverse Proxy ──────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: onerepute_nginx
     restart: always
     ports:
-      - "8080:80"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - onerepute_net
+
+networks:
+  onerepute_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:

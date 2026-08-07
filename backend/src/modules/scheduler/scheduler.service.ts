@@ -1,0 +1,279 @@
+/**
+ * src/modules/scheduler/scheduler.service.ts
+ *
+ * Centralized NestJS scheduler — 100% NestJS, zero legacy node-cron dependencies.
+ *
+ * Scheduled jobs:
+ *  - Review sync:      0 10,15,21 * * *   (ReviewSchedulerService)
+ *  - Escalations:      every 60 seconds   (AutomationService)
+ *  - Quota reset:      every 24 hours     (Internal NestJS handler)
+ *  - Subscription:     every 24 hours     (Internal NestJS handler)
+ *  - Weekly report:    every 7 days       (Internal NestJS handler)
+ */
+
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as admin from 'firebase-admin';
+import { FirebaseService } from '../firebase/firebase.service';
+import { ReviewSchedulerService } from '../reviews/review-scheduler.service';
+import { AutomationService } from '../workflow/automation.service';
+import { AIService } from '../ai/ai.service';
+
+@Injectable()
+export class SchedulerService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(SchedulerService.name);
+  private timers: NodeJS.Timeout[] = [];
+
+  constructor(
+    private readonly config: ConfigService,
+    private readonly firebaseService: FirebaseService,
+    private readonly reviewScheduler: ReviewSchedulerService,
+    private readonly automationService: AutomationService,
+    private readonly aiService: AIService,
+  ) {}
+
+  onModuleInit() {
+    this.startAllJobs();
+  }
+
+  onModuleDestroy() {
+    this.stopAllJobs();
+  }
+
+  private startAllJobs() {
+    // 1. Escalation processor — every 60 seconds
+    this.timers.push(
+      setInterval(() => this.runEscalationJob(), 60_000),
+    );
+
+    // 2. Quota reset — every 24 hours
+    this.timers.push(
+      setInterval(() => this.runQuotaResetJob(), 24 * 60 * 60 * 1000),
+    );
+
+    // 3. Subscription expiry check — every 24 hours
+    this.timers.push(
+      setInterval(() => this.runSubscriptionExpiryJob(), 24 * 60 * 60 * 1000),
+    );
+
+    // 4. Weekly report — every 7 days
+    this.timers.push(
+      setInterval(() => this.runWeeklyReportJob(), 7 * 24 * 60 * 60 * 1000),
+    );
+
+    // Initial triggers shortly after startup
+    setTimeout(() => this.runQuotaResetJob(), 30_000);
+    setTimeout(() => this.runSubscriptionExpiryJob(), 45_000);
+
+    this.logger.log('[Scheduler] All background jobs scheduled successfully via NestJS');
+  }
+
+  private stopAllJobs() {
+    for (const timer of this.timers) {
+      clearInterval(timer);
+    }
+    this.timers = [];
+    this.logger.log('[Scheduler] All background jobs stopped');
+  }
+
+  // ─── Job Handlers ────────────────────────────────────────────────────────────
+
+  private async runEscalationJob(): Promise<void> {
+    try {
+      const result = await this.automationService.processEscalations({
+        dashboardBaseUrl: this.config.get<string>('APP_URL') || this.config.get<string>('FRONTEND_BASE_URL') || 'https://app.onerepute.com',
+      });
+      if (result.processed > 0 || result.errors > 0) {
+        this.logger.log(`[Scheduler] Escalation cycle: processed=${result.processed}, errors=${result.errors}`);
+      }
+    } catch (err: any) {
+      this.logger.error(`[Scheduler] Escalation job failed: ${err.message}`);
+    }
+  }
+
+  private async runQuotaResetJob(): Promise<void> {
+    this.logger.log('[Scheduler] Running subscription quota reset check...');
+    const db = this.firebaseService.getDb();
+    const now = Date.now();
+
+    try {
+      const customersSnap = await db.collection('customers')
+        .where('subscriptionStatus', '==', 'active')
+        .get();
+
+      let resetCount = 0;
+      let downgradeCount = 0;
+
+      for (const doc of customersSnap.docs) {
+        const customerId = doc.id;
+        const customer = doc.data();
+
+        if (!customer.renewalDate) continue;
+
+        const renewalTime = customer.renewalDate.toDate
+          ? customer.renewalDate.toDate().getTime()
+          : new Date(customer.renewalDate).getTime();
+
+        if (now >= renewalTime) {
+          let isDowngrading = false;
+          let finalPlan = customer.plan;
+          let finalBillingCycle = customer.billingCycle || 'monthly';
+
+          if (customer.pendingPlanDowngrade) {
+            finalPlan = customer.pendingPlanDowngrade.plan;
+            finalBillingCycle = customer.pendingPlanDowngrade.billingCycle || 'monthly';
+            isDowngrading = true;
+            downgradeCount++;
+          }
+
+          const cycleDays = finalBillingCycle === 'annual' ? 365 : 30;
+          const nextRenewalDate = admin.firestore.Timestamp.fromMillis(Date.now() + cycleDays * 24 * 60 * 60 * 1000);
+
+          const customerUpdate: any = {
+            plan: finalPlan,
+            billingCycle: finalBillingCycle,
+            renewalDate: nextRenewalDate,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+
+          if (isDowngrading) {
+            customerUpdate.pendingPlanDowngrade = null;
+          }
+
+          await db.collection('customers').doc(customerId).update(customerUpdate);
+
+          const usageRef = db.collection('customerUsage').doc(customerId);
+          const usageSnap = await usageRef.get();
+
+          if (usageSnap.exists) {
+            await usageRef.update({
+              review_reply_count: 0,
+              resetDate: nextRenewalDate,
+              currentMonth: new Date().toISOString().slice(0, 7),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          } else {
+            await usageRef.set({
+              customerId,
+              review_reply_count: 0,
+              smart_qr_count: 0,
+              competitor_count: 0,
+              team_member_count: 0,
+              resetDate: nextRenewalDate,
+              currentMonth: new Date().toISOString().slice(0, 7),
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          }
+
+          resetCount++;
+        }
+      }
+
+      this.logger.log(`[Scheduler] Quota reset complete: reset=${resetCount}, downgrades=${downgradeCount}`);
+    } catch (err: any) {
+      this.logger.error(`[Scheduler] Quota reset job error: ${err.message}`);
+    }
+  }
+
+  private async runSubscriptionExpiryJob(): Promise<void> {
+    this.logger.log('[Scheduler] Running daily subscription & trial check...');
+    const db = this.firebaseService.getDb();
+
+    try {
+      const customersSnap = await db.collection('customers').get();
+      const now = Date.now();
+      const fifteenDaysMs = 15 * 24 * 60 * 60 * 1000;
+
+      let expiredCount = 0;
+      let churnRiskCount = 0;
+
+      for (const doc of customersSnap.docs) {
+        const customer = doc.data();
+        const updates: any = {};
+
+        if (customer.accountStatus === 'Trial' && customer.trialEndDate) {
+          const endDate = customer.trialEndDate.toDate
+            ? customer.trialEndDate.toDate().getTime()
+            : new Date(customer.trialEndDate).getTime();
+
+          if (now > endDate) {
+            updates.accountStatus = 'Inactive';
+            updates.paymentStatus = 'Unpaid';
+            expiredCount++;
+          }
+        }
+
+        const lastActivity = customer.lastActivity
+          ? (customer.lastActivity.toDate ? customer.lastActivity.toDate().getTime() : new Date(customer.lastActivity).getTime())
+          : 0;
+
+        if (customer.accountStatus === 'Active' && lastActivity > 0 && (now - lastActivity) > fifteenDaysMs) {
+          updates.churnRisk = true;
+          churnRiskCount++;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await db.collection('customers').doc(doc.id).update({
+            ...updates,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      this.logger.log(`[Scheduler] Subscription check complete: expired=${expiredCount}, churnRisk=${churnRiskCount}`);
+    } catch (err: any) {
+      this.logger.error(`[Scheduler] Subscription check job error: ${err.message}`);
+    }
+  }
+
+  private async runWeeklyReportJob(): Promise<void> {
+    this.logger.log('[Scheduler] Generating weekly analytics reports...');
+    const db = this.firebaseService.getDb();
+
+    try {
+      const customersSnap = await db.collection('customers').get();
+      let generatedCount = 0;
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+      const endDate = new Date();
+
+      for (const doc of customersSnap.docs) {
+        const customer = doc.data();
+
+        await db.collection('reports').add({
+          customerId: doc.id,
+          customerName: customer.name || 'Customer',
+          period: 'weekly',
+          startDate,
+          endDate,
+          status: 'Generated',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        generatedCount++;
+      }
+
+      this.logger.log(`[Scheduler] Weekly report job complete: ${generatedCount} reports generated`);
+    } catch (err: any) {
+      this.logger.error(`[Scheduler] Weekly report job error: ${err.message}`);
+    }
+  }
+
+  // ─── Manual Triggers ─────────────────────────────────────────────────────────
+
+  async triggerEscalations(): Promise<void> {
+    return this.runEscalationJob();
+  }
+
+  async triggerQuotaReset(): Promise<void> {
+    return this.runQuotaResetJob();
+  }
+
+  async triggerWeeklyReport(): Promise<void> {
+    return this.runWeeklyReportJob();
+  }
+
+  async triggerSubscriptionCheck(): Promise<void> {
+    return this.runSubscriptionExpiryJob();
+  }
+}

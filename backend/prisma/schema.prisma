@@ -95,3 +95,142 @@ model EmailLog {
   @@index([status])
   @@map("email_logs")
 }
+
+model Subscription {
+  id                String    @id
+  customerId        String
+  planId            String
+  billingCycle      String
+  status            String
+  currency          String
+  renewalDate       DateTime?
+  trialStartDate    DateTime?
+  trialEndDate      DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("subscriptions")
+}
+
+model Plan {
+  id                    String  @id
+  name                  String
+  monthlyPrice          Int
+  annualPrice           Int
+  currency              String
+  razorpayMonthlyPlanId String?
+  razorpayAnnualPlanId  String?
+
+  @@map("plans")
+}
+
+model Invoice {
+  id         String   @id
+  customerId String
+  amount     Int
+  currency   String
+  status     String
+  issuedAt   DateTime @default(now())
+
+  @@map("invoices")
+}
+
+model Payment {
+  id             String   @id
+  customerId     String
+  subscriptionId String
+  paymentId      String
+  amount         Int
+  currency       String
+  status         String
+  createdAt      DateTime @default(now())
+
+  @@map("payments")
+}
+
+model Transaction {
+  id          String   @id
+  customerId  String
+  type        String
+  description String
+  amount      Int
+  currency    String
+  createdAt   DateTime @default(now())
+
+  @@map("transactions")
+}
+
+model Location {
+  id                      String    @id
+  name                    String
+  googleAccountId         String?
+  googleLocationId        String?
+  googleRefreshToken      String?
+  googleConnectedEmail    String?
+  providerType            String    @default("GBP")
+  placeId                 String?
+  syncCooldownMinutes     Int       @default(180)
+  lastReviewFetchAt       DateTime?
+  latestReviewTimestamp   DateTime?
+  autoResponseEnabled     Boolean   @default(false)
+  minRatingForAutoResponse Int       @default(4)
+  openaiPrompt            String?
+  whatsappNumber          String?
+  escalationThreshold     Int       @default(3)
+  createdAt               DateTime  @default(now())
+
+  @@map("locations")
+}
+
+model Review {
+  id                String    @id
+  reviewId          String    @unique
+  outletId          String
+  placeId           String?
+  providerSource    String
+  providerReviewId  String
+  reviewTimestamp   DateTime
+  customerName      String
+  reviewerPhotoURL  String?
+  reviewUrl         String?
+  rating            Int
+  text              String
+  rawName           String?
+  status            String    @default("pending")
+  aiResponse        String?
+  replySuggestion   String?
+  repliedAt         DateTime?
+  sentiment         String?
+  processedAt       DateTime?
+  lastProcessedAt   DateTime?
+  isDeletedOnSource Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("reviews")
+}
+
+model SyncHistory {
+  id             String   @id @default(uuid())
+  outletId       String
+  fetchedCount   Int
+  newCount       Int
+  processedCount Int
+  status         String
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+
+  @@map("sync_history")
+}
+
+model AnalyticsSnapshot {
+  id          String   @id @default(uuid())
+  outletId    String
+  metricDate  DateTime
+  metricName  String
+  metricValue Float
+  createdAt   DateTime @default(now())
+
+  @@map("analytics_snapshots")
+}

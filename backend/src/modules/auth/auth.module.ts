@@ -2,10 +2,11 @@
  * src/modules/auth/auth.module.ts
  */
 
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { TokenService } from './token.service';
 import { EmailModule } from '../email/email.module';
+import { FirebaseAuthMiddleware } from './guards/express-auth.middleware';
 
 @Module({
   imports: [EmailModule],
@@ -13,4 +14,10 @@ import { EmailModule } from '../email/email.module';
   providers: [TokenService],
   exports: [TokenService],
 })
-export class AuthModule {}
+export class AuthModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(FirebaseAuthMiddleware)
+      .forRoutes('*');
+  }
+}

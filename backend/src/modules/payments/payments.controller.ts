@@ -1,0 +1,164 @@
+import { Controller, Get, Post, Body, Req, UseGuards, HttpStatus, HttpCode, Logger } from '@nestjs/common';
+import { Request } from 'express';
+import { PaymentService } from './payment.service';
+import { SubscriptionService } from './subscription.service';
+import { PlanService } from './plan.service';
+import { FirebaseService } from '../firebase/firebase.service';
+import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthUser } from '../auth/interfaces/auth-user.interface';
+import { CreateSubscriptionDto, VerifyPaymentDto, ChangePlanDto } from './dto/payment.dto';
+
+@Controller('payments')
+export class PaymentsController {
+  private readonly logger = new Logger(PaymentsController.name);
+
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly subscriptionService: SubscriptionService,
+    private readonly planService: PlanService,
+    private readonly firebaseService: FirebaseService,
+  ) {}
+
+  @Get('detect-location')
+  async detectLocation(@Req() req: Request) {
+    try {
+      let customerData: any = null;
+      let userData: any = null;
+      let outletData: any = null;
+
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const idToken = authHeader.split('Bearer ')[1];
+          const decodedToken = await this.firebaseService.verifyIdToken(idToken);
+          const db = this.firebaseService.getDb();
+          
+          const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+          if (userDoc.exists) {
+            userData = userDoc.data();
+            if (userData.customerId) {
+              const customerDoc = await db.collection('customers').doc(userData.customerId).get();
+              if (customerDoc.exists) {
+                customerData = customerDoc.data();
+              }
+            }
+            if (userData.outletId) {
+              const outletDoc = await db.collection('outlets').doc(userData.outletId).get();
+              if (outletDoc.exists) {
+                outletData = outletDoc.data();
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore invalid token errors and fallback
+        }
+      }
+
+      const country = this.planService.detectCountry(req, customerData, userData, outletData);
+      const starterPrice = await this.planService.getPlanPrice('plan_starter', country);
+
+      return {
+        country,
+        currency: starterPrice.currency,
+        symbol: this.planService.getCurrencySymbol(starterPrice.currency),
+      };
+    } catch (err: any) {
+      this.logger.error(`Failed to detect user country location: ${err.message}`);
+      return { country: 'IN', currency: 'INR', symbol: '₹' };
+    }
+  }
+
+  @Post('create-subscription')
+  @UseGuards(FirebaseAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async createSubscription(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateSubscriptionDto,
+  ) {
+    const resolvedCustomerId = dto.customerId || user.customerId;
+    if (!resolvedCustomerId) {
+      return { error: 'Customer context missing' };
+    }
+
+    const countryCode = dto.countryCode || 'IN';
+    const result = await this.paymentService.createSubscription(
+      resolvedCustomerId,
+      dto.planId,
+      dto.billingCycle || 'monthly',
+      countryCode,
+    );
+    return result;
+  }
+
+  @Post('verify')
+  @UseGuards(FirebaseAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async verifyPayment(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: VerifyPaymentDto,
+  ) {
+    const resolvedCustomerId = dto.customerId || user.customerId;
+    await this.paymentService.verifyPayment(
+      dto.razorpay_payment_id,
+      dto.razorpay_signature,
+      dto.razorpay_subscription_id,
+      resolvedCustomerId,
+    );
+    return { success: true };
+  }
+
+  @Get('billing-info')
+  @UseGuards(FirebaseAuthGuard)
+  async getBillingInfo(@CurrentUser() user: AuthUser) {
+    const customerId = user.customerId;
+    if (!customerId) {
+      return { error: 'Customer context missing' };
+    }
+    const result = await this.subscriptionService.getBillingInfo(customerId);
+    return result;
+  }
+
+  @Post('change-plan')
+  @UseGuards(FirebaseAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async changePlan(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePlanDto,
+  ) {
+    const customerId = user.customerId;
+    if (!customerId) {
+      return { error: 'Customer context missing' };
+    }
+    const result = await this.subscriptionService.changePlan(
+      customerId,
+      dto.newPlanId,
+      dto.billingCycle || 'monthly',
+    );
+    return result;
+  }
+
+  @Post('cancel')
+  @UseGuards(FirebaseAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async cancelSubscription(@CurrentUser() user: AuthUser) {
+    const customerId = user.customerId;
+    if (!customerId) {
+      return { error: 'Customer context missing' };
+    }
+    const result = await this.subscriptionService.cancelSubscription(customerId);
+    return result;
+  }
+
+  @Post('resume')
+  @UseGuards(FirebaseAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async resumeSubscription(@CurrentUser() user: AuthUser) {
+    const customerId = user.customerId;
+    if (!customerId) {
+      return { error: 'Customer context missing' };
+    }
+    const result = await this.subscriptionService.resumeSubscription(customerId);
+    return result;
+  }
+}

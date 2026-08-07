@@ -4024,3 +4024,334 @@
 2026-08-07T19:43:00.816Z [WARN]: [EscalationCronJob] Previous run still active — skipping this tick {}
 2026-08-07T19:44:00.057Z [INFO]: [EscalationCronJob] Starting run {}
 2026-08-07T19:44:00.922Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:45:00.265Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:45:00.401Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:45:00.517Z [WARN]: [EscalationCronJob] Previous run still active — skipping this tick {}
+2026-08-07T19:46:00.812Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:46:00.812Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:47:00.021Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:47:00.021Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:48:00.350Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:48:00.349Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:49:00.758Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:49:00.758Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:50:00.934Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:51:00.027Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:52:00.303Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:53:00.682Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:54:00.907Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:55:00.225Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:56:00.693Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:57:00.075Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:57:54.848Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-07T19:57:54.896Z [INFO]: [Seeder] Starting database checks & seeding... {}
+2026-08-07T19:57:54.896Z [INFO]: [Seeder] Seeding default plans... {}
+2026-08-07T19:57:56.517Z [INFO]: [Server] Successfully initialized NestJS backend server engine {}
+2026-08-07T19:57:56.518Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-08-07T19:57:56.519Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-08-07T19:57:56.519Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-08-07T19:57:56.519Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-08-07T19:57:56.520Z [INFO]: [ResetQuotaCron] Initialized daily quota reset cron job. {}
+2026-08-07T19:57:56.520Z [INFO]: [EscalationCronJob] Starting schedule: Every minute (* * * * *) {}
+2026-08-07T19:57:56.991Z [INFO]: [Seeder] Seeded/Merged plan: Starter {}
+2026-08-07T19:57:57.074Z [INFO]: [Seeder] Seeded/Merged plan: Growth {}
+2026-08-07T19:57:57.147Z [INFO]: [Seeder] Seeded/Merged plan: Premium {}
+2026-08-07T19:57:57.147Z [INFO]: [Seeder] Seeding plan features... {}
+2026-08-07T19:57:58.193Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_starter {}
+2026-08-07T19:57:59.078Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_growth {}
+2026-08-07T19:57:59.924Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_premium {}
+2026-08-07T19:57:59.924Z [INFO]: [Seeder] Seeding country localized prices... {}
+2026-08-07T19:57:59.984Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_IN (INR) {}
+2026-08-07T19:58:00.030Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_IN (INR) {}
+2026-08-07T19:58:00.078Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_IN (INR) {}
+2026-08-07T19:58:00.127Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_US (USD) {}
+2026-08-07T19:58:00.172Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_US (USD) {}
+2026-08-07T19:58:00.215Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_US (USD) {}
+2026-08-07T19:58:00.216Z [INFO]: [Seeder] Database checks & seeding completed successfully. {}
+2026-08-07T19:58:00.548Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T19:59:00.993Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:00:00.452Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:01:00.842Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:02:00.316Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:03:00.746Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:04:00.137Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:05:00.629Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:06:00.072Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:07:00.558Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:08:00.936Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:09:00.366Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:10:00.830Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:11:00.272Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:12:00.714Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:13:00.220Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:14:00.682Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:15:00.052Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:16:00.491Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:17:00.899Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:18:00.397Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:18:37.003Z [INFO]: [Test] Initializing Localization & Pricing E2E Audit... {}
+2026-08-07T20:18:37.075Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-07T20:18:37.075Z [INFO]: [Test] Seeding database to initialize localized prices... {}
+2026-08-07T20:18:37.075Z [INFO]: [Seeder] Starting database checks & seeding... {}
+2026-08-07T20:18:37.075Z [INFO]: [Seeder] Seeding default plans... {}
+2026-08-07T20:18:37.542Z [INFO]: [Seeder] Seeded/Merged plan: Starter {}
+2026-08-07T20:18:37.619Z [INFO]: [Seeder] Seeded/Merged plan: Growth {}
+2026-08-07T20:18:37.673Z [INFO]: [Seeder] Seeded/Merged plan: Premium {}
+2026-08-07T20:18:37.673Z [INFO]: [Seeder] Seeding plan features... {}
+2026-08-07T20:18:39.276Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_starter {}
+2026-08-07T20:18:40.089Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_growth {}
+2026-08-07T20:18:40.823Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_premium {}
+2026-08-07T20:18:40.823Z [INFO]: [Seeder] Seeding country localized prices... {}
+2026-08-07T20:18:40.863Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_IN (INR) {}
+2026-08-07T20:18:40.900Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_IN (INR) {}
+2026-08-07T20:18:40.934Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_IN (INR) {}
+2026-08-07T20:18:40.977Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_US (USD) {}
+2026-08-07T20:18:41.013Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_US (USD) {}
+2026-08-07T20:18:41.051Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_US (USD) {}
+2026-08-07T20:18:41.051Z [INFO]: [Seeder] Database checks & seeding completed successfully. {}
+2026-08-07T20:18:41.051Z [INFO]: [Test] Verifying planPrices collection entries... {}
+2026-08-07T20:18:41.114Z [INFO]: [Test] Total seeded prices found: 6 {}
+2026-08-07T20:18:41.115Z [INFO]: [Test] Testing priority country detection rules... {}
+2026-08-07T20:18:41.115Z [INFO]: [PricingService] Resolved country from IP headers: {}
+2026-08-07T20:18:41.115Z [INFO]: [Test] IP Header 'US' -> Detected Country: US (Expected: US) {}
+2026-08-07T20:18:41.115Z [INFO]: [PricingService] Resolved country from Accept-Language header: {}
+2026-08-07T20:18:41.115Z [INFO]: [Test] Accept-Language 'en-IN' -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:18:41.115Z [INFO]: [PricingService] Resolved country from timezone fallback: IN {}
+2026-08-07T20:18:41.115Z [INFO]: [Test] Timezone 'Asia/Kolkata' -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:18:41.115Z [INFO]: [PricingService] Resolved country from billing records: {}
+2026-08-07T20:18:41.115Z [INFO]: [Test] Customer Billing Country 'US' -> Detected Country: US (Expected: US) {}
+2026-08-07T20:18:41.115Z [INFO]: [Test] Empty Context Default -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:18:41.115Z [INFO]: [Test] Verifying localized pricing lookup... {}
+2026-08-07T20:18:41.153Z [INFO]: [Test] Growth Plan IN -> Currency: INR, Monthly Price: 1999 (Expected: INR / 1999) {}
+2026-08-07T20:18:41.153Z [INFO]: [Test] Growth Plan US -> Currency: USD, Monthly Price: 79 (Expected: USD / 79) {}
+2026-08-07T20:18:41.153Z [INFO]: [Test] Testing dynamic Plan ID selection during subscription creation... {}
+2026-08-07T20:18:42.617Z [INFO]: [PaymentService] Created Razorpay subscription {"subscriptionId":"sub_TN0cQEjwogz5MV","planId":"plan_starter","countryCode":"IN","trialDays":7}
+2026-08-07T20:18:42.659Z [INFO]: [Test] Indian Customer Starter -> Active Plan: plan_TMzSnSpZurSsaj {}
+2026-08-07T20:18:43.079Z [INFO]: [PaymentService] Created Razorpay subscription {"subscriptionId":"sub_TN0cQmd95vQcVG","planId":"plan_starter","countryCode":"US","trialDays":7}
+2026-08-07T20:18:43.129Z [INFO]: [Test] US Customer Starter -> Active Plan: plan_TMzQXc5SECtlgu {}
+2026-08-07T20:18:43.129Z [INFO]: [Test] Verifying getBillingInfo returns localized attributes... {}
+2026-08-07T20:18:43.223Z [INFO]: [Test] Billing Info -> Resolved Country: US (Expected: US) {}
+2026-08-07T20:18:43.223Z [INFO]: [Test] Billing Info -> Resolved Currency: USD (Expected: USD) {}
+2026-08-07T20:18:43.223Z [INFO]: [Test] Billing Info Growth Plan Price -> $79 (Expected: $79) {}
+2026-08-07T20:18:43.223Z [INFO]: [Test] Cleaning up test customer records... {}
+2026-08-07T20:18:43.300Z [INFO]: [Test] ALL INTEGRATION TESTS PASSED SUCCESSFULLY! ✔ {}
+2026-08-07T20:19:00.968Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:19:08.845Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-07T20:19:08.892Z [INFO]: [Seeder] Starting database checks & seeding... {}
+2026-08-07T20:19:08.893Z [INFO]: [Seeder] Seeding default plans... {}
+2026-08-07T20:19:10.457Z [INFO]: [Server] Successfully initialized NestJS backend server engine {}
+2026-08-07T20:19:10.459Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-08-07T20:19:10.459Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-08-07T20:19:10.460Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-08-07T20:19:10.460Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-08-07T20:19:10.460Z [INFO]: [ResetQuotaCron] Initialized daily quota reset cron job. {}
+2026-08-07T20:19:10.461Z [INFO]: [EscalationCronJob] Starting schedule: Every minute (* * * * *) {}
+2026-08-07T20:19:10.906Z [INFO]: [Seeder] Seeded/Merged plan: Starter {}
+2026-08-07T20:19:10.964Z [INFO]: [Seeder] Seeded/Merged plan: Growth {}
+2026-08-07T20:19:11.093Z [INFO]: [Seeder] Seeded/Merged plan: Premium {}
+2026-08-07T20:19:11.093Z [INFO]: [Seeder] Seeding plan features... {}
+2026-08-07T20:19:12.652Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_starter {}
+2026-08-07T20:19:13.474Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_growth {}
+2026-08-07T20:19:14.296Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_premium {}
+2026-08-07T20:19:14.296Z [INFO]: [Seeder] Seeding country localized prices... {}
+2026-08-07T20:19:14.349Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_IN (INR) {}
+2026-08-07T20:19:14.395Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_IN (INR) {}
+2026-08-07T20:19:14.431Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_IN (INR) {}
+2026-08-07T20:19:14.486Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_US (USD) {}
+2026-08-07T20:19:14.532Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_US (USD) {}
+2026-08-07T20:19:14.573Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_US (USD) {}
+2026-08-07T20:19:14.573Z [INFO]: [Seeder] Database checks & seeding completed successfully. {}
+2026-08-07T20:23:45.136Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-07T20:23:45.183Z [INFO]: [Seeder] Starting database checks & seeding... {}
+2026-08-07T20:23:45.183Z [INFO]: [Seeder] Seeding default plans... {}
+2026-08-07T20:23:46.770Z [INFO]: [Server] Successfully initialized NestJS backend server engine {}
+2026-08-07T20:23:46.772Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-08-07T20:23:46.772Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-08-07T20:23:46.773Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-08-07T20:23:46.773Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-08-07T20:23:46.773Z [INFO]: [ResetQuotaCron] Initialized daily quota reset cron job. {}
+2026-08-07T20:23:46.773Z [INFO]: [EscalationCronJob] Starting schedule: Every minute (* * * * *) {}
+2026-08-07T20:23:47.254Z [INFO]: [Seeder] Seeded/Merged plan: Starter {}
+2026-08-07T20:23:47.333Z [INFO]: [Seeder] Seeded/Merged plan: Growth {}
+2026-08-07T20:23:47.458Z [INFO]: [Seeder] Seeded/Merged plan: Premium {}
+2026-08-07T20:23:47.458Z [INFO]: [Seeder] Seeding plan features... {}
+2026-08-07T20:23:49.107Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_starter {}
+2026-08-07T20:23:49.913Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_growth {}
+2026-08-07T20:23:50.730Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_premium {}
+2026-08-07T20:23:50.730Z [INFO]: [Seeder] Seeding country localized prices... {}
+2026-08-07T20:23:50.782Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_IN (INR) {}
+2026-08-07T20:23:50.822Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_IN (INR) {}
+2026-08-07T20:23:50.853Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_IN (INR) {}
+2026-08-07T20:23:50.890Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_US (USD) {}
+2026-08-07T20:23:50.936Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_US (USD) {}
+2026-08-07T20:23:50.986Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_US (USD) {}
+2026-08-07T20:23:50.986Z [INFO]: [Seeder] Database checks & seeding completed successfully. {}
+2026-08-07T20:24:00.900Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:24:30.985Z [INFO]: [Test] Initializing Localization & Pricing E2E Audit... {}
+2026-08-07T20:24:31.094Z [INFO]: [Test] Seeding database to initialize localized prices... {}
+2026-08-07T20:24:31.095Z [INFO]: [Seeder] Starting database checks & seeding... {}
+2026-08-07T20:24:31.095Z [INFO]: [Seeder] Seeding default plans... {}
+2026-08-07T20:24:31.579Z [INFO]: [Seeder] Seeded/Merged plan: Starter {}
+2026-08-07T20:24:31.627Z [INFO]: [Seeder] Seeded/Merged plan: Growth {}
+2026-08-07T20:24:31.729Z [INFO]: [Seeder] Seeded/Merged plan: Premium {}
+2026-08-07T20:24:31.729Z [INFO]: [Seeder] Seeding plan features... {}
+2026-08-07T20:24:33.087Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_starter {}
+2026-08-07T20:24:33.842Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_growth {}
+2026-08-07T20:24:34.581Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_premium {}
+2026-08-07T20:24:34.581Z [INFO]: [Seeder] Seeding country localized prices... {}
+2026-08-07T20:24:34.623Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_IN (INR) {}
+2026-08-07T20:24:34.657Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_IN (INR) {}
+2026-08-07T20:24:34.692Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_IN (INR) {}
+2026-08-07T20:24:34.734Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_US (USD) {}
+2026-08-07T20:24:34.765Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_US (USD) {}
+2026-08-07T20:24:34.802Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_US (USD) {}
+2026-08-07T20:24:34.802Z [INFO]: [Seeder] Database checks & seeding completed successfully. {}
+2026-08-07T20:24:34.802Z [INFO]: [Test] Verifying planPrices collection entries... {}
+2026-08-07T20:24:34.885Z [INFO]: [Test] Total seeded prices found: 6 {}
+2026-08-07T20:24:34.885Z [INFO]: [Test] Testing priority country detection rules... {}
+2026-08-07T20:24:34.885Z [INFO]: [Test] IP Header 'US' -> Detected Country: US (Expected: US) {}
+2026-08-07T20:24:34.885Z [INFO]: [Test] Accept-Language 'en-IN' -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:24:34.885Z [INFO]: [Test] Timezone 'Asia/Kolkata' -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:24:34.885Z [INFO]: [Test] Customer Billing Country 'US' -> Detected Country: US (Expected: US) {}
+2026-08-07T20:24:34.885Z [INFO]: [Test] Empty Context Default -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:24:34.885Z [INFO]: [Test] Verifying localized pricing lookup... {}
+2026-08-07T20:24:34.945Z [INFO]: [Test] Growth Plan IN -> Currency: INR, Monthly Price: 1999 (Expected: INR / 1999) {}
+2026-08-07T20:24:34.999Z [INFO]: [Test] Growth Plan US -> Currency: USD, Monthly Price: 79 (Expected: USD / 79) {}
+2026-08-07T20:24:34.999Z [INFO]: [Test] Testing dynamic Plan ID selection during subscription creation... {}
+2026-08-07T20:24:35.590Z [INFO]: [Test] Indian Customer Starter -> Active Plan: plan_TMzSnSpZurSsaj {}
+2026-08-07T20:24:36.211Z [INFO]: [Test] US Customer Starter -> Active Plan: plan_TMzQXc5SECtlgu {}
+2026-08-07T20:24:36.211Z [INFO]: [Test] Verifying getBillingInfo returns localized attributes... {}
+2026-08-07T20:24:36.384Z [INFO]: [Test] Billing Info -> Resolved Country: US (Expected: US) {}
+2026-08-07T20:24:36.385Z [INFO]: [Test] Billing Info -> Resolved Currency: USD (Expected: USD) {}
+2026-08-07T20:24:36.385Z [INFO]: [Test] Billing Info Growth Plan Price -> $79 (Expected: $79) {}
+2026-08-07T20:24:36.385Z [INFO]: [Test] Cleaning up test customer records... {}
+2026-08-07T20:24:36.463Z [INFO]: [Test] ALL INTEGRATION TESTS PASSED SUCCESSFULLY! ✔ {}
+2026-08-07T20:25:00.362Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:25:31.933Z [INFO]: [Test] Initializing Localization & Pricing E2E Audit... {}
+2026-08-07T20:25:32.038Z [INFO]: [Test] Seeding database to initialize localized prices... {}
+2026-08-07T20:25:32.038Z [INFO]: [Seeder] Starting database checks & seeding... {}
+2026-08-07T20:25:32.039Z [INFO]: [Seeder] Seeding default plans... {}
+2026-08-07T20:25:32.533Z [INFO]: [Seeder] Seeded/Merged plan: Starter {}
+2026-08-07T20:25:32.591Z [INFO]: [Seeder] Seeded/Merged plan: Growth {}
+2026-08-07T20:25:32.683Z [INFO]: [Seeder] Seeded/Merged plan: Premium {}
+2026-08-07T20:25:32.684Z [INFO]: [Seeder] Seeding plan features... {}
+2026-08-07T20:25:34.325Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_starter {}
+2026-08-07T20:25:35.139Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_growth {}
+2026-08-07T20:25:35.962Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_premium {}
+2026-08-07T20:25:35.962Z [INFO]: [Seeder] Seeding country localized prices... {}
+2026-08-07T20:25:36.015Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_IN (INR) {}
+2026-08-07T20:25:36.051Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_IN (INR) {}
+2026-08-07T20:25:36.093Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_IN (INR) {}
+2026-08-07T20:25:36.132Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_US (USD) {}
+2026-08-07T20:25:36.170Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_US (USD) {}
+2026-08-07T20:25:36.209Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_US (USD) {}
+2026-08-07T20:25:36.209Z [INFO]: [Seeder] Database checks & seeding completed successfully. {}
+2026-08-07T20:25:36.209Z [INFO]: [Test] Verifying planPrices collection entries... {}
+2026-08-07T20:25:36.303Z [INFO]: [Test] Total seeded prices found: 6 {}
+2026-08-07T20:25:36.304Z [INFO]: [Test] Testing priority country detection rules... {}
+2026-08-07T20:25:36.304Z [INFO]: [Test] IP Header 'US' -> Detected Country: US (Expected: US) {}
+2026-08-07T20:25:36.304Z [INFO]: [Test] Accept-Language 'en-IN' -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:25:36.304Z [INFO]: [Test] Timezone 'Asia/Kolkata' -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:25:36.304Z [INFO]: [Test] Customer Billing Country 'US' -> Detected Country: US (Expected: US) {}
+2026-08-07T20:25:36.304Z [INFO]: [Test] Empty Context Default -> Detected Country: IN (Expected: IN) {}
+2026-08-07T20:25:36.304Z [INFO]: [Test] Verifying localized pricing lookup... {}
+2026-08-07T20:25:36.355Z [INFO]: [Test] Growth Plan IN -> Currency: INR, Monthly Price: 1999 (Expected: INR / 1999) {}
+2026-08-07T20:25:36.392Z [INFO]: [Test] Growth Plan US -> Currency: USD, Monthly Price: 79 (Expected: USD / 79) {}
+2026-08-07T20:25:36.392Z [INFO]: [Test] Testing dynamic Plan ID selection during subscription creation... {}
+2026-08-07T20:25:37.140Z [INFO]: [Test] Indian Customer Starter -> Active Plan: plan_TMzSnSpZurSsaj {}
+2026-08-07T20:25:37.695Z [INFO]: [Test] US Customer Starter -> Active Plan: plan_TMzQXc5SECtlgu {}
+2026-08-07T20:25:37.695Z [INFO]: [Test] Verifying getBillingInfo returns localized attributes... {}
+2026-08-07T20:25:37.825Z [INFO]: [Test] Billing Info -> Resolved Country: US (Expected: US) {}
+2026-08-07T20:25:37.825Z [INFO]: [Test] Billing Info -> Resolved Currency: USD (Expected: USD) {}
+2026-08-07T20:25:37.825Z [INFO]: [Test] Billing Info Growth Plan Price -> $79 (Expected: $79) {}
+2026-08-07T20:25:37.825Z [INFO]: [Test] Cleaning up test customer records... {}
+2026-08-07T20:25:37.912Z [INFO]: [Test] ALL INTEGRATION TESTS PASSED SUCCESSFULLY! ✔ {}
+2026-08-07T20:26:00.017Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:37:34.763Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-07T20:37:34.809Z [INFO]: [Seeder] Starting database checks & seeding... {}
+2026-08-07T20:37:34.809Z [INFO]: [Seeder] Seeding default plans... {}
+2026-08-07T20:37:36.380Z [INFO]: [Server] Successfully initialized NestJS backend server engine {}
+2026-08-07T20:37:36.382Z [INFO]: [ReviewAutomationJob] Scheduling with pattern: "0 10,15,21 * * *" {}
+2026-08-07T20:37:36.383Z [INFO]: [ReviewAutomationJob] Cron started {}
+2026-08-07T20:37:36.383Z [INFO]: [ReportCron] Initialized weekly and monthly report cron jobs. {}
+2026-08-07T20:37:36.383Z [INFO]: [SubscriptionCron] Initialized daily subscription cron job. {}
+2026-08-07T20:37:36.384Z [INFO]: [ResetQuotaCron] Initialized daily quota reset cron job. {}
+2026-08-07T20:37:36.384Z [INFO]: [EscalationCronJob] Starting schedule: Every minute (* * * * *) {}
+2026-08-07T20:37:36.756Z [INFO]: [Seeder] Seeded/Merged plan: Starter {}
+2026-08-07T20:37:36.825Z [INFO]: [Seeder] Seeded/Merged plan: Growth {}
+2026-08-07T20:37:36.943Z [INFO]: [Seeder] Seeded/Merged plan: Premium {}
+2026-08-07T20:37:36.944Z [INFO]: [Seeder] Seeding plan features... {}
+2026-08-07T20:37:38.491Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_starter {}
+2026-08-07T20:37:39.343Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_growth {}
+2026-08-07T20:37:40.113Z [INFO]: [Seeder] Seeded/Merged features for plan: plan_premium {}
+2026-08-07T20:37:40.113Z [INFO]: [Seeder] Seeding country localized prices... {}
+2026-08-07T20:37:40.157Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_IN (INR) {}
+2026-08-07T20:37:40.193Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_IN (INR) {}
+2026-08-07T20:37:40.231Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_IN (INR) {}
+2026-08-07T20:37:40.273Z [INFO]: [Seeder] Seeded/Merged localized price: plan_starter_US (USD) {}
+2026-08-07T20:37:40.311Z [INFO]: [Seeder] Seeded/Merged localized price: plan_growth_US (USD) {}
+2026-08-07T20:37:40.350Z [INFO]: [Seeder] Seeded/Merged localized price: plan_premium_US (USD) {}
+2026-08-07T20:37:40.350Z [INFO]: [Seeder] Database checks & seeding completed successfully. {}
+2026-08-07T20:38:00.498Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:39:00.881Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:40:00.295Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:41:00.753Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:42:00.221Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:43:00.786Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:44:00.160Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:45:00.575Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:46:00.981Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:47:00.410Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:48:00.854Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:49:00.184Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:50:00.544Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:51:00.966Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:52:00.380Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:53:00.875Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:54:00.273Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:55:00.732Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:56:00.197Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:57:00.651Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:58:00.061Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T20:59:00.579Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:00:00.004Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:01:00.473Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:02:00.971Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:03:00.451Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:04:00.929Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:05:00.401Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:06:00.898Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:07:00.144Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:08:00.238Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:09:00.330Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:10:00.407Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:11:00.501Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:12:00.627Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:13:00.719Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:14:00.781Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:15:00.840Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:16:00.951Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:17:00.076Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:18:00.151Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:19:00.213Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:20:00.288Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:21:00.365Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:22:00.476Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:23:00.568Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:24:00.661Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:25:00.973Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:26:00.257Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:27:00.590Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:28:00.030Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:29:00.560Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:31:00.465Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:32:00.866Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:33:00.181Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:34:00.766Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:35:00.203Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:36:00.605Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:37:00.143Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:38:00.435Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:39:00.687Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:40:00.015Z [INFO]: [EscalationCronJob] Starting run {}
+2026-08-07T21:41:00.327Z [INFO]: [EscalationCronJob] Starting run {}

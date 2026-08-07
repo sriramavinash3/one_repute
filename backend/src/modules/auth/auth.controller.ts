@@ -4,12 +4,15 @@
  * NestJS Auth Controller for Signup, Forgot Password, Reset Password, & Email Verification.
  */
 
-import { Controller, Post, Get, Body, Query, HttpCode, HttpStatus, Logger, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, HttpCode, HttpStatus, Logger, Req, UseGuards } from '@nestjs/common';
 import { TokenService } from './token.service';
 import { EmailService } from '../email/services/email.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
+import { FirebaseAuthGuard } from './guards/firebase-auth.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthUser } from './interfaces/auth-user.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -143,6 +146,19 @@ export class AuthController {
     return {
       success: true,
       message: 'Email address verified successfully!',
+    };
+  }
+
+  /**
+   * GET /api/auth/me
+   * Resolves currently authenticated customer profile user structure via FirebaseAuthGuard.
+   */
+  @Get('me')
+  @UseGuards(FirebaseAuthGuard)
+  getProfile(@CurrentUser() user: AuthUser) {
+    return {
+      success: true,
+      user,
     };
   }
 }
