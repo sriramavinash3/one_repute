@@ -5,7 +5,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies required for Prisma & Native build tools
+# Install native dependencies required for Prisma & build tooling
 RUN apk add --no-cache libc6-compat openssl python3 make g++
 
 COPY package*.json ./
@@ -37,11 +37,11 @@ COPY prisma ./prisma/
 # Install production dependencies only
 RUN npm ci --only=production
 
-# Copy compiled dist from builder
+# Copy compiled dist and generated Prisma client from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Create upload directory and set ownership to node user
+# Create uploads directory and set permissions
 RUN mkdir -p /app/uploads && chown -R node:node /app
 
 USER node

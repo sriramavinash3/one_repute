@@ -1,19 +1,39 @@
-FROM node:20-slim AS build
+# ============================================================
+# STAGE 1: Builder
+# ============================================================
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build arguments for Vite environment variables
+ARG VITE_API_BASE_URL=""
+ARG VITE_LOCAL_API_URL=""
+
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_LOCAL_API_URL=$VITE_LOCAL_API_URL
+
 COPY package*.json ./
 
-RUN npm install
+RUN npm ci
 
 COPY . .
 
 RUN npm run build
 
-FROM nginx:alpine
+# ============================================================
+# STAGE 2: Nginx Web Server
+# ============================================================
+FROM nginx:1.25-alpine AS runner
 
-COPY --from=build /app/dist /usr/share/nginx/html
+# Copy compiled static SPA files
+COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copy internal Nginx configuration for SPA routing
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -5,7 +5,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: onerepute_postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-onerepute}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onerepute_secret_password}
@@ -24,7 +24,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: onerepute_redis
-    restart: always
+    restart: unless-stopped
     command: redis-server --save 60 1 --loglevel notice
     volumes:
       - redis_data:/data
@@ -42,7 +42,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: onerepute_backend
-    restart: always
+    restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -51,8 +51,6 @@ services:
       REDIS_PORT: 6379
     env_file:
       - ./backend/.env
-    ports:
-      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,19 +61,34 @@ services:
     networks:
       - onerepute_net
 
-  # ─── Nginx Reverse Proxy ──────────────────────────────────────────────────
+  # ─── React Frontend SPA ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-""}
+        VITE_LOCAL_API_URL: ${VITE_LOCAL_API_URL:-""}
+    container_name: onerepute_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - onerepute_net
+
+  # ─── Edge Nginx Reverse Proxy ─────────────────────────────────────────────
   nginx:
     image: nginx:1.25-alpine
     container_name: onerepute_nginx
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
+      - frontend
       - backend
     networks:
       - onerepute_net

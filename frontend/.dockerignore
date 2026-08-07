@@ -1,2 +1,11 @@
 node_modules
 dist
+.env
+.env.local
+.env.development
+.env.production
+.git
+.gitignore
+.vscode
+Dockerfile
+README.md
