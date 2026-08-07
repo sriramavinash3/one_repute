@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/src/main.js",
     "dev": "ts-node src/main.ts",
     "test": "jest tests/",
     "test:email": "jest tests/email.service.spec.ts tests/email.worker.spec.ts tests/token.service.spec.ts",
