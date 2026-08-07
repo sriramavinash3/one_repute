@@ -51,8 +51,8 @@ services:
       REDIS_PORT: 6379
     env_file:
       - ./backend/.env
-    expose:
-      - "3000"
+    ports:
+      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
