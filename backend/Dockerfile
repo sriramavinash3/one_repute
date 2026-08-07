@@ -6,7 +6,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies required for Prisma & Native build tools
-RUN apk add --no-libc-compat openssl python3 make g++
+RUN apk add --no-cache libc6-compat openssl python3 make g++
 
 COPY package*.json ./
 COPY prisma ./prisma/
