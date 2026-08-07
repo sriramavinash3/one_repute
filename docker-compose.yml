@@ -76,7 +76,7 @@ services:
     networks:
       - onerepute_net
 
-  # ─── Edge Nginx Reverse Proxy ─────────────────────────────────────────────
+  # ─── Edge Nginx Reverse Proxy (HTTPS 443 + HTTP 80 301 Redirect) ─────────
   nginx:
     image: nginx:1.25-alpine
     container_name: onerepute_nginx
@@ -87,6 +87,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
     depends_on:
       - frontend
       - backend
@@ -101,3 +103,4 @@ volumes:
   postgres_data:
   redis_data:
   backend_uploads:
+  certbot_www:

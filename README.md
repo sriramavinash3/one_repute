@@ -1,135 +1,67 @@
-# OneRepute SaaS Platform — Production Architecture & Deployment Guide
+# OneRepute SaaS Platform — Production HTTPS & Deployment Architecture
 
-OneRepute is an enterprise-grade AI Reputation Management platform built on NestJS, React (Vite), PostgreSQL, Redis, and Firebase.
-
----
-
-## 🏗️ Production Architecture
-
-```
-Internet
-   │
-   ▼
-Nginx Edge Reverse Proxy (Ports 80 / 443)
-   │
-   ├── /               ──► Frontend Container (React SPA served by internal Nginx)
-   ├── /api            ──► Backend Container (NestJS API Port 3000)
-   ├── /socket.io, /ws ──► Backend Container (WebSockets)
-   │
-   └── Private Network (onerepute_net)
-        ├── PostgreSQL 16 (Port 5432)
-        └── Redis 7 (Port 6379)
-```
-
-### Component Breakdown
-
-1. **Nginx Edge Reverse Proxy**: Entry point for all inbound traffic. Handles SSL termination, rate limiting, gzip compression, and routes requests to internal containers.
-2. **Frontend Container (`frontend`)**: Multi-stage build (`node:20-alpine` -> `nginx:1.25-alpine`). Serves compiled React single-page application with HTML5 history mode fallback (`try_files $uri $uri/ /index.html`).
-3. **Backend Container (`backend`)**: NestJS application running on Node 20. Interacts with PostgreSQL, Redis, Firebase Admin SDK, and Google Business APIs.
-4. **PostgreSQL Container (`postgres`)**: Relational database for persistent storage.
-5. **Redis Container (`redis`)**: In-memory cache and BullMQ job queue manager for background automation & scheduled reviews sync.
+OneRepute is an enterprise-grade AI Reputation Management platform built on NestJS, React (Vite), PostgreSQL, Redis, Firebase, and Nginx.
 
 ---
 
-## 🚀 One-Command Production Deployment
+## 🏗️ Production HTTPS Architecture
 
-The entire VPS stack builds and runs cleanly inside Docker. Node.js or npm is **never** required on the host server.
-
-### 1. Initial Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/onerepute/one_repute.git
-cd one_repute
-
-# Create production environment files
-cp backend/.env.example backend/.env
 ```
-
-### 2. Build & Launch Stack
-
-```bash
-# Build and start all 5 containers in background mode
-docker compose up -d --build
-```
-
-### 3. Verify Container Health
-
-```bash
-docker compose ps
+Internet (HTTP:80 / HTTPS:443)
+       │
+       ▼
+Nginx Edge Reverse Proxy (Ports 80 & 443)
+ ├── Port 80: ACME Challenge /.well-known/acme-challenge/ -> /var/www/certbot
+ ├── Port 80: HTTP 301 Redirect -> https://onerepute.com$request_uri
+ │
+ └── Port 443 SSL HTTP/2 (TLS 1.2/1.3 + HSTS + OCSP Stapling)
+      ├── /               ──► Frontend Container (React SPA)
+      ├── /api/           ──► Backend Container (NestJS API Port 3000)
+      ├── /health         ──► Backend Container (/api/health)
+      └── /socket.io, /ws ──► Backend Container (WebSockets Upgrade)
 ```
 
 ---
 
-## 💻 Local Development Setup
+## 🔒 SSL & Security Hardening Features
 
-For local feature development with hot reloading:
+- **ACME Challenge Support**: Configured `/.well-known/acme-challenge/` mapped to `/var/www/certbot` for automatic Let's Encrypt renewal.
+- **HTTP 301 Permanent Redirect**: Automatically upgrades all HTTP requests to HTTPS.
+- **TLS 1.2 & TLS 1.3**: Modern SSL protocols enabled with strong ECDHE/AES-GCM cipher suites.
+- **OCSP Stapling**: Configured `ssl_stapling on` and `ssl_stapling_verify on` with Google DNS resolvers (`8.8.8.8`).
+- **HSTS (HTTP Strict Transport Security)**: `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
+- **Security Headers**: HSTS, CSP, Permissions-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, X-XSS-Protection.
+
+---
+
+## 🚀 Let's Encrypt Certificate Issuance & Renewal
+
+### 1. Initial Certificate Request (Host VPS)
 
 ```bash
-# 1. Start Infrastructure (Postgres + Redis)
-docker compose up postgres redis -d
+# Obtain certificates using certbot webroot mode
+sudo certbot certonly --webroot -w /var/lib/docker/volumes/one_repute_certbot_www/_data -d onerepute.com -d www.onerepute.com
+```
 
-# 2. Start NestJS Backend Server
-cd backend
-npm install
-npm run start:dev
+### 2. Auto-Renewal Crontab Setup
 
-# 3. Start React Frontend Dev Server (in another terminal)
-cd frontend
-npm install
-npm run dev
+Add the following to system `crontab` (`crontab -e`):
+
+```bash
+0 3 * * * certbot renew --quiet && docker exec onerepute_nginx nginx -s reload
 ```
 
 ---
 
 ## 🔄 Rebuild & Update Procedure
 
-When pushing updates to production:
-
 ```bash
-# Pull latest code
+# Pull latest updates
 git pull origin main
 
-# Rebuild and restart containers with zero downtime
+# Rebuild and start containers
 docker compose up -d --build
-```
 
----
-
-## 🛠️ Troubleshooting & Diagnostics
-
-### View Logs
-
-```bash
-# View all logs live
-docker compose logs -f
-
-# View specific service logs
-docker compose logs -f backend
-docker compose logs -f frontend
-docker compose logs -f nginx
-```
-
-### Container Health Checks
-
-```bash
-# Check NestJS API health endpoint
-curl http://localhost/api/health
-
-# Check PostgreSQL readiness
-docker exec -it onerepute_postgres pg_isready -U onerepute -d onerepute_db
-
-# Check Redis connection
-docker exec -it onerepute_redis redis-cli ping
-```
-
----
-
-## ⏪ Rollback Steps
-
-To rollback to a previous release tag:
-
-```bash
-git checkout <previous-commit-or-tag>
-docker compose up -d --build
+# Verify Nginx configuration inside container
+docker exec -it onerepute_nginx nginx -t
 ```
