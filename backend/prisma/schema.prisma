@@ -1,0 +1,97 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  OUTLET
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum EmailStatus {
+  QUEUED
+  SENDING
+  DELIVERED
+  FAILED
+  BOUNCED
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  name             String?
+  role             Role              @default(USER)
+  isVerified       Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  emailLogs        EmailLog[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  id         String   @id @default(uuid())
+  identifier String   // user email
+  tokenHash  String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  identifier String    // user email
+  tokenHash  String    @unique
+  expires    DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+model TeamInvitation {
+  id            String   @id @default(uuid())
+  email         String
+  workspaceId   String
+  workspaceName String
+  inviterName   String
+  tokenHash     String   @unique
+  role          String   @default("member")
+  expires       DateTime
+  status        String   @default("pending") // pending, accepted, expired
+  createdAt     DateTime @default(now())
+
+  @@map("team_invitations")
+}
+
+model EmailLog {
+  id            String      @id @default(uuid())
+  userId        String?
+  email         String
+  template      String
+  provider      String      @default("resend")
+  status        EmailStatus @default(QUEUED)
+  queueId       String?
+  latencyMs     Int?
+  failureReason String?
+  retries       Int         @default(0)
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([template])
+  @@index([status])
+  @@map("email_logs")
+}

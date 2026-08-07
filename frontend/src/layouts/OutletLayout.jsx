@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, FileText, LayoutDashboard, MessageSquareWarning, Settings, LogOut, Menu, BrainCircuit } from 'lucide-react'
+import { BarChart3, FileText, LayoutDashboard, MessageSquareWarning, Settings, LogOut, Menu, BrainCircuit, QrCode } from 'lucide-react'
 import Sidebar from '../components/navigation/Sidebar'
 import Topbar from '../components/navigation/Topbar'
 import Button from '../components/ui/button'
@@ -22,6 +22,7 @@ export default function OutletLayout() {
       { to: '/outlet-dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, end: true },
       { to: '/outlet-dashboard/reviews', label: 'Reviews', icon: <FileText className="h-4 w-4" /> },
       { to: '/outlet-dashboard/escalations', label: 'Escalations', icon: <MessageSquareWarning className="h-4 w-4" /> },
+      { to: '/outlet-dashboard/qr', label: 'Smart QR', icon: <QrCode className="h-4 w-4" /> },
       { to: '/outlet-dashboard/analytics', label: 'Analytics', icon: <BarChart3 className="h-4 w-4" /> },
       { to: '/outlet-dashboard/reputation', label: 'Reputation', icon: <BrainCircuit className="h-4 w-4" /> },
       { to: '/outlet-dashboard/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> }

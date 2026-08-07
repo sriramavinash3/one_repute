@@ -182,4 +182,74 @@ async function sendNegativeReviewAlert(params) {
   });
 }
 
-module.exports = { sendNegativeReviewAlert };
+/**
+ * Send WhatsApp escalation alert to the responsible contact.
+ *
+ * @param {Object} params
+ * @param {string} params.toNumber
+ * @param {string} params.businessName
+ * @param {string} params.customerName
+ * @param {number} params.rating
+ * @param {string} params.reviewText
+ * @param {string} params.pendingSince
+ * @param {number} params.level
+ * @param {string} params.dashboardUrl
+ */
+async function sendEscalationAlert(params) {
+  const { toNumber, businessName, customerName, rating, reviewText, pendingSince, level, dashboardUrl } = params;
+
+  if (!isValidPhone(toNumber)) {
+    throw new Error(`Invalid WhatsApp number: ${toNumber}`);
+  }
+
+  const stars = '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
+  const messageBody = `🚨 *Review Escalation Alert*
+
+*Business:*
+${businessName}
+
+*Customer:*
+${customerName}
+
+*Rating:*
+${stars} (${rating}/5)
+
+*Review:*
+"${reviewText || '(No comment provided)'}"
+
+*Pending Since:*
+${pendingSince || 'Just now'}
+
+*Escalation Level:*
+Level ${level}
+
+Please respond immediately.
+
+*Open Review:*
+${dashboardUrl}`;
+
+  const provider = env.whatsapp.provider;
+
+  await withRetry(
+    async () => {
+      if (provider === 'twilio') {
+        await sendViaTwilio(toNumber, messageBody);
+      } else if (provider === '360dialog') {
+        await sendVia360Dialog(toNumber, messageBody);
+      } else {
+        throw new Error(`Unknown WhatsApp provider: ${provider}`);
+      }
+    },
+    { retries: 3, baseDelayMs: 1000, label: `WhatsApp.sendEscalationAlert(${toNumber})` }
+  );
+
+  logger.info('[WhatsApp] Escalation alert sent', {
+    to: toNumber,
+    businessName,
+    rating,
+    level,
+    provider,
+  });
+}
+
+module.exports = { sendNegativeReviewAlert, sendEscalationAlert };

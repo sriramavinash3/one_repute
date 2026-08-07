@@ -52,7 +52,7 @@ export default function AdminOutletsPage() {
 
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data: outletData, isLoading: outletsLoading, error: outletsError, refetch: refetchOutlets } = useQuery({
     queryKey: ['admin-outlets'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return { outlets: MOCK_OUTLETS, total: MOCK_OUTLETS.length }
@@ -61,16 +61,24 @@ export default function AdminOutletsPage() {
     staleTime: 60 * 1000
   })
 
-  const { data: customers = [] } = useQuery({
+  const { data: rawCustomers, isLoading: customersLoading } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
-      // Use dynamic import for apiClient to avoid top-level import conflicts if any, though it's better to just import at top. Let's just use standard import logic. Wait, AdminOutletsPage doesn't import apiClient.
       const { default: apiClient } = await import('../../services/apiClient');
       const { data } = await apiClient.get('/api/admin/customers')
       return data
     }
   })
+
+  const isLoading = outletsLoading || customersLoading;
+
+  const customers = useMemo(() => {
+    if (Array.isArray(rawCustomers)) return rawCustomers;
+    if (rawCustomers && Array.isArray(rawCustomers.customers)) return rawCustomers.customers;
+    if (rawCustomers && Array.isArray(rawCustomers.data)) return rawCustomers.data;
+    return [];
+  }, [rawCustomers]);
 
   const toggleStatusMutation = useMutation({
     mutationFn: ({ id, isActive }) => toggleAdminOutletStatus(id, isActive),
@@ -198,10 +206,11 @@ export default function AdminOutletsPage() {
   }
 
   const rows = useMemo(() => {
-    if (Array.isArray(data?.outlets)) return data.outlets
-    if (Array.isArray(data)) return data
+    if (Array.isArray(outletData?.outlets)) return outletData.outlets
+    if (Array.isArray(outletData)) return outletData
+    if (Array.isArray(outletData?.data)) return outletData.data
     return []
-  }, [data])
+  }, [outletData])
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
@@ -314,8 +323,8 @@ export default function AdminOutletsPage() {
               ) : filtered.length > 0 ? (
                 filtered.map((row) => {
                   const displayName = row.name || row.googleLocationName || row.businessName || 'Unnamed Outlet'
-                  const customer = customers.find(c => c.id === row.customerId) || {}
-                  const accountTitle = customer.name || row.googleAccountEmail || row.email || 'Google Business Profile'
+                  const customer = customers.find(c => c.id === row.customerId || (c.email && c.email.toLowerCase() === (row.email || row.googleAccountEmail || '').toLowerCase())) || {}
+                  const accountTitle = customer.name || row.customerName || row.googleAccountEmail || row.email || 'Google Business Profile'
                   const accountSub = customer.email || row.googleAccountEmail || row.email || row.id
 
                   return (

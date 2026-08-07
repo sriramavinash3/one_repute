@@ -49,19 +49,21 @@ async function getActiveOutlets() {
 }
 
 /**
- * Fetch all outlets (for admin).
+ * Fetch all outlets (for admin), excluding soft-deleted records.
  * @returns {Promise<Array>}
  */
 async function getAllOutlets() {
   const db = getDb();
   const snap = await db.collection(COLLECTION).get();
-  return snap.docs.map((doc) => {
-    const data = doc.data();
-    if (data.googleRefreshToken) {
-      data.googleRefreshToken = decrypt(data.googleRefreshToken);
-    }
-    return { id: doc.id, ...data };
-  });
+  return snap.docs
+    .map((doc) => {
+      const data = doc.data();
+      if (data.googleRefreshToken) {
+        data.googleRefreshToken = decrypt(data.googleRefreshToken);
+      }
+      return { id: doc.id, ...data };
+    })
+    .filter(outlet => !outlet.isDeleted && outlet.status !== 'deleted');
 }
 
 /**

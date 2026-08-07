@@ -11,19 +11,16 @@ export const PRICING_CONFIG = {
       locale: 'en-IN',
       plans: {
         starter: {
-          monthly: 1299,
-          quarterly: 3899,
-          annual: 15599,
+          monthly: 999,
+          annual: 9999,
         },
         growth: {
           monthly: 1999,
-          quarterly: 4999,
-          annual: 17999,
+          annual: 19999,
         },
         premium: {
           monthly: 2999,
-          quarterly: 7999,
-          annual: 25999,
+          annual: 29999,
         },
       },
     },
@@ -35,19 +32,16 @@ export const PRICING_CONFIG = {
       locale: 'en-US',
       plans: {
         starter: {
-          monthly: 25,
-          quarterly: 75,
-          annual: 279,
+          monthly: 29,
+          annual: 290,
         },
         growth: {
-          monthly: 29,
-          quarterly: 79,
-          annual: 289,
+          monthly: 79,
+          annual: 790,
         },
         premium: {
-          monthly: 34,
-          quarterly: 99,
-          annual: 349,
+          monthly: 199,
+          annual: 1990,
         },
       },
     },

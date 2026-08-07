@@ -39,7 +39,7 @@ export default function AdminCustomersPage() {
   
   const queryClient = useQueryClient()
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery({
+  const { data: rawCustomers, isLoading: customersLoading, error: customersError, refetch: refetchCustomers } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
@@ -47,6 +47,13 @@ export default function AdminCustomersPage() {
       return data
     }
   })
+
+  const customers = useMemo(() => {
+    if (Array.isArray(rawCustomers)) return rawCustomers;
+    if (rawCustomers && Array.isArray(rawCustomers.customers)) return rawCustomers.customers;
+    if (rawCustomers && Array.isArray(rawCustomers.data)) return rawCustomers.data;
+    return [];
+  }, [rawCustomers]);
 
   const { data: outletData, isLoading: outletsLoading } = useQuery({
     queryKey: ['admin-outlets'],
@@ -106,12 +113,30 @@ export default function AdminCustomersPage() {
     return map
   }, [usageInsights])
 
-  const filtered = customers.filter(c => {
-    const searchMatch = c.name?.toLowerCase().includes(query.toLowerCase()) || c.id?.toLowerCase().includes(query.toLowerCase())
-    const planMatch = planFilter === 'all' || c.plan === planFilter
-    const statusMatch = statusFilter === 'all' || c.accountStatus === statusFilter
-    return searchMatch && planMatch && statusMatch
-  })
+  const filtered = useMemo(() => {
+    if (!Array.isArray(customers)) return []
+    return customers.filter(c => {
+      const q = query.trim().toLowerCase()
+      const searchMatch = !q ||
+        c.name?.toLowerCase().includes(q) ||
+        c.id?.toLowerCase().includes(q) ||
+        c.email?.toLowerCase().includes(q) ||
+        c.contactPerson?.toLowerCase().includes(q)
+
+      const customerPlan = (c.plan || '').toLowerCase().replace('plan_', '')
+      const targetPlan = planFilter.toLowerCase().replace('plan_', '')
+      const planMatch = planFilter === 'all' || customerPlan === targetPlan || customerPlan.includes(targetPlan)
+
+      const cStatus = (c.accountStatus || c.subscriptionStatus || 'Active').toLowerCase()
+      const statusMatch = statusFilter === 'all' ||
+        cStatus === statusFilter.toLowerCase() ||
+        (statusFilter.toLowerCase() === 'active' && (cStatus === 'active' || cStatus === 'trialing' || cStatus === 'trial')) ||
+        (statusFilter.toLowerCase() === 'trial' && (cStatus === 'trial' || cStatus === 'trialing')) ||
+        (statusFilter.toLowerCase() === 'inactive' && (cStatus === 'inactive' || cStatus === 'canceled'))
+
+      return searchMatch && planMatch && statusMatch
+    })
+  }, [customers, query, planFilter, statusFilter])
 
   const handleEditCustomer = (customer) => {
     setEditingCustomer({ ...customer })

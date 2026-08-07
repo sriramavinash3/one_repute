@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext'
+import { SubscriptionProvider } from './contexts/SubscriptionContext'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,8 +20,10 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <App />
-        <Toaster position="top-right" richColors />
+        <SubscriptionProvider>
+          <App />
+          <Toaster position="top-right" richColors />
+        </SubscriptionProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>

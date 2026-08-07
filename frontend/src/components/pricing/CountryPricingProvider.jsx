@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { PRICING_CONFIG, formatPrice } from './pricingConfig'
 import { useAuth } from '../../contexts/AuthContext'
 import { PricingContext } from './usePricing'
@@ -8,22 +8,40 @@ export function CountryPricingProvider({ children }) {
   const outlet = authState.outlet || null
   const [overrideRegion, setOverrideRegion] = useState(null)
   const [billingCycle, setBillingCycle] = useState('monthly')
+  const [detectedRegion, setDetectedRegion] = useState('IN')
 
-  // Determine detected region based on Google Business Profile outlet country
-  const detectedRegion = useMemo(() => {
-    if (!outlet) return PRICING_CONFIG.defaultRegion
+  useEffect(() => {
+    if (outlet) {
+      const countryRaw = (
+        outlet.country ||
+        outlet.googleLocationCountry ||
+        (typeof outlet.address === 'string' ? outlet.address : '') ||
+        ''
+      ).toLowerCase().trim()
 
-    const countryRaw = (
-      outlet.country ||
-      outlet.googleLocationCountry ||
-      (typeof outlet.address === 'string' ? outlet.address : '') ||
-      ''
-    ).toLowerCase().trim()
-
-    if (countryRaw.includes('india') || countryRaw === 'in') {
-      return 'IN'
+      if (countryRaw.includes('india') || countryRaw === 'in') {
+        setDetectedRegion('IN')
+      } else {
+        setDetectedRegion('INT')
+      }
+    } else {
+      async function detect() {
+        try {
+          const response = await fetch('/api/payments/detect-location')
+          if (response.ok) {
+            const data = await response.json()
+            if (data.country === 'IN') {
+              setDetectedRegion('IN')
+            } else {
+              setDetectedRegion('INT')
+            }
+          }
+        } catch (err) {
+          setDetectedRegion('IN')
+        }
+      }
+      detect()
     }
-    return 'INT'
   }, [outlet])
 
   const region = overrideRegion || detectedRegion

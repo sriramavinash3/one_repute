@@ -2,8 +2,9 @@ import {
   Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis, Cell, PieChart, Pie
 } from 'recharts'
-import { useEffect, useMemo } from 'react'
-import { MessageCircle, Sparkles, Star, TriangleAlert, TrendingUp, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { MessageCircle, Sparkles, Star, TriangleAlert, TrendingUp, Clock, CheckCircle2, AlertCircle, Lock } from 'lucide-react'
+import { UpgradeModal } from '../../components/gating/FeatureGate'
 import { motion } from 'framer-motion'
 import StatCard from '../../components/analytics/StatCard'
 import ChartCard from '../../components/analytics/ChartCard'
@@ -13,10 +14,12 @@ import { collection, onSnapshot, orderBy, query, where, limit } from 'firebase/f
 import { db } from '../../firebase/firebase'
 import { useAuth } from '../../contexts/AuthContext'
 import useAppStore from '../../store/appStore'
+import Button from '../../components/ui/button'
 import { buildDailyTrend, buildRatingDistribution, buildSentimentMix, computeRatingStats, computeStatusCounts } from '../../utils/analytics'
 import { formatTimestamp } from '../../utils/format'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
+import { useSubscription } from '../../contexts/SubscriptionContext'
 
 const stagger = {
   hidden: {},
@@ -30,9 +33,15 @@ const fadeUp = {
 
 export default function OutletDashboardPage() {
   const { outlet, profile } = useAuth()
+  const { billingInfo } = useSubscription()
   const reviews = useAppStore((state) => state.reviews)
   const setReviews = useAppStore((state) => state.setReviews)
   const outletId = outlet?.id || profile?.outletId
+  
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const plan = billingInfo?.subscription?.plan || 'plan_starter'
+  const isPremium = plan === 'plan_premium'
+  const isStarter = plan === 'plan_starter'
 
 
   useEffect(() => {
@@ -137,6 +146,29 @@ export default function OutletDashboardPage() {
         </div>
       </motion.div>
 
+      {/* Executive AI Strategy Advisor */}
+      {isPremium && (
+        <motion.div variants={fadeUp} className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-600 to-indigo-700 p-6 text-white shadow-brand">
+          <div className="flex items-start gap-4">
+            <div className="rounded-xl bg-white/20 p-2 text-white">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-lg font-bold">Executive AI Strategy Advisor</h2>
+              <p className="text-xs text-brand-100 max-w-2xl leading-relaxed">
+                Based on review sentiment anomalies across Food Quality vs Service Speed:
+                Our intelligence indicates a drop in ratings during lunch hours due to service delays. Focus staffing resources on peak shifts to elevate average rating.
+              </p>
+              <div className="flex items-center gap-3 pt-2 text-[11px] font-bold text-white uppercase tracking-wider">
+                <span>Target: 4.7★ (Current 4.5★)</span>
+                <span>•</span>
+                <span>Recommendation Active</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* KPI Stats */}
       <motion.div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" variants={stagger}>
         <motion.div variants={fadeUp}>
@@ -206,7 +238,19 @@ export default function OutletDashboardPage() {
       </motion.div>
 
       {/* Charts Row */}
-      <motion.div className="grid gap-6 lg:grid-cols-3" variants={stagger}>
+      <motion.div className="relative grid gap-6 lg:grid-cols-3" variants={stagger}>
+        {isStarter && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/75 dark:bg-slatey-950/75 backdrop-blur-[4px] rounded-2xl border border-slatey-200/50 p-6 text-center">
+            <div className="h-10 w-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mb-3 shadow">
+              <Lock className="h-5 w-5" />
+            </div>
+            <h4 className="text-sm font-bold text-slatey-800 dark:text-slatey-200 mb-1">Visual Analytics Locked</h4>
+            <p className="text-xs text-slatey-500 max-w-sm mb-4 leading-normal">Upgrade to the Growth Plan to unlock interactive weekly trend lines, sentiment mix pies, and rating distributions.</p>
+            <Button onClick={() => setShowUpgradeModal(true)} variant="primary" className="text-xs px-4 py-2 h-auto shadow-brand">
+              Unlock Analytics
+            </Button>
+          </div>
+        )}
 
         <motion.div className="lg:col-span-2" variants={fadeUp}>
           <ChartCard title="Weekly review & response trend">
@@ -339,6 +383,9 @@ export default function OutletDashboardPage() {
         </div>
       </motion.div>
 
+      {showUpgradeModal && (
+        <UpgradeModal onClose={() => setShowUpgradeModal(false)} />
+      )}
     </motion.div>
   )
 }

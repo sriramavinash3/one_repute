@@ -1,0 +1,6 @@
+2026-08-04T07:03:02.591Z [WARN]: [AuthMiddleware] Non-admin email denied admin access {"email":"hacker@example.com"}
+2026-08-04T07:03:02.912Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-04T07:20:44.433Z [WARN]: [AuthMiddleware] Non-admin email denied admin access {"email":"hacker@example.com"}
+2026-08-04T07:20:44.555Z [INFO]: [Firebase] Admin SDK initialized successfully {}
+2026-08-04T07:40:02.462Z [WARN]: [AuthMiddleware] Non-admin email denied admin access {"email":"hacker@example.com"}
+2026-08-04T07:40:02.566Z [INFO]: [Firebase] Admin SDK initialized successfully {}

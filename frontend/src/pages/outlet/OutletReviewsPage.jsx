@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Star, MessageSquare, Sparkles, Filter, ClipboardCopy,Check, ExternalLink } from 'lucide-react'
+import { Search, Star, MessageSquare, Sparkles, Filter, ClipboardCopy, Check, ExternalLink, X, Clock, AlertTriangle, CheckCircle, Mail, Phone, Lock } from 'lucide-react'
 import StatusBadge from '../../components/feedback/StatusBadge'
 import EmptyState from '../../components/feedback/EmptyState'
 import Skeleton from '../../components/feedback/Skeleton'
@@ -13,6 +13,9 @@ import useAppStore from '../../store/appStore'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
 import apiClient from '../../services/apiClient'
+import { fetchReviewEscalationStatus } from '../../services/escalationService'
+import { useSubscription } from '../../contexts/SubscriptionContext'
+import { toast } from 'sonner'
 
 const TABS = [
   { key: 'all', label: 'All' },
@@ -36,11 +39,212 @@ function StarRating({ rating }) {
   )
 }
 
-function ReviewCard({ review }) {
-  const [expanded, setExpanded] = useState(false)
+function EscalationTimer({ nextTime }) {
+  const [timeLeft, setTimeLeft] = useState('')
+
+  useEffect(() => {
+    if (!nextTime) {
+      setTimeLeft('')
+      return
+    }
+
+    const interval = setInterval(() => {
+      const target = nextTime.toDate ? nextTime.toDate().getTime() : new Date(nextTime).getTime()
+      const diff = target - Date.now()
+
+      if (diff <= 0) {
+        setTimeLeft('Escalating...')
+        clearInterval(interval)
+      } else {
+        const hrs = Math.floor(diff / 3600000)
+        const mins = Math.floor((diff % 3600000) / 60000)
+        const secs = Math.floor((diff % 60000) / 1000)
+
+        const pad = (num) => String(num).padStart(2, '0')
+        if (hrs > 0) {
+          setTimeLeft(`${pad(hrs)}:${pad(mins)}:${pad(secs)}`)
+        } else {
+          setTimeLeft(`${pad(mins)}:${pad(secs)}`)
+        }
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [nextTime])
+
+  if (!timeLeft) return null
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
+      ⏳ {timeLeft}
+    </span>
+  )
+}
+
+function ReviewCard({ review, onSelect }) {
+  const { hasFeature } = useSubscription()
+  const approvalMode = hasFeature('reply_approval_mode')
   const [copied, setCopied] = useState(false)
   const aiResponse = review.aiResponse || review.replySuggestion || ''
   const reviewUrl = review.reviewUrl || review.raw?.reviewUrl || ''
+
+  const handleCopy = async (e) => {
+    e.stopPropagation()
+    if (!aiResponse) return
+    try {
+      await navigator.clipboard.writeText(aiResponse)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  const handleMarkResponded = async (e) => {
+    e.stopPropagation()
+    try {
+      await apiClient.patch(`/api/outlets/reviews/${review.id}/status`, { status: 'responded' })
+    } catch (err) {
+      console.error('Failed to mark as responded', err)
+    }
+  }
+
+  const isEscalating = review.escalationStatus && review.escalationStatus.endsWith('_pending')
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ duration: 0.25 }}
+      onClick={() => onSelect(review)}
+      className="rounded-2xl border border-slatey-200 bg-white/80 p-5 shadow-sm hover:shadow-md transition cursor-pointer relative"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
+            {review.customerName ? review.customerName[0] : 'C'}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slatey-900">{review.customerName || 'Customer'}</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <StarRating rating={review.rating} />
+              <span className="text-xs text-slatey-400">
+                {formatTimestamp(review.reviewTimestamp || review.createdAt)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {isEscalating && <EscalationTimer nextTime={review.nextEscalationTime} />}
+          <StatusBadge status={review.escalationStatus || review.status} />
+        </div>
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-slatey-600 line-clamp-3">{review.text}</p>
+
+      {aiResponse && (
+        <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-brand-600">
+              <Sparkles className="h-3 w-3" /> AI Reply
+            </div>
+            <div className="flex items-center gap-2">
+              {(review.status === 'suggested' || review.status === 'pending') && (
+                approvalMode ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        try {
+                          await apiClient.post(`/api/approvals/${review.id}/approve`)
+                          toast.success('Reply approved and posted!')
+                        } catch (err) {
+                          toast.error('Failed to approve reply')
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                      <Check className="h-3 w-3" /> Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        try {
+                          await apiClient.post(`/api/approvals/${review.id}/reject`)
+                          toast.success('Reply suggestion rejected')
+                        } catch (err) {
+                          toast.error('Failed to reject reply')
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-1 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100"
+                    >
+                      <X className="h-3 w-3" /> Reject
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleMarkResponded}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 hover:border-emerald-300"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Mark as Responded
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-brand-700 transition hover:bg-brand-100"
+              >
+                {copied ? <Check className="h-3.5 w-3.5" /> : <ClipboardCopy className="h-3.5 w-3.5" />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-slatey-600 line-clamp-2">{aiResponse}</p>
+        </div>
+      )}
+
+      {review.escalationStatus && review.escalationStatus !== 'no_escalation' && (
+        <div className="mt-3 flex items-center justify-between bg-slatey-50 rounded-xl px-3 py-2 border border-slatey-150 text-[11px] text-slatey-500">
+          <span className="flex items-center gap-1.5 font-medium">
+            <Clock className="h-3 w-3 text-brand-500" />
+            Escalation level: <span className="font-semibold text-slatey-700 capitalize">{String(review.escalationStatus).replace('_pending', '').replace('_', ' ')}</span>
+          </span>
+          <span className="text-[10px] text-slatey-400 font-medium">Click card to view details</span>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+function ReviewDetailsDrawer({ review, onClose }) {
+  const [timeline, setTimeline] = useState([])
+  const [loadingTimeline, setLoadingTimeline] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const aiResponse = review.aiResponse || review.replySuggestion || ''
+
+  useEffect(() => {
+    if (!review.id) return
+
+    setLoadingTimeline(true)
+    fetchReviewEscalationStatus(review.id)
+      .then((data) => {
+        setTimeline(data.timeline || [])
+      })
+      .catch((err) => {
+        console.error('Failed to load escalation timeline', err)
+      })
+      .finally(() => {
+        setLoadingTimeline(false)
+      })
+  }, [review.id])
 
   const handleCopy = async () => {
     if (!aiResponse) return
@@ -53,112 +257,196 @@ function ReviewCard({ review }) {
     }
   }
 
-  const handleMarkResponded = async () => {
-    try {
-      await apiClient.patch(`/api/outlets/reviews/${review.id}/status`, { status: 'responded' })
-    } catch (err) {
-      console.error('Failed to mark as responded', err)
-    }
-  }
+  const isEscalating = review.escalationStatus && review.escalationStatus.endsWith('_pending')
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      transition={{ duration: 0.25 }}
-      className="rounded-2xl border border-slatey-200 bg-white/80 p-5 shadow-sm"
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
+      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white border-l border-slatey-200 shadow-2xl flex flex-col"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
-            {review.customerName[0]}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slatey-900">{review.customerName}</p>
-            <div className="mt-0.5 flex items-center gap-2">
-              <StarRating rating={review.rating} />
-              <span className="text-xs text-slatey-400">
-                {formatTimestamp(review.reviewTimestamp || review.createdAt)}
-              </span>
-            </div>
-          </div>
+      {/* Drawer Header */}
+      <div className="p-5 border-b border-slatey-150 flex items-center justify-between bg-slatey-50">
+        <div>
+          <h3 className="text-base font-bold text-slatey-900">Review Details</h3>
+          <p className="text-xs text-slatey-400 mt-0.5">ID: {review.id}</p>
         </div>
-        <StatusBadge status={review.status} />
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg border border-slatey-200 bg-white text-slatey-500 hover:text-slatey-800 transition"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
-      <p className="mt-3 text-sm leading-relaxed text-slatey-600">{review.text}</p>
-
-      {aiResponse && (
-        <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-brand-600">
-              <Sparkles className="h-3 w-3" /> AI Reply
+      {/* Drawer Body */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Customer Information */}
+        <div className="space-y-3">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-100 text-lg font-bold text-brand-700 shrink-0">
+              {review.customerName ? review.customerName[0] : 'C'}
             </div>
-            <div className="flex items-center gap-2">
-              {(review.status === 'suggested' || review.status === 'pending') && (
-                <button
-                  type="button"
-                  onClick={handleMarkResponded}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 hover:border-emerald-300"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  Mark as Responded
-                </button>
-              )}
+            <div className="space-y-1">
+              <h4 className="font-bold text-slatey-900">{review.customerName || 'Customer'}</h4>
+              <div className="flex items-center gap-2">
+                <StarRating rating={review.rating} />
+                <span className="text-xs text-slatey-400">
+                  {formatTimestamp(review.reviewTimestamp || review.createdAt)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <p className="text-sm leading-relaxed text-slatey-600 bg-slatey-50 p-4 rounded-2xl border border-slatey-100">
+            "{review.text}"
+          </p>
+        </div>
+
+        {/* AI Suggested Response */}
+        {aiResponse && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slatey-500 uppercase tracking-wider">AI suggested Reply</h4>
               <button
-                type="button"
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-brand-700 transition hover:bg-brand-100"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg transition hover:bg-brand-100"
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <ClipboardCopy className="h-3.5 w-3.5" />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-slatey-600">{aiResponse}</p>
-          {reviewUrl ? (
-            <a
-              href={reviewUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-brand-700 transition hover:bg-brand-100"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Open in Google review
-            </a>
-          ) : null}
-        </div>
-      )}
-
-      {review.status === 'escalated' && (
-        <div className="mt-3 space-y-2 rounded-xl border border-red-100 bg-red-50/70 px-3 py-2 text-xs text-red-600">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-            WhatsApp alert sent to outlet manager
-          </div>
-          {review.processedAt ? (
-            <p className="text-[11px] text-red-500/80">
-              Processed at {formatTimestamp(review.processedAt)}
+            <p className="text-sm leading-relaxed text-slatey-600 bg-brand-50/30 p-4 rounded-2xl border border-brand-100">
+              {aiResponse}
             </p>
-          ) : null}
-        </div>
-      )}
+          </div>
+        )}
 
-      {review.status === 'pending' && (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-xs text-amber-700">
-          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-          Awaiting AI processing — will be handled in the next cron run
-        </div>
-      )}
+        {/* Multi-Level Escalation Timeline Section */}
+        {review.escalationStatus && review.escalationStatus !== 'no_escalation' && (
+          <div className="space-y-4 pt-4 border-t border-slatey-100">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slatey-500 uppercase tracking-wider">Escalation Activity Timeline</h4>
+              <div className="flex items-center gap-2">
+                {isEscalating && <EscalationTimer nextTime={review.nextEscalationTime} />}
+                <StatusBadge status={review.escalationStatus} />
+              </div>
+            </div>
 
-      {review.status === 'failed' && (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-xs text-rose-700">
-          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-          Processing failed. Check logs for retry details.
-        </div>
-      )}
+            {loadingTimeline ? (
+              <div className="space-y-3 py-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : (
+              <div className="relative border-l border-slatey-200 pl-4 ml-2.5 space-y-5">
+                {/* Node 1: Review Received */}
+                <div className="relative">
+                  <span className="absolute -left-[23px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 ring-4 ring-white">
+                    <CheckCircle className="h-3 w-3 text-white" />
+                  </span>
+                  <div className="text-xs">
+                    <p className="font-semibold text-slatey-800">Negative Review Received</p>
+                    <p className="text-slatey-400 mt-0.5">
+                      Ingested and analyzed at {formatTimestamp(review.createdAt)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Node 2: Escalation Process Initiated */}
+                <div className="relative">
+                  <span className="absolute -left-[23px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-brand-600 ring-4 ring-white">
+                    <Clock className="h-3 w-3 text-white" />
+                  </span>
+                  <div className="text-xs">
+                    <p className="font-semibold text-slatey-800">Escalation Timer Started</p>
+                    <p className="text-slatey-400 mt-0.5">
+                      Multi-level notification checks scheduled.
+                    </p>
+                  </div>
+                </div>
+
+                {/* API History Logs */}
+                {timeline.map((log, idx) => {
+                  const isSuccess = log.status === 'success'
+                  return (
+                    <div key={log.id || idx} className="relative">
+                      <span className={`absolute -left-[23px] top-0 flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-white ${isSuccess ? 'bg-green-600' : 'bg-red-500'}`}>
+                        {log.channel === 'WhatsApp' ? (
+                          <Phone className="h-2 w-2 text-white" />
+                        ) : (
+                          <Mail className="h-2 w-2 text-white" />
+                        )}
+                      </span>
+                      <div className="text-xs">
+                        <p className="font-semibold text-slatey-800">
+                          Level {log.level} {log.channel} Alert {isSuccess ? 'Sent' : 'Failed'}
+                        </p>
+                        <p className="text-slatey-500 mt-0.5">
+                          Sent to {log.recipientName} ({log.channel === 'WhatsApp' ? log.recipientWhatsApp : log.recipientEmail})
+                        </p>
+                        {log.sentAt && (
+                          <p className="text-[10px] text-slatey-400 mt-0.5">
+                            {formatTimestamp(log.sentAt)}
+                          </p>
+                        )}
+                        {!isSuccess && log.errorMessage && (
+                          <p className="mt-1 text-[11px] bg-red-50 text-red-600 border border-red-150 p-2 rounded-lg leading-relaxed">
+                            Error: {log.errorMessage}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Active Pending State Node */}
+                {isEscalating && review.nextEscalationTime && (
+                  <div className="relative">
+                    <span className="absolute -left-[23px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 ring-4 ring-white animate-pulse">
+                      <Clock className="h-3 w-3 text-white" />
+                    </span>
+                    <div className="text-xs">
+                      <p className="font-semibold text-slatey-800">
+                        Waiting for Level {review.escalationCurrentLevel} Escalation Timer
+                      </p>
+                      <p className="text-slatey-400 mt-0.5">
+                        Will escalate at {formatTimestamp(review.nextEscalationTime)} if unresolved.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Node: Complete/Resolved */}
+                {review.escalationStatus === 'completed' && (
+                  <div className="relative">
+                    <span className="absolute -left-[23px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-slatey-400 ring-4 ring-white">
+                      <CheckCircle className="h-3 w-3 text-white" />
+                    </span>
+                    <div className="text-xs">
+                      <p className="font-semibold text-slatey-800">Escalation Completed</p>
+                      <p className="text-slatey-400 mt-0.5">All configured levels notifications exhausted.</p>
+                    </div>
+                  </div>
+                )}
+
+                {review.escalationStatus === 'resolved' && (
+                  <div className="relative">
+                    <span className="absolute -left-[23px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-green-600 ring-4 ring-white">
+                      <CheckCircle className="h-3 w-3 text-white" />
+                    </span>
+                    <div className="text-xs">
+                      <p className="font-semibold text-slatey-800">Escalation Stopped & Resolved</p>
+                      <p className="text-slatey-400 mt-0.5">Stopped because review was responded to or closed.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </motion.div>
   )
 }
@@ -173,13 +461,7 @@ export default function OutletReviewsPage() {
   const [counts, setCounts] = useState({ all: 0, pending: 0, suggested: 0, responded: 0, escalated: 0, failed: 0 })
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-
-  const getRatingParam = (val) => {
-    if (val === 4) return '4+'
-    if (val === 3) return '3+'
-    if (val === 1) return '1-2'
-    return 'all'
-  }
+  const [selectedReview, setSelectedReview] = useState(null)
 
   const outletId = outlet?.id || profile?.outletId
 
@@ -197,7 +479,6 @@ export default function OutletReviewsPage() {
     }
 
     setLoading(true)
-    // Build Firestore query
     let q = query(
       collection(db, 'reviews'),
       where('outletId', '==', outletId),
@@ -205,7 +486,6 @@ export default function OutletReviewsPage() {
       limit(100)
     )
 
-    // Filtering (client-side for now)
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
@@ -216,7 +496,12 @@ export default function OutletReviewsPage() {
 
         // Tab/status filter
         if (activeTab !== 'all') {
-          data = data.filter((r) => (r.status || 'pending') === activeTab)
+          if (activeTab === 'escalated') {
+            // Include both legacy escalated and new levels
+            data = data.filter((r) => r.status === 'escalated' || (r.escalationStatus && r.escalationStatus !== 'no_escalation' && r.escalationStatus !== 'resolved'))
+          } else {
+            data = data.filter((r) => (r.status || 'pending') === activeTab)
+          }
         }
 
         // Rating filter
@@ -240,15 +525,25 @@ export default function OutletReviewsPage() {
 
         setReviews(data)
         setPagination({ total: data.length, page: 1, limit: 100, totalPages: 1 })
+        
         // Count statuses
         const counts = { all: 0, pending: 0, suggested: 0, responded: 0, escalated: 0, failed: 0 }
         data.forEach((r) => {
           const st = r.status || 'pending'
           counts[st] = (counts[st] || 0) + 1
+          if (r.escalationStatus && r.escalationStatus !== 'no_escalation' && r.escalationStatus !== 'resolved') {
+            counts.escalated++
+          }
           counts.all++
         })
         setCounts(counts)
         setLoading(false)
+
+        // Sync currently opened drawer review details if it updates
+        if (selectedReview) {
+          const updated = data.find(r => r.id === selectedReview.id)
+          if (updated) setSelectedReview(updated)
+        }
       },
       () => {
         setReviews([])
@@ -276,7 +571,7 @@ export default function OutletReviewsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 relative">
       <div>
         <h2 className="text-xl font-semibold">Reviews</h2>
         <p className="text-sm text-slatey-500">Search, filter, and review AI-generated responses.</p>
@@ -341,7 +636,7 @@ export default function OutletReviewsPage() {
         ) : filtered.length > 0 ? (
           <motion.div layout className="grid gap-4 lg:grid-cols-2">
             {filtered.map((review) => (
-              <ReviewCard key={review.id} review={review} />
+              <ReviewCard key={review.id} review={review} onSelect={setSelectedReview} />
             ))}
           </motion.div>
         ) : (
@@ -349,6 +644,27 @@ export default function OutletReviewsPage() {
             title="No reviews yet"
             description="Waiting for the first sync. New reviews will appear automatically."
           />
+        )}
+      </AnimatePresence>
+
+      {/* Details Side Drawer */}
+      <AnimatePresence>
+        {selectedReview && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedReview(null)}
+              className="fixed inset-0 z-40 bg-slatey-900/60"
+            />
+            {/* Drawer */}
+            <ReviewDetailsDrawer
+              review={selectedReview}
+              onClose={() => setSelectedReview(null)}
+            />
+          </>
         )}
       </AnimatePresence>
 

@@ -94,13 +94,74 @@ const customerRoutes = require('./routes/customerRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const discountRoutes = require('./routes/discountRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const escalationRoutes = require('./routes/escalationRoutes');
+const qrRoutes = require('./routes/qrRoutes');
+const competitorRoutes = require('./routes/competitorRoutes');
+const teamRoutes = require('./routes/teamRoutes');
+const approvalRoutes = require('./routes/approvalRoutes');
 const { verifyToken, requireRole } = require('./middleware/auth');
 
 // Use routers
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes); // Webhooks shouldn't require our auth token
+app.use('/api/escalation', escalationRoutes);
+app.use('/api/qr', verifyToken, qrRoutes);
+app.use('/api/competitors', verifyToken, competitorRoutes);
+app.use('/api/team', verifyToken, teamRoutes);
+app.use('/api/approvals', verifyToken, approvalRoutes);
+
+// Transactional Email System endpoints
+const emailBridge = require('./src/modules/email/email.integration');
+
+app.get('/api/email/metrics', async (req, res) => {
+  const metrics = emailBridge.metricsService.getMetrics();
+  const queueStatus = await emailBridge.emailQueueService.getMetrics();
+  res.status(200).json({ success: true, queue: queueStatus, emailMetrics: metrics });
+});
+
+app.post('/api/email/welcome', async (req, res) => {
+  const result = await emailBridge.emailService.sendWelcomeEmail(req.body);
+  res.status(202).json(result);
+});
+
+app.post('/api/email/verify', async (req, res) => {
+  const result = await emailBridge.emailService.sendVerificationEmail(req.body);
+  res.status(202).json(result);
+});
+
+app.post('/api/email/reset-password', async (req, res) => {
+  const result = await emailBridge.emailService.sendPasswordReset(req.body);
+  res.status(202).json(result);
+});
+
+app.post('/api/email/password-changed', async (req, res) => {
+  const result = await emailBridge.emailService.sendPasswordChanged(req.body);
+  res.status(202).json(result);
+});
+
+app.post('/api/email/invite', async (req, res) => {
+  const result = await emailBridge.emailService.sendInvitation(req.body);
+  res.status(202).json(result);
+});
+
+app.post('/api/email/subscription-activated', async (req, res) => {
+  const result = await emailBridge.emailService.sendSubscriptionActivated(req.body);
+  res.status(202).json(result);
+});
+
+app.post('/api/email/weekly-report', async (req, res) => {
+  const result = await emailBridge.emailService.sendWeeklyReport(req.body);
+  res.status(202).json(result);
+});
+
+app.post('/api/email/review-alert', async (req, res) => {
+  const result = await emailBridge.emailService.sendReviewAlert(req.body);
+  res.status(202).json(result);
+});
 
 // Protected routes
+const adminBillingRoutes = require('./routes/adminBillingRoutes');
+app.use('/api/admin/billing', verifyToken, requireRole(['SUPER_ADMIN', 'ADMIN', 'admin']), adminBillingRoutes);
 app.use('/api/admin', verifyToken, requireRole(['SUPER_ADMIN', 'ADMIN', 'admin']), adminRoutes);
 app.use('/api/outlets', verifyToken, outletRoutes);
 app.use('/api/reviews', verifyToken, reviewRoutes);

@@ -6,6 +6,8 @@ import useAppStore from '../store/appStore'
 
 const AuthContext = createContext(null)
 
+const ADMIN_EMAIL = 'admin@onerepute.com'
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -24,12 +26,15 @@ export function AuthProvider({ children }) {
         if (currentUser) {
           setAuthError(null)
           
+          const isAdminEmail = (currentUser.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
           // Verify if user already exists in 'users' collection
           const profileRef = doc(db, 'users', currentUser.uid)
           const profileSnap = await getDoc(profileRef)
 
+          let currentProfile;
           if (profileSnap.exists()) {
-            const currentProfile = { id: profileSnap.id, ...profileSnap.data() }
+            currentProfile = { id: profileSnap.id, ...profileSnap.data() }
             try {
               const tokenResult = await currentUser.getIdTokenResult();
               if (tokenResult.claims.role) {
@@ -38,29 +43,30 @@ export function AuthProvider({ children }) {
             } catch (err) {
               console.warn('[AuthContext] Failed to fetch token claims', err);
             }
-            setUser(currentUser)
-            setProfile(currentProfile)
-            console.debug('[AuthContext] loaded profile', currentProfile)
-            setUserState(currentUser)
-            setProfileState(currentProfile)
           } else {
-            // Create a new default profile for the onboarding flow
-            const newProfile = {
+            currentProfile = {
               email: currentUser.email,
-              role: 'outlet',
-              isSetupComplete: false,
+              role: isAdminEmail ? 'admin' : 'outlet',
+              isSetupComplete: isAdminEmail ? true : false,
               createdAt: new Date()
             }
-            
-            // We use setDoc here to explicitly create the document with the user's UID
-            await setDoc(profileRef, newProfile)
-            newProfile.id = currentUser.uid
-            
-            setUser(currentUser)
-            setProfile(newProfile)
-            setUserState(currentUser)
-            setProfileState(newProfile)
+            await setDoc(profileRef, currentProfile)
+            currentProfile.id = currentUser.uid
           }
+
+          // Single Administrator Policy: Only admin@onerepute.com is admin
+          if (isAdminEmail) {
+            currentProfile.role = 'admin';
+            currentProfile.isSetupComplete = true;
+          } else if (currentProfile.role === 'admin' || currentProfile.role === 'ADMIN' || currentProfile.role === 'SUPER_ADMIN') {
+            currentProfile.role = 'outlet';
+          }
+
+          setUser(currentUser)
+          setProfile(currentProfile)
+          console.debug('[AuthContext] loaded profile', currentProfile)
+          setUserState(currentUser)
+          setProfileState(currentProfile)
         } else {
           setUser(null)
           setProfile(null)

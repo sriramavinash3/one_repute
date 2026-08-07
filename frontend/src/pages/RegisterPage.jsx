@@ -222,8 +222,12 @@ export default function OnboardingPage() {
       // Call backend to create Razorpay Subscription
       const subscription = await createSubscription(tempCustomerId, form.planId, discountData?.code)
 
+      if (!subscription.razorpayKeyId || subscription.razorpayKeyId === 'rzp_test_dummy' || subscription.id.startsWith('sub_mock_')) {
+        throw new Error('Unable to start payment because the selected subscription plan is not configured correctly on the server.')
+      }
+
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummy',
+        key: subscription.razorpayKeyId,
         subscription_id: subscription.id,
         name: 'One Repute',
         description: 'Monthly Subscription',

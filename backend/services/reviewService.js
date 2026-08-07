@@ -23,6 +23,7 @@ const env = require('../config/env');
 const logger = require('../utils/logger');
 const { getReviewProvider } = require('../providers/providerFactory');
 const { validateNormalizedReview } = require('../utils/validator');
+const permissionService = require('./permissionService');
 const { computeReviewHash } = require('../utils/reviewHash');
 const { STATUS } = require('../utils/reviewStatus');
 
@@ -291,10 +292,14 @@ async function processReviewWithSafety(outlet, review, providerOverride) {
         reviewText,
         type: 'positive',
       });
-    }
 
-    if (isPositive) {
-      if (provider.supportsReply && outlet.providerType === 'GBP') {
+      let quotaAllowed = false;
+      if (outlet.customerId) {
+        const check = await permissionService.checkPermission(outlet.customerId, 'monthly_review_responses');
+        quotaAllowed = check.allowed;
+      }
+
+      if (provider.supportsReply && outlet.providerType === 'GBP' && quotaAllowed) {
         await provider.postReply(outlet, review, aiResponse);
         await reviewRepo.updateReviewStatus(docId, STATUS.RESPONDED, {
           aiResponse,
@@ -305,6 +310,9 @@ async function processReviewWithSafety(outlet, review, providerOverride) {
           issueCategory: analysis.issueCategory,
           emotion: analysis.emotion,
         });
+        if (outlet.customerId) {
+          await permissionService.incrementUsage(outlet.customerId, 'monthly_review_responses', 1);
+        }
         await reviewRepo.writeLog({
           eventType: 'REVIEW_RESPONDED',
           status: 'success',
@@ -318,41 +326,86 @@ async function processReviewWithSafety(outlet, review, providerOverride) {
           replySuggestion: aiResponse || null,
           issueCategory: analysis.issueCategory,
           emotion: analysis.emotion,
+          quotaExceeded: !quotaAllowed
         });
         await reviewRepo.writeLog({
           eventType: 'REVIEW_SUGGESTED',
           status: 'success',
           providerSource: provider.providerType,
-          payload: { outletId: outlet.id, reviewId, rating, reason: 'Scraper mode or provider does not support reply' },
+          payload: { outletId: outlet.id, reviewId, rating, reason: !quotaAllowed ? 'Quota Exceeded' : 'Scraper mode or provider does not support reply' },
         });
         logger.info('[ReviewService] Reply saved for posting', { outletId: outlet.id, reviewId, rating });
       }
     } else if (isEscalation) {
-      await whatsappService.sendNegativeReviewAlert({
-        toNumber: outlet.whatsappNumber || outlet.managerPhone,
-        outletName: outlet.name,
-        rating,
-        reviewText,
-        customerName,
-      });
-
+      const db = require('../config/firebase').getDb();
+      const escalationRepo = require('../repositories/escalationRepo');
+      
+      let escalationStatus = 'no_escalation';
+      let escalationCurrentLevel = 0;
+      let nextEscalationTime = null;
+      
+      if (outlet.customerId) {
+        try {
+          const maxAllowed = await permissionService.getLimit(outlet.customerId, 'whatsapp_escalation_levels') || 0;
+          const customerDoc = await db.collection('customers').doc(outlet.customerId).get();
+          if (customerDoc.exists) {
+            const customer = customerDoc.data();
+            
+            if (customer.whatsappEscalationEnabled && maxAllowed >= 1) {
+              const level1Setting = await escalationRepo.getSettingByCustomerAndLevel(outlet.customerId, 1);
+              
+              if (level1Setting && level1Setting.enabled) {
+                escalationStatus = 'level_1_pending';
+                escalationCurrentLevel = 1;
+                
+                const startMs = Date.now();
+                const nextTimeMs = startMs + (level1Setting.escalationMinutes * 60 * 1000);
+                nextEscalationTime = new Date(nextTimeMs);
+                
+                logger.info('[ReviewService] Initializing Level 1 Escalation', {
+                  reviewId,
+                  escalationMinutes: level1Setting.escalationMinutes,
+                  nextEscalationTime: nextEscalationTime.toISOString()
+                });
+              }
+            }
+          }
+        } catch (err) {
+          logger.error('[ReviewService] Failed to load customer or escalation settings', { error: err.message });
+        }
+      }
+      
       await reviewRepo.updateReviewStatus(docId, STATUS.ESCALATED, {
         aiResponse: null,
         replySuggestion: null,
-        alertSentAt: new Date(),
-        escalationLevel: rating <= 1 ? 'urgent' : rating === 2 ? 'high' : 'medium',
-        managerNotified: true,
+        customerId: outlet.customerId || null,
+        escalationStatus,
+        escalationCurrentLevel,
+        nextEscalationTime,
         issueCategory: analysis.issueCategory,
         emotion: analysis.emotion,
       });
+ 
       await reviewRepo.writeLog({
         eventType: 'REVIEW_ESCALATED',
         status: 'success',
         providerSource: provider.providerType,
-        payload: { outletId: outlet.id, reviewId, rating },
+        payload: { outletId: outlet.id, reviewId, rating, escalationStatus },
       });
 
-      logger.info('[ReviewService] Review escalated', { outletId: outlet.id, reviewId, rating });
+      if (escalationStatus !== 'no_escalation') {
+        try {
+          await db.collection('activityLogs').add({
+            type: 'ESCALATION_INITIATED',
+            payload: { reviewId, customerId: outlet.customerId, level: 1, nextEscalationTime: nextEscalationTime.toISOString() },
+            timestamp: require('../config/firebase').admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (logErr) {
+          logger.warn('[ReviewService] Failed to write escalation activity log', { error: logErr.message });
+        }
+      }
+
+      logger.info('[ReviewService] Review escalated', { outletId: outlet.id, reviewId, rating, escalationStatus });
     }
   } catch (err) {
     logger.error('[ReviewService] Failed to process review safely', {

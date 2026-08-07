@@ -32,6 +32,10 @@ const OutletEscalationsPage = lazy(() => import('../pages/outlet/OutletEscalatio
 const OutletGooglePage = lazy(() => import('../pages/outlet/OutletGooglePage'))
 const OutletSettingsPage = lazy(() => import('../pages/outlet/OutletSettingsPage'))
 const OutletReputationPage = lazy(() => import('../pages/outlet/OutletReputationPage'))
+const OutletQrPage = lazy(() => import('../pages/outlet/OutletQrPage'))
+
+const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage'))
+const VerifyEmailPage = lazy(() => import('../pages/VerifyEmailPage'))
 
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
 
@@ -43,7 +47,8 @@ export default function AppRouter() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
-          {/* Google connection page removed for scraper-only architecture */}
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           <Route
             path="/admin-dashboard"
@@ -83,6 +88,7 @@ export default function AppRouter() {
             <Route path="escalations" element={<OutletEscalationsPage />} />
             <Route path="analytics" element={<OutletAnalyticsPage />} />
             <Route path="reputation" element={<OutletReputationPage />} />
+            <Route path="qr" element={<OutletQrPage />} />
             {/* Google connection page removed for scraper-only architecture */}
             <Route path="settings" element={<OutletSettingsPage />} />
           </Route>

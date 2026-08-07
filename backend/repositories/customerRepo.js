@@ -12,12 +12,17 @@ const logger = require('../utils/logger');
 const COLLECTION = 'customers';
 
 /**
- * Fetch all customers.
+ * Fetch all active, non-deleted customers.
  */
 async function getAllCustomers() {
   const db = getDb();
   const snap = await db.collection(COLLECTION).get();
-  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snap.docs
+    .map(doc => {
+      const data = doc.data();
+      return { id: doc.id, ...data };
+    })
+    .filter(customer => !customer.isDeleted && customer.accountStatus !== 'deleted' && customer.status !== 'deleted');
 }
 
 /**

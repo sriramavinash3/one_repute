@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const outletRepo = require('../repositories/outletRepo');
 const logger = require('../utils/logger');
+const permissionService = require('../services/permissionService');
 
 /**
  * GET /api/outlets
@@ -356,11 +357,37 @@ router.patch('/reviews/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     const db = require('../config/firebase').getDb();
+    const reviewId = req.params.id;
+    const docRef = db.collection('reviews').doc(reviewId);
+    const snap = await docRef.get();
+    
+    if (!snap.exists) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    const reviewData = snap.data();
+
+    // Check if status is transitioning to responded
+    if (status === 'responded' && reviewData.status !== 'responded') {
+      const customerId = req.user?.customerId || reviewData.customerId;
+      if (customerId) {
+        const check = await permissionService.checkPermission(customerId, 'monthly_review_responses');
+        if (!check.allowed) {
+          return res.status(403).json({
+            success: false,
+            code: check.code,
+            message: check.message
+          });
+        }
+        await permissionService.incrementUsage(customerId, 'monthly_review_responses', 1);
+      }
+    }
+
     const updateData = { status, updatedAt: new Date() };
     if (status === 'responded') {
       updateData.repliedAt = new Date();
     }
-    await db.collection('reviews').doc(req.params.id).update(updateData);
+    await docRef.update(updateData);
     res.status(200).json({ success: true });
   } catch (err) {
     logger.error('[OutletRoute] Failed to update review status', { error: err.message });

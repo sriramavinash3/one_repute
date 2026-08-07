@@ -1,18 +1,16 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   signInWithPopup, 
   signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink
+  signInWithCustomToken
 } from 'firebase/auth'
 import { toast } from 'sonner'
 import { auth, googleProvider } from '../firebase/firebase'
 import Button from '../components/ui/button'
 import Input from '../components/ui/input'
 import { useAuth } from '../contexts/AuthContext'
+import apiClient from '../services/apiClient'
 import Logo from '../components/common/Logo'
 
 export default function LoginPage() {
@@ -20,12 +18,13 @@ export default function LoginPage() {
   const { profile, authError } = useAuth()
   const [loading, setLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
-  const [isMagicLink, setIsMagicLink] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    name: ''
   })
 
   useEffect(() => {
@@ -46,37 +45,6 @@ export default function LoginPage() {
     }
   }, [authError])
 
-  const isVerifying = useRef(false)
-
-  useEffect(() => {
-    const handleEmailLinkSignIn = async () => {
-      if (isSignInWithEmailLink(auth, window.location.href)) {
-        let email = window.localStorage.getItem('emailForSignIn');
-        if (!email) {
-          email = window.prompt('Please provide your email for confirmation');
-        }
-        if (email && !isVerifying.current) {
-          isVerifying.current = true;
-          setLoading(true);
-          try {
-            await signInWithEmailLink(auth, email, window.location.href);
-            window.localStorage.removeItem('emailForSignIn');
-            // AuthContext will handle routing when `profile` loads
-          } catch (error) {
-            // Ignore invalid action code if we're already authenticated (React 18 Strict Mode double-firing)
-            if (error.code === 'auth/invalid-action-code' && auth.currentUser) {
-              return;
-            }
-            toast.error(error.message);
-          } finally {
-            setLoading(false);
-          }
-        }
-      }
-    };
-    handleEmailLinkSignIn();
-  }, []);
-
   const handleInputChange = (e) => {
     setFormData(prev => ({
       ...prev,
@@ -89,27 +57,34 @@ export default function LoginPage() {
     if (!formData.email) {
       return toast.error('Please enter your email')
     }
-    if (!isMagicLink && !formData.password) {
+    if (!isForgotPassword && !formData.password) {
       return toast.error('Please enter your password')
     }
 
     setLoading(true)
     try {
-      if (isMagicLink) {
-        const actionCodeSettings = {
-          url: window.location.href,
-          handleCodeInApp: true,
-        };
-        await sendSignInLinkToEmail(auth, formData.email, actionCodeSettings);
-        window.localStorage.setItem('emailForSignIn', formData.email);
-        toast.success('Magic link sent! Check your email.');
+      if (isForgotPassword) {
+        // Backend handles SHA-256 token generation and dispatches Resend email from notifications@onerepute.com
+        await apiClient.post('/api/auth/forgot-password', { email: formData.email });
+        toast.success('Check your inbox! Password reset instructions sent from notifications@onerepute.com.');
+        setIsForgotPassword(false);
       } else if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+        // Backend creates user, queues Welcome & Verification emails via Resend (BullMQ), and returns customToken
+        const { data } = await apiClient.post('/api/auth/signup', {
+          email: formData.email,
+          password: formData.password,
+          name: formData.name || formData.email.split('@')[0],
+        });
+
+        if (data.customToken) {
+          await signInWithCustomToken(auth, data.customToken);
+          toast.success('Account created! Welcome and verification emails sent to your inbox.');
+        }
       } else {
         await signInWithEmailAndPassword(auth, formData.email, formData.password)
       }
     } catch (error) {
-      let errorMessage = error.message
+      let errorMessage = error?.response?.data?.error || error.message
       if (error.code === 'auth/email-already-in-use') errorMessage = 'This email is already registered.'
       if (error.code === 'auth/invalid-credential') errorMessage = 'Invalid email or password.'
       if (error.code === 'auth/weak-password') errorMessage = 'Password should be at least 6 characters.'
@@ -137,13 +112,27 @@ export default function LoginPage() {
           <Logo size="lg" to="/" />
         </div>
         <h1 className="text-2xl font-semibold text-slatey-900">
-          {isMagicLink ? 'Sign in with Magic Link' : (isSignUp ? 'Create an Account' : 'Partner Access')}
+          {isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create an Account' : 'Partner Access')}
         </h1>
         <p className="mt-2 text-sm text-slatey-500">
-          {isMagicLink ? 'We will send a secure sign-in link to your email.' : (isSignUp ? 'Sign up to start your 14-day free trial.' : 'Sign in to access your dashboard.')}
+          {isForgotPassword 
+            ? 'We will send secure password reset instructions to your email via Resend.' 
+            : (isSignUp ? 'Sign up to start your 14-day free trial.' : 'Sign in to access your dashboard.')}
         </p>
 
         <form onSubmit={handleEmailAuth} className="mt-8 space-y-4">
+          {isSignUp && (
+            <Input
+              name="name"
+              type="text"
+              placeholder="Your Name / Business Name"
+              value={formData.name}
+              onChange={handleInputChange}
+              disabled={loading}
+              required
+            />
+          )}
+
           <Input
             name="email"
             type="email"
@@ -153,7 +142,8 @@ export default function LoginPage() {
             disabled={loading}
             required
           />
-          {!isMagicLink && (
+
+          {!isForgotPassword && (
             <div className="relative">
               <Input
                 name="password"
@@ -179,6 +169,18 @@ export default function LoginPage() {
             </div>
           )}
 
+          {!isSignUp && !isForgotPassword && (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => setIsForgotPassword(true)}
+                className="text-xs text-brand-600 hover:text-brand-700 font-medium focus:outline-none"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
           <Button
             variant="default"
             size="lg"
@@ -194,7 +196,7 @@ export default function LoginPage() {
                 </svg>
                 Processing...
               </span>
-            ) : (isMagicLink ? 'Send Magic Link' : (isSignUp ? 'Sign Up' : 'Sign In'))}
+            ) : (isForgotPassword ? 'Send Reset Link' : (isSignUp ? 'Sign Up' : 'Sign In'))}
           </Button>
         </form>
 
@@ -222,38 +224,28 @@ export default function LoginPage() {
           </Button>
 
           <div className="pt-4 border-t border-slatey-100 flex flex-col space-y-4">
-            {isMagicLink ? (
+            {isForgotPassword ? (
               <p className="text-center text-sm text-slatey-500">
-                Prefer using a password?{' '}
+                Remember your password?{' '}
                 <button
-                  onClick={() => setIsMagicLink(false)}
+                  onClick={() => setIsForgotPassword(false)}
                   className="text-brand-600 font-semibold hover:text-brand-700 transition-colors focus:outline-none"
                   disabled={loading}
                 >
-                  Go back
+                  Back to Sign in
                 </button>
               </p>
             ) : (
-              <>
+              <p className="text-center text-sm text-slatey-500">
+                {isSignUp ? "Already have an account? " : "Don't have an account? "}
                 <button
-                  onClick={() => setIsMagicLink(true)}
-                  className="text-brand-600 text-sm font-semibold hover:text-brand-700 transition-colors focus:outline-none w-full flex items-center justify-center gap-2"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-brand-600 font-semibold hover:text-brand-700 transition-colors focus:outline-none"
                   disabled={loading}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/></svg>
-                  Sign in with Magic Link
+                  {isSignUp ? 'Sign in' : 'Sign up'}
                 </button>
-                <p className="text-center text-sm text-slatey-500">
-                  {isSignUp ? "Already have an account? " : "Don't have an account? "}
-                  <button
-                    onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-brand-600 font-semibold hover:text-brand-700 transition-colors focus:outline-none"
-                    disabled={loading}
-                  >
-                    {isSignUp ? 'Sign in' : 'Sign up'}
-                  </button>
-                </p>
-              </>
+              </p>
             )}
           </div>
         </div>
@@ -261,3 +253,6 @@ export default function LoginPage() {
     </div>
   )
 }
+
+
+

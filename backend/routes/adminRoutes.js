@@ -184,11 +184,20 @@ router.get('/credits', async (req, res) => {
 
 /**
  * GET /api/admin/outlets
- * List all outlets (active & inactive) for admin
+ * List all outlets (active & inactive) for admin with review stats and customer details
  */
 router.get('/outlets', async (req, res) => {
   try {
     const outlets = await outletRepo.getAllOutlets();
+    const customerRepo = require('../repositories/customerRepo');
+    const customers = await customerRepo.getAllCustomers();
+
+    const customerMap = {};
+    const customerEmailMap = {};
+    customers.forEach(c => {
+      customerMap[c.id] = c;
+      if (c.email) customerEmailMap[c.email.toLowerCase()] = c;
+    });
     
     // Dynamically aggregate review stats for Admin UI
     const db = require('../config/firebase').getDb();
@@ -233,18 +242,16 @@ router.get('/outlets', async (req, res) => {
     });
 
     const enrichedOutlets = outlets.map(o => {
-      const st = statsMap[o.id];
-      if (!st) {
-        return { 
-          ...o, 
-          reviewCount: 0, 
-          avgRating: 0, 
-          thisMonthReviews: 0, 
-          pendingResponses: 0, 
-          negativeReviews: 0, 
-          reputationHealthScore: 'N/A' 
-        };
-      }
+      const st = statsMap[o.id] || {
+        reviewCount: 0,
+        totalRating: 0,
+        thisMonthReviews: 0,
+        pendingResponses: 0,
+        negativeReviews: 0
+      };
+
+      // Match parent customer
+      const parentCustomer = customerMap[o.customerId] || customerEmailMap[(o.email || o.googleAccountEmail || '').toLowerCase()] || null;
       
       const avg = st.reviewCount > 0 ? (st.totalRating / st.reviewCount).toFixed(1) : 0;
       let health = 'Good';
@@ -253,6 +260,10 @@ router.get('/outlets', async (req, res) => {
 
       return {
         ...o,
+        customerId: o.customerId || parentCustomer?.id || null,
+        customerName: parentCustomer?.name || o.name || 'Unknown Business',
+        isActive: o.isActive !== false,
+        name: o.name || o.googleLocationName || o.businessName || 'Unnamed Outlet',
         reviewCount: st.reviewCount,
         avgRating: Number(avg),
         thisMonthReviews: st.thisMonthReviews,
@@ -262,7 +273,7 @@ router.get('/outlets', async (req, res) => {
       };
     });
 
-    res.status(200).json({ outlets: enrichedOutlets });
+    res.status(200).json({ outlets: enrichedOutlets, total: enrichedOutlets.length });
   } catch (err) {
     logger.error('[AdminRoute] Failed to fetch outlets', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch outlets.' });
@@ -339,7 +350,7 @@ router.delete('/logs/delete-old', async (req, res) => {
 
 /**
  * POST /api/admin/outlets
- * Create a new outlet
+ * Create a new outlet and link to customer
  */
 router.post('/outlets', async (req, res) => {
   try {
@@ -367,14 +378,35 @@ router.post('/outlets', async (req, res) => {
 
     const { phone, ...restOutletData } = outletData;
 
+    // Find or create customer document by email to maintain customer-outlet mapping
+    let customerId = null;
+    if (email) {
+      const customersSnap = await db.collection('customers').where('email', '==', email).get();
+      if (!customersSnap.empty) {
+        customerId = customersSnap.docs[0].id;
+      } else {
+        const customerRef = await db.collection('customers').add({
+          name: outletData.name || 'New Customer',
+          email,
+          phone: phone || '',
+          accountStatus: 'Active',
+          plan: 'Starter',
+          createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp()
+        });
+        customerId = customerRef.id;
+      }
+    }
+
     const id = await outletRepo.createOutlet({
       ...restOutletData,
       ...(phone ? { whatsappNumber: phone } : {}),
       ...(email ? { email } : {}),
       ...(authUid ? { ownerId: authUid } : {}),
+      ...(customerId ? { customerId } : {}),
     });
 
-     // Trigger immediate review processing for the new outlet
+    // Trigger immediate review processing for the new outlet
     processSingleOutletReviewsImmediately(id).catch(err => {
       logger.error(`[AdminRoute] Failed to trigger immediate review processing for new outlet ${id}`, { error: err.message });
     });
@@ -384,6 +416,7 @@ router.post('/outlets', async (req, res) => {
         {
           email,
           outletId: id,
+          ...(customerId ? { customerId } : {}),
           role: 'outlet',
           businessName: outletData.name || outletData.placeName || '',
           isSetupComplete: true,
@@ -394,7 +427,7 @@ router.post('/outlets', async (req, res) => {
       );
     }
 
-    res.status(201).json({ id, message: 'Outlet created successfully' });
+    res.status(201).json({ id, customerId, message: 'Outlet created successfully' });
   } catch (err) {
     logger.error('[AdminRoute] Failed to create outlet', { error: err.message });
     res.status(500).json({ error: 'Failed to create outlet' });
@@ -811,14 +844,49 @@ router.patch('/outlets/:id/settings', async (req, res) => {
 
 /**
  * GET /api/admin/customers
- * Fetch all customers
+ * Fetch all non-deleted customers with normalized fields
  */
 router.get('/customers', async (req, res) => {
   try {
-    const db = require('../config/firebase').getDb();
-    const snap = await db.collection('customers').get();
-    const customers = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    res.json(customers);
+    const customerRepo = require('../repositories/customerRepo');
+    const customers = await customerRepo.getAllCustomers();
+
+    const normalized = customers.map((c) => {
+      // Normalize account status (Active, Inactive, Trial, etc.)
+      let accountStatus = c.accountStatus || c.status;
+      if (!accountStatus && c.subscriptionStatus) {
+        accountStatus = c.subscriptionStatus === 'trialing' ? 'Trial' : 
+                        (c.subscriptionStatus === 'active' ? 'Active' : 'Inactive');
+      }
+      if (!accountStatus) {
+        accountStatus = c.isActive === false ? 'Inactive' : 'Active';
+      }
+
+      // Format date helper
+      const formatDate = (val) => {
+        if (!val) return null;
+        if (typeof val === 'string') return val;
+        if (val.toDate) return val.toDate().toISOString().split('T')[0];
+        if (val._seconds) return new Date(val._seconds * 1000).toISOString().split('T')[0];
+        if (val instanceof Date) return val.toISOString().split('T')[0];
+        return String(val);
+      };
+
+      return {
+        ...c,
+        name: c.name || c.businessName || 'Unknown Customer',
+        contactPerson: c.contactPerson || c.name || c.email?.split('@')[0] || 'N/A',
+        email: c.email || 'N/A',
+        phone: c.phone || c.managerPhone || 'N/A',
+        accountStatus,
+        plan: c.plan || 'Starter',
+        onboardedDate: formatDate(c.onboardedDate || c.createdAt) || 'N/A',
+        trialEndDate: formatDate(c.trialEndDate || c.trialEndsAt) || 'N/A',
+        renewalDate: formatDate(c.renewalDate || c.nextBillingDate) || 'N/A',
+      };
+    });
+
+    res.json(normalized);
   } catch (err) {
     logger.error('[AdminRoute] Failed to fetch customers', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch customers' });
