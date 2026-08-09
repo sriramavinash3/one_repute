@@ -1,6 +1,10 @@
 require('dotenv').config({ path: '../.env' })
 const { getDb } = require('../config/firebase')
-const logger = require('../utils/logger')
+const logger = {
+  info: (...args) => console.log(...args),
+  error: (...args) => console.error(...args),
+  warn: (...args) => console.warn(...args)
+}
 
 async function migrateTenantsToCustomers() {
   try {

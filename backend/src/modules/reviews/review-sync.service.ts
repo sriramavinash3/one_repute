@@ -77,6 +77,11 @@ export class ReviewSyncService {
       return { outletId, outletName: '', fetched: 0, new: 0, processed: 0, status: 'error', error: 'Outlet not found' };
     }
     const outlet = { id: snap.id, ...snap.data() } as any;
+    // Guard: do not sync removed or deleted outlets
+    if (outlet.status === 'removed' || outlet.isDeleted === true || outlet.status === 'deleted') {
+      this.logger.warn(`[Sync] Skipping sync for removed outlet ${outletId}`);
+      return { outletId, outletName: outlet.name || '', fetched: 0, new: 0, processed: 0, status: 'error', error: 'Outlet has been removed' };
+    }
     return this.syncOutlet(outlet, options);
   }
 

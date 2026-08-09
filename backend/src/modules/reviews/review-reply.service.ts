@@ -152,7 +152,9 @@ export class ReviewReplyService {
 
     // Load outlet for credentials
     const outletSnap = await db.collection('outlets').doc(outletId).get();
-    if (!outletSnap.exists) throw new NotFoundException('Outlet not found');
+    if (!outletSnap.exists || outletSnap.data()?.status === 'removed' || outletSnap.data()?.isDeleted === true || outletSnap.data()?.status === 'deleted') {
+      throw new NotFoundException('Outlet not found or has been removed');
+    }
     const outlet = outletSnap.data() as any;
 
     // Load review for rawName

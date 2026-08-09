@@ -54,6 +54,9 @@ export class ReviewsController {
       return res.status(200).json(result);
     } catch (err: any) {
       this.logger.error('[ReviewsController] getReviews failed', { error: err.message });
+      if (err.status === 404 || err.message?.includes('not found') || err.message?.includes('no longer available')) {
+        return res.status(404).json({ error: err.message });
+      }
       return res.status(500).json({ error: 'Failed to fetch reviews' });
     }
   }
@@ -66,6 +69,9 @@ export class ReviewsController {
       return res.status(200).json(data);
     } catch (err: any) {
       this.logger.error('[ReviewsController] getEscalations failed', { error: err.message });
+      if (err.status === 404 || err.message?.includes('not found') || err.message?.includes('no longer available')) {
+        return res.status(404).json({ error: err.message });
+      }
       return res.status(500).json({ error: 'Failed to fetch escalations' });
     }
   }
@@ -97,6 +103,9 @@ export class ReviewsController {
       return res.status(200).json(data);
     } catch (err: any) {
       this.logger.error('[ReviewsController] getAnalyticsSummary failed', { error: err.message });
+      if (err.status === 404 || err.message?.includes('not found') || err.message?.includes('no longer available')) {
+        return res.status(404).json({ error: err.message });
+      }
       return res.status(500).json({ error: 'Failed to fetch analytics' });
     }
   }
@@ -113,6 +122,9 @@ export class ReviewsController {
       return res.status(200).json(data);
     } catch (err: any) {
       this.logger.error('[ReviewsController] getAnalyticsTimeline failed', { error: err.message });
+      if (err.status === 404 || err.message?.includes('not found') || err.message?.includes('no longer available')) {
+        return res.status(404).json({ error: err.message });
+      }
       return res.status(500).json({ error: 'Failed to fetch analytics timeline' });
     }
   }
@@ -132,6 +144,9 @@ export class ReviewsController {
       return res.status(200).json(data);
     } catch (err: any) {
       this.logger.error('[ReviewsController] getReputationInsights failed', { error: err.message });
+      if (err.status === 404 || err.message?.includes('not found') || err.message?.includes('no longer available')) {
+        return res.status(404).json({ error: err.message });
+      }
       return res.status(500).json({ error: 'Failed to generate reputation insights', message: err.message });
     }
   }

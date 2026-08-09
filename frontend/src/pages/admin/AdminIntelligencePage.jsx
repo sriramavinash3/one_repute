@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { fetchReviews } from '../../services/reviewService';
 import { fetchAdminOutlets } from '../../services/outletService';
+import { fetchAdminCustomers, normalizeCustomers } from '../../services/adminService';
 import { USE_MOCK_DATA } from '../../config/env';
 import { MOCK_REVIEWS, MOCK_OUTLETS, MOCK_CUSTOMERS } from '../../config/mockData';
 import { BrainCircuit, AlertTriangle, TrendingDown, Star, Sparkles, Frown, MessageSquareWarning } from 'lucide-react';
@@ -36,16 +37,17 @@ export default function AdminIntelligencePage() {
     }
   });
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery({
+  const { data: rawCustomers, isLoading: customersLoading } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
-      const { collection, getDocs } = await import('firebase/firestore');
-      const { db } = await import('../../firebase/firebase');
-      const snap = await getDocs(collection(db, 'customers'));
-      return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      return fetchAdminCustomers()
     }
   });
+
+  const customers = useMemo(() => {
+    return normalizeCustomers(rawCustomers)
+  }, [rawCustomers]);
 
   const isLoading = reviewsLoading || outletsLoading || customersLoading;
 

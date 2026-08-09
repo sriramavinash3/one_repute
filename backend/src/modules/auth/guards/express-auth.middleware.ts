@@ -72,24 +72,42 @@ export class FirebaseAuthMiddleware implements NestMiddleware {
       }
 
       let customerId = userData.customerId || null;
-      if (!customerId && userRole === 'outlet') {
-        // Fallback 1: Query customers collection where email matches
-        const customerSnap = await db.collection('customers')
-          .where('email', '==', decodedToken.email)
-          .limit(1)
-          .get();
-        if (!customerSnap.empty) {
-          customerId = customerSnap.docs[0].id;
-          await db.collection('users').doc(decodedToken.uid).update({ customerId });
-        } else {
-          // Fallback 2: Check if there's any outlet assigned
-          const outletSnap = await db.collection('outlets')
+      let outletId = userData.outletId || null;
+      if (userRole === 'outlet') {
+        if (!customerId || !outletId) {
+          // Fallback 1: Query customers collection where email matches
+          const customerSnap = await db.collection('customers')
+            .where('email', '==', decodedToken.email)
+            .limit(1)
+            .get();
+          if (!customerSnap.empty) {
+            customerId = customerId || customerSnap.docs[0].id;
+            await db.collection('users').doc(decodedToken.uid).update({ customerId });
+          }
+        }
+        if (!outletId && customerId) {
+          // Fallback 2: Resolve the outlet from the customer's outlets
+          const outletByCustomerSnap = await db.collection('outlets')
+            .where('customerId', '==', customerId)
+            .where('status', '==', 'active')
+            .limit(1)
+            .get();
+          if (!outletByCustomerSnap.empty) {
+            outletId = outletByCustomerSnap.docs[0].id;
+          }
+        }
+        if (!outletId) {
+          // Fallback 3: Check if there's any outlet owned by this user
+          const ownedOutletSnap = await db.collection('outlets')
             .where('ownerId', '==', decodedToken.uid)
             .limit(1)
             .get();
-          if (!outletSnap.empty && outletSnap.docs[0].data().customerId) {
-            customerId = outletSnap.docs[0].data().customerId;
-            await db.collection('users').doc(decodedToken.uid).update({ customerId });
+          if (!ownedOutletSnap.empty) {
+            outletId = outletId || ownedOutletSnap.docs[0].id;
+            if (!customerId && ownedOutletSnap.docs[0].data().customerId) {
+              customerId = ownedOutletSnap.docs[0].data().customerId;
+              await db.collection('users').doc(decodedToken.uid).update({ customerId });
+            }
           }
         }
       }
@@ -99,6 +117,7 @@ export class FirebaseAuthMiddleware implements NestMiddleware {
         email: decodedToken.email || '',
         role: userRole,
         customerId,
+        outletId,
         assignedOutletIds: userData.assignedOutletIds || [],
       };
 

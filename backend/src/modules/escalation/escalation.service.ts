@@ -1,7 +1,8 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SaveEscalationSettingsDto } from './dto/escalation.dto';
+import { validateActiveOutlet } from '../../common/utils/outlet-validator';
 
 const PLAN_MAX_LEVELS: Record<string, number> = {
   enterprise: 3,
@@ -48,8 +49,9 @@ export class EscalationService {
   /**
    * Get escalation settings for an outlet (or resolve default if unset)
    */
-  async getSettings(outletId: string, customerId?: string): Promise<EscalationSettingsResponse> {
+  async getSettings(outletId: string, customerId?: string, user?: { uid?: string; email?: string; role?: string; customerId?: string }): Promise<EscalationSettingsResponse> {
     const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId, user);
 
     // 1. Fetch escalation settings doc from Firestore
     let docSnap;
@@ -65,9 +67,10 @@ export class EscalationService {
     let plan = 'pro';
     let creditsExhausted = false;
 
-    if (customerId) {
+    const resolvedCustomerId = customerId || (await this.resolveCustomerId(db, user));
+    if (resolvedCustomerId) {
       try {
-        const customerSnap = await db.collection('customers').doc(customerId).get();
+        const customerSnap = await db.collection('customers').doc(resolvedCustomerId).get();
         if (customerSnap.exists) {
           const cust = customerSnap.data() || {};
           plan = cust.planName || cust.plan || 'pro';
@@ -115,12 +118,24 @@ export class EscalationService {
   /**
    * Save or update escalation settings for an outlet
    */
-  async saveSettings(outletId: string, dto: SaveEscalationSettingsDto): Promise<{ success: boolean; message: string }> {
+  async saveSettings(outletId: string, dto: SaveEscalationSettingsDto, user?: { uid?: string; email?: string; role?: string; customerId?: string }): Promise<{ success: boolean; message: string }> {
     const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId, user);
     const docRef = db.collection('escalationSettings').doc(outletId);
 
     const docSnap = await docRef.get();
     const existing = docSnap.exists ? docSnap.data() || {} : {};
+
+    // Enforce plan gating on save: level beyond plan max is rejected
+    if (dto.level !== undefined) {
+      const plan = await this.resolveCustomerPlan(db, user);
+      const maxAllowedLevel = getPlanMaxLevel(plan);
+      if (dto.level > maxAllowedLevel) {
+        throw new ForbiddenException(
+          `Level ${dto.level} requires ${Object.entries(PLAN_MAX_LEVELS).find(([, max]) => max === dto.level)?.[0] || 'a higher'} plan. Your current plan supports up to level ${maxAllowedLevel}.`,
+        );
+      }
+    }
 
     if (dto.masterEnabled !== undefined) {
       existing.masterEnabled = dto.masterEnabled;
@@ -152,8 +167,9 @@ export class EscalationService {
   /**
    * Clear configuration for a specific level
    */
-  async deleteLevel(outletId: string, level: number): Promise<{ success: boolean; message: string }> {
+  async deleteLevel(outletId: string, level: number, user?: { uid?: string; email?: string; role?: string; customerId?: string }): Promise<{ success: boolean; message: string }> {
     const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId, user);
     const docRef = db.collection('escalationSettings').doc(outletId);
 
     const docSnap = await docRef.get();
@@ -171,8 +187,9 @@ export class EscalationService {
   /**
    * Fetch escalation history logs for an outlet
    */
-  async getHistory(outletId: string) {
+  async getHistory(outletId: string, user?: { uid?: string; email?: string; role?: string; customerId?: string }) {
     const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId, user);
     try {
       const snap = await db.collection('activityLogs')
         .where('outletId', '==', outletId)
@@ -209,5 +226,47 @@ export class EscalationService {
       escalationInitiatedAt: data.escalationInitiatedAt || null,
       lastEscalatedAt: data.lastEscalatedAt || null,
     };
+  }
+
+  /**
+   * Resolve the customerId for a user (direct on the user or users/{uid} doc)
+   */
+  private async resolveCustomerId(
+    db: FirebaseFirestore.Firestore,
+    user?: { uid?: string; email?: string; role?: string; customerId?: string },
+  ): Promise<string | null> {
+    if (user?.customerId) return user.customerId;
+    if (!user?.uid) return null;
+    try {
+      const userSnap = await db.collection('users').doc(user.uid).get();
+      if (userSnap.exists) {
+        const data = userSnap.data() || {};
+        return data.customerId || data.customer_id || null;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not resolve customerId for user ${user.uid}: ${err.message}`);
+    }
+    return null;
+  }
+
+  /**
+   * Resolve the customer's plan name for plan-gating decisions
+   */
+  private async resolveCustomerPlan(
+    db: FirebaseFirestore.Firestore,
+    user?: { uid?: string; email?: string; role?: string; customerId?: string },
+  ): Promise<string> {
+    const customerId = await this.resolveCustomerId(db, user);
+    if (!customerId) return 'pro';
+    try {
+      const customerSnap = await db.collection('customers').doc(customerId).get();
+      if (customerSnap.exists) {
+        const cust = customerSnap.data() || {};
+        return cust.planName || cust.plan || 'pro';
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not fetch customer plan: ${err.message}`);
+    }
+    return 'pro';
   }
 }

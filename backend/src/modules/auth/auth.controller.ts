@@ -4,15 +4,36 @@
  * NestJS Auth Controller for Signup, Forgot Password, Reset Password, & Email Verification.
  */
 
-import { Controller, Post, Get, Body, Query, HttpCode, HttpStatus, Logger, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Param, HttpCode, HttpStatus, Logger, Req, UseGuards, HttpException } from '@nestjs/common';
 import { TokenService } from './token.service';
 import { EmailService } from '../email/services/email.service';
+import { FirebaseService } from '../firebase/firebase.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { FirebaseAuthGuard } from './guards/firebase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthUser } from './interfaces/auth-user.interface';
+
+interface OnboardBody {
+  form?: {
+    businessName?: string;
+    businessType?: string;
+    managerPhone?: string;
+    whatsappNumber?: string;
+    address?: string;
+    placeId?: string;
+    planId?: string;
+  };
+  paymentData?: {
+    razorpay_subscription_id?: string | null;
+    razorpay_payment_id?: string | null;
+  } | null;
+  isTrial?: boolean;
+  discountData?: any;
+  userUid?: string;
+  userEmail?: string;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -21,6 +42,7 @@ export class AuthController {
   constructor(
     private readonly tokenService: TokenService,
     private readonly emailService: EmailService,
+    private readonly firebaseService: FirebaseService,
   ) {}
 
   /**
@@ -150,6 +172,30 @@ export class AuthController {
   }
 
   /**
+   * GET /api/auth/onboarding-session/:uid
+   * Returns the Google locations collected during the onboarding OAuth flow.
+   * (Historically mounted under /auth/google by mistake — the frontend and the
+   * auth middleware whitelist both use /api/auth/onboarding-session.)
+   */
+  @Get('onboarding-session/:uid')
+  async getOnboardingSession(@Param('uid') uid: string) {
+    const db = this.firebaseService.getDb();
+
+    const sessionDoc = await db.collection('onboarding_sessions').doc(uid).get();
+
+    if (!sessionDoc.exists) {
+      throw new HttpException('Onboarding session not found', HttpStatus.NOT_FOUND);
+    }
+
+    const data = sessionDoc.data();
+    return {
+      googleAccountEmail: data?.googleAccountEmail,
+      googleLocations: data?.googleLocations || [],
+      googleAccountId: data?.googleAccountId,
+    };
+  }
+
+  /**
    * GET /api/auth/me
    * Resolves currently authenticated customer profile user structure via FirebaseAuthGuard.
    */
@@ -160,5 +206,108 @@ export class AuthController {
       success: true,
       user,
     };
+  }
+
+  /**
+   * POST /api/auth/onboard
+   * Finalizes brand-new user onboarding. Consumes the Google OAuth onboarding
+   * session (created by /api/auth/google/onboard + callback) and, in one batch,
+   * creates the customer + outlet and links the user document to them
+   * (outletId, customerId, isSetupComplete). This route existed in the legacy
+   * Express backend but was never ported to NestJS, which is why user profiles
+   * never received an outlet link and Google connect failed afterwards.
+   */
+  @Post('onboard')
+  @HttpCode(HttpStatus.OK)
+  async onboard(@Body() body: OnboardBody) {
+    const { form, paymentData, isTrial, discountData, userUid, userEmail } = body || {};
+
+    if (!userUid || !userEmail) {
+      throw new HttpException('Missing user data', HttpStatus.BAD_REQUEST);
+    }
+
+    const db = this.firebaseService.getDb();
+
+    // 1. The Google OAuth onboarding session must exist (token stored by the callback)
+    const sessionDoc = await db.collection('onboarding_sessions').doc(userUid).get();
+    const sessionData = sessionDoc.exists ? sessionDoc.data() : null;
+    if (!sessionData?.googleRefreshToken || !sessionData?.googleLocations) {
+      this.logger.warn(`Onboarding rejected: no Google authorization session for uid=${userUid}`);
+      throw new HttpException('Missing Google authorization. Please connect Google My Business.', HttpStatus.BAD_REQUEST);
+    }
+
+    const locations = sessionData.googleLocations || [];
+    const selectedLocation = locations.find((l: any) => l?.id === form?.placeId) || {};
+    const businessName = form?.businessName || selectedLocation.name || 'Unknown Business';
+
+    const now = new Date();
+    const trialEndsAt = isTrial ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
+
+    // 2. Create customer + outlet and link the user in a single atomic batch.
+    //    The refresh token is copied AS-IS: the callback already encrypted it.
+    const customerRef = db.collection('customers').doc();
+    const outletRef = db.collection('outlets').doc();
+    const userRef = db.collection('users').doc(userUid);
+
+    const batch = db.batch();
+
+    batch.set(customerRef, {
+      name: businessName,
+      email: userEmail,
+      phone: form?.managerPhone || '',
+      plan: form?.planId || null,
+      subscriptionStatus: isTrial ? 'trialing' : 'active',
+      trialEndsAt,
+      razorpaySubscriptionId: paymentData?.razorpay_subscription_id || null,
+      razorpayPaymentId: paymentData?.razorpay_payment_id || null,
+      appliedDiscount: discountData || null,
+      createdAt: now,
+    });
+
+    batch.set(outletRef, {
+      name: businessName,
+      businessType: form?.businessType || '',
+      managerPhone: form?.managerPhone || '',
+      whatsappNumber: form?.whatsappNumber || form?.managerPhone || '',
+      address: form?.address || '',
+      placeId: form?.placeId || '',
+      providerType: 'GBP',
+      googleLocationId: form?.placeId || '',
+      googleLocationName: selectedLocation.name || '',
+      googleAccountId: sessionData.googleAccountId || '',
+      googleRefreshToken: sessionData.googleRefreshToken,
+      googleAccountEmail: sessionData.googleAccountEmail || '',
+      googleTokenScope: sessionData.googleTokenScope || '',
+      googleTokenExpiresAt: sessionData.googleTokenExpiresAt || null,
+      googleLocations: locations,
+      googleConnectedAt: now,
+      ownerId: userUid,
+      customerId: customerRef.id,
+      email: userEmail,
+      isActive: true,
+      status: 'active',
+      reviewsCount: 0,
+      averageRating: 5.0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    batch.update(userRef, {
+      businessName,
+      outletId: outletRef.id,
+      customerId: customerRef.id,
+      isSetupComplete: true,
+      role: 'outlet',
+      updatedAt: now,
+    });
+
+    await batch.commit();
+
+    // 3. Clean up the temporary session
+    await db.collection('onboarding_sessions').doc(userUid).delete();
+
+    this.logger.log(`Onboarding completed: user=${userUid}, customer=${customerRef.id}, outlet=${outletRef.id}`);
+
+    return { success: true, outletId: outletRef.id };
   }
 }

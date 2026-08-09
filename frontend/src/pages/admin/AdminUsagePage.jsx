@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_USAGE_INSIGHTS, MOCK_OUTLETS, MOCK_CUSTOMERS } from '../../config/mockData'
-import { fetchUsageInsights } from '../../services/adminService'
+import { fetchUsageInsights, fetchAdminCustomers, normalizeCustomers } from '../../services/adminService'
 import { fetchAdminOutlets } from '../../services/outletService'
 import Button from '../../components/ui/button'
 import Input from '../../components/ui/input'
@@ -49,16 +49,17 @@ export default function AdminUsagePage() {
     }
   })
 
-  const { data: customers = [] } = useQuery({
+  const { data: rawCustomers } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
-      const { collection, getDocs } = await import('firebase/firestore')
-      const { db } = await import('../../firebase/firebase')
-      const snap = await getDocs(collection(db, 'customers'))
-      return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      return fetchAdminCustomers()
     }
   })
+
+  const customers = useMemo(() => {
+    return normalizeCustomers(rawCustomers)
+  }, [rawCustomers])
 
   const updateOutletMutation = useMutation({
     mutationFn: async ({ id, updates }) => {

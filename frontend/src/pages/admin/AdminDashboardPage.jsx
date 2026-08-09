@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { db } from '../../firebase/firebase'
 import { collection, getCountFromServer, getDocs, limit, orderBy, query } from 'firebase/firestore'
-import { fetchCredits } from '../../services/adminService'
+import { fetchCredits, fetchUsageInsights, fetchAdminCustomers, normalizeCustomers } from '../../services/adminService'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
 import { Clock, MessageCircle, Store, ThumbsUp, TriangleAlert, Wand2 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -15,7 +15,6 @@ import apiClient from '../../services/apiClient'
 import { buildDailyTrend, buildRatingDistribution, computeRatingStats, computeStatusCounts, groupReviewsByOutlet } from '../../utils/analytics'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_CUSTOMERS, MOCK_DASHBOARD_STATS, MOCK_OUTLETS, MOCK_REVIEWS, MOCK_TICKETS } from '../../config/mockData'
-import { fetchUsageInsights } from '../../services/adminService'
 const stagger = {
   hidden: { opacity: 0 },
   show: {
@@ -65,14 +64,17 @@ export default function AdminDashboardPage() {
     }
   })
 
-  const { data: customers = [] } = useQuery({
+  const { data: rawCustomers } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
-      const { data } = await apiClient.get('/api/admin/customers')
-      return data
+      return fetchAdminCustomers()
     }
   })
+
+  const customers = useMemo(() => {
+    return normalizeCustomers(rawCustomers)
+  }, [rawCustomers])
 
   const { data: tickets = [] } = useQuery({
     queryKey: ['admin-tickets'],

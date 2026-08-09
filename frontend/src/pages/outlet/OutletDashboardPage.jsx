@@ -55,6 +55,12 @@ export default function OutletDashboardPage() {
       return
     }
 
+    // Defence-in-depth: if the session outlet has been removed, do not subscribe to its reviews
+    if (outlet?.status === 'removed' || outlet?.isDeleted === true) {
+      setReviews([])
+      return
+    }
+
     const q = query(
       collection(db, 'reviews'),
       where('outletId', '==', outletId),
@@ -78,7 +84,7 @@ export default function OutletDashboardPage() {
     console.debug('[OutletDashboard] listening for reviews with outletId', outletId)
 
     return () => unsubscribe()
-  }, [outletId, setReviews])
+  }, [outletId, outlet?.status, outlet?.isDeleted, setReviews])
 
   const ratingStats = computeRatingStats(reviews)
   const statusCounts = computeStatusCounts(reviews)

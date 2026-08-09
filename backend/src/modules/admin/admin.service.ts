@@ -1,7 +1,8 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { FirebaseService } from '../firebase/firebase.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { validateActiveOutlet } from '../../common/utils/outlet-validator';
 import { GoogleBusinessService } from '../google-business/google-business.service';
 import { SchedulerService } from '../scheduler/scheduler.service';
 import {
@@ -38,6 +39,9 @@ export class AdminService {
       const snap = await db.collection('outlets').get();
       snap.docs.forEach((doc) => {
         const data = doc.data();
+        if (data.status === 'removed' || data.isDeleted === true || data.status === 'deleted') {
+          return;
+        }
         outlets.push({
           id: doc.id,
           name: data.name || 'Unnamed Outlet',
@@ -123,20 +127,44 @@ export class AdminService {
   }
 
   async deleteOutlet(outletId: string) {
+    if (!outletId) {
+      throw new BadRequestException('Outlet ID is required');
+    }
     const db = this.firebaseService.getDb();
-    await db.collection('outlets').doc(outletId).delete();
+    const docRef = db.collection('outlets').doc(outletId);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      throw new NotFoundException(`Outlet ${outletId} not found`);
+    }
+
+    const data = docSnap.data() || {};
+    if (data.status === 'removed' || data.isDeleted === true || data.status === 'deleted') {
+      throw new NotFoundException(`Outlet ${outletId} has already been removed`);
+    }
+
+    await docRef.set({
+      status: 'removed',
+      isActive: false,
+      isDeleted: true,
+      deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
 
     if (process.env.DATABASE_URL) {
       try {
         await this.prismaService.location.delete({ where: { id: outletId } });
-      } catch {}
+      } catch (err: any) {
+        this.logger.warn(`Prisma location delete warning: ${err.message}`);
+      }
     }
 
-    return { success: true, message: `Outlet ${outletId} deleted successfully` };
+    return { success: true, message: `Outlet ${outletId} removed successfully` };
   }
 
   async updateOutletStatus(outletId: string, dto: UpdateOutletStatusDto) {
     const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId);
+
     const isActive = dto.isActive !== undefined ? dto.isActive : dto.status === 'active';
 
     await db.collection('outlets').doc(outletId).set(
@@ -153,6 +181,8 @@ export class AdminService {
 
   async updateOutletSettings(outletId: string, dto: UpdateOutletSettingsDto) {
     const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId);
+
     const updateData: any = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
 
     if (dto.name) updateData.name = dto.name;
@@ -182,8 +212,12 @@ export class AdminService {
           email: data.email || '',
           plan: data.planName || data.plan || 'pro',
           paymentStatus: data.paymentStatus || 'active',
+          subscriptionStatus: data.subscriptionStatus || data.paymentStatus || 'active',
+          accountStatus: data.accountStatus || data.status || 'Active',
+          status: data.status || data.accountStatus || 'Active',
           outletsCount: data.outletsCount || 0,
           aiCredits: data.aiCredits !== undefined ? data.aiCredits : 500,
+          monthlyFee: data.monthlyFee || 0,
           role: data.role || 'outlet',
           createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : new Date().toISOString(),
         });
@@ -197,7 +231,10 @@ export class AdminService {
       const outletsSnap = await db.collection('outlets').get();
       const countMap = new Map<string, number>();
       outletsSnap.docs.forEach((doc) => {
-        const cid = doc.data().customerId;
+        const d = doc.data();
+        // Exclude removed or deleted outlets from the count
+        if (d.status === 'removed' || d.isDeleted === true || d.status === 'deleted') return;
+        const cid = d.customerId;
         if (cid) countMap.set(cid, (countMap.get(cid) || 0) + 1);
       });
       customersMap.forEach((cust, cid) => {

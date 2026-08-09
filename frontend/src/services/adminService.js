@@ -1,5 +1,21 @@
 import apiClient from './apiClient'
 
+export function normalizeCustomers(data) {
+  if (Array.isArray(data)) return data
+  if (data && Array.isArray(data.customers)) return data.customers
+  if (data && Array.isArray(data.data)) return data.data
+  return []
+}
+
+export async function fetchAdminCustomers() {
+  const { data } = await apiClient.get('/api/admin/customers')
+  const customers = normalizeCustomers(data)
+  return {
+    customers,
+    total: typeof data?.total === 'number' ? data.total : customers.length
+  }
+}
+
 export async function fetchSystemLogs({
   page = 1,
   pageSize = 25,
@@ -14,7 +30,6 @@ export async function fetchSystemLogs({
       search
     }
   })
-  console.log(response);
 
   return response.data
 }

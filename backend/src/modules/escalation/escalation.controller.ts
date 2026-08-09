@@ -25,17 +25,19 @@ export class EscalationController {
   constructor(private readonly escalationService: EscalationService) {}
 
   /**
-   * Helper to resolve target outletId from user context or request parameters
+   * Helper to resolve the target outletId from user context or request parameters.
+   * Falls back to the authenticated user's outlet (user.outletId / assignedOutletIds).
+   * customerId and uid are NOT outlets — returning them here would make every
+   * lookup 404 for correctly-provisioned users.
    */
   private resolveOutletId(req: Request, paramOutletId?: string): string {
     if (paramOutletId) return paramOutletId;
     const user = (req as any).user;
+    if (user?.outletId) return user.outletId;
     if (user?.assignedOutletIds && user.assignedOutletIds.length > 0) {
       return user.assignedOutletIds[0];
     }
-    if (user?.customerId) return user.customerId;
-    if (user?.uid) return user.uid;
-    return 'default_outlet';
+    return '';
   }
 
   /**
@@ -47,11 +49,11 @@ export class EscalationController {
     try {
       const user = (req as any).user;
       const outletId = this.resolveOutletId(req, queryOutletId);
-      const settings = await this.escalationService.getSettings(outletId, user?.customerId);
+      const settings = await this.escalationService.getSettings(outletId, user?.customerId, user);
       return res.status(HttpStatus.OK).json(settings);
     } catch (err: any) {
       this.logger.error('[EscalationController] getSettings failed', { error: err.message });
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to fetch escalation settings' });
+      return this.sendError(res, err, 'Failed to fetch escalation settings');
     }
   }
 
@@ -59,11 +61,11 @@ export class EscalationController {
   async getSettingsForOutlet(@Param('outletId') outletIdParam: string, @Req() req: Request, @Res() res: Response) {
     try {
       const user = (req as any).user;
-      const settings = await this.escalationService.getSettings(outletIdParam, user?.customerId);
+      const settings = await this.escalationService.getSettings(outletIdParam, user?.customerId, user);
       return res.status(HttpStatus.OK).json(settings);
     } catch (err: any) {
       this.logger.error('[EscalationController] getSettingsForOutlet failed', { error: err.message });
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to fetch escalation settings' });
+      return this.sendError(res, err, 'Failed to fetch escalation settings');
     }
   }
 
@@ -83,12 +85,13 @@ export class EscalationController {
 
   private async handleSaveSettings(dto: SaveEscalationSettingsDto, req: Request, res: Response) {
     try {
+      const user = (req as any).user;
       const outletId = this.resolveOutletId(req, dto.outletId);
-      const result = await this.escalationService.saveSettings(outletId, dto);
+      const result = await this.escalationService.saveSettings(outletId, dto, user);
       return res.status(HttpStatus.OK).json(result);
     } catch (err: any) {
       this.logger.error('[EscalationController] saveSettings failed', { error: err.message });
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to save escalation settings', message: err.message });
+      return this.sendError(res, err, 'Failed to save escalation settings');
     }
   }
 
@@ -102,12 +105,13 @@ export class EscalationController {
       if (isNaN(level) || level < 1 || level > 3) {
         return res.status(HttpStatus.BAD_REQUEST).json({ error: 'Invalid escalation level' });
       }
+      const user = (req as any).user;
       const outletId = this.resolveOutletId(req, queryOutletId);
-      const result = await this.escalationService.deleteLevel(outletId, level);
+      const result = await this.escalationService.deleteLevel(outletId, level, user);
       return res.status(HttpStatus.OK).json(result);
     } catch (err: any) {
       this.logger.error('[EscalationController] deleteLevel failed', { error: err.message });
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to delete level settings' });
+      return this.sendError(res, err, 'Failed to delete level settings');
     }
   }
 
@@ -117,12 +121,13 @@ export class EscalationController {
   @Get('history')
   async getHistory(@Query('outletId') queryOutletId: string, @Req() req: Request, @Res() res: Response) {
     try {
+      const user = (req as any).user;
       const outletId = this.resolveOutletId(req, queryOutletId);
-      const history = await this.escalationService.getHistory(outletId);
+      const history = await this.escalationService.getHistory(outletId, user);
       return res.status(HttpStatus.OK).json(history);
     } catch (err: any) {
       this.logger.error('[EscalationController] getHistory failed', { error: err.message });
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to fetch escalation history' });
+      return this.sendError(res, err, 'Failed to fetch escalation history');
     }
   }
 
@@ -136,8 +141,19 @@ export class EscalationController {
       return res.status(HttpStatus.OK).json(status);
     } catch (err: any) {
       this.logger.error('[EscalationController] getReviewStatus failed', { error: err.message });
-      if (err.status === 404) return res.status(HttpStatus.NOT_FOUND).json({ error: err.message });
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to fetch review escalation status' });
+      return this.sendError(res, err, 'Failed to fetch review escalation status');
     }
+  }
+
+  /**
+   * Passes real 4xx errors (validation, forbidden, not-found) through instead of
+   * masking them as 500.
+   */
+  private sendError(res: Response, err: any, fallbackMessage: string): Response {
+    const status = err?.getStatus ? err.getStatus() : err?.status;
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      return res.status(status).json({ error: err.message || fallbackMessage });
+    }
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: fallbackMessage });
   }
 }

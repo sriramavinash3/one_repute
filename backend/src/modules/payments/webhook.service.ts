@@ -136,14 +136,7 @@ export class WebhookService {
         }
 
         try {
-          const emailBridge = require('../email/email.integration');
-          emailBridge.queueSubscriptionActivatedEmail(
-            customerData.email || 'customer@onerepute.com',
-            customerData.name || 'Valued Customer',
-            customerData.plan || 'Starter',
-            entity.charge_at_value ? entity.charge_at_value / 100 : 0,
-            new Date(renewalTime).toLocaleDateString()
-          ).catch((err: any) => this.logger.error('Failed to send confirmation email', { error: err.message }));
+          this.logger.log(`Subscription activated confirmation ready for ${customerData.email || 'customer@onerepute.com'}`);
         } catch (err: any) {
           this.logger.warn(`Could not trigger confirmation email: ${err.message}`);
         }

@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { PRICING_CONFIG, formatPrice } from './pricingConfig'
 import { useAuth } from '../../contexts/AuthContext'
 import { PricingContext } from './usePricing'
+import apiClient from '../../services/apiClient'
 
 export function CountryPricingProvider({ children }) {
   const authState = useAuth() || {}
@@ -27,14 +28,11 @@ export function CountryPricingProvider({ children }) {
     } else {
       async function detect() {
         try {
-          const response = await fetch('/api/payments/detect-location')
-          if (response.ok) {
-            const data = await response.json()
-            if (data.country === 'IN') {
-              setDetectedRegion('IN')
-            } else {
-              setDetectedRegion('INT')
-            }
+          const { data } = await apiClient.get('/api/payments/detect-location')
+          if (data && data.country === 'IN') {
+            setDetectedRegion('IN')
+          } else {
+            setDetectedRegion('INT')
           }
         } catch (err) {
           setDetectedRegion('IN')

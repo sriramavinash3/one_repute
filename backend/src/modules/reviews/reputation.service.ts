@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
+import { validateActiveOutlet } from '../../common/utils/outlet-validator';
 
 @Injectable()
 export class ReputationService {
@@ -17,6 +18,7 @@ export class ReputationService {
 
   async getReputationInsights(outletId: string, dateRange: string = '30d') {
     const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId);
 
     const [reviewsSnap, outletSnap] = await Promise.all([
       db.collection('reviews').where('outletId', '==', outletId).get(),
@@ -180,6 +182,7 @@ export class ReputationService {
 
   async updateCategoryRules(outletId: string, categoryName: string, actionType: string, inputValue?: string) {
     const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId);
     const outletRef = db.collection('outlets').doc(outletId);
     const outletSnap = await outletRef.get();
     const categoryRules = outletSnap.exists && outletSnap.data()?.categoryRules ? { ...outletSnap.data()!.categoryRules } : {};

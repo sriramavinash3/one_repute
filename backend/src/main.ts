@@ -28,11 +28,20 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'https://onerepute.com',
-      'https://www.onerepute.com',
-    ],
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://onerepute.com',
+        'https://www.onerepute.com',
+      ];
+      // Allow requests with no origin (e.g., OAuth popup redirect, server-to-server)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin '${origin}' is not allowed`));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
   });

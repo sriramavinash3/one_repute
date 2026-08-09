@@ -127,7 +127,7 @@ export default function ConnectGooglePage() {
 
         {/* Action Buttons */}
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button onClick={() => startGoogleOAuth(outletId)} disabled={!outletId}>
+          <Button onClick={() => startGoogleOAuth(outletId, profile?.id)} disabled={!outletId}>
             <Link2 className="h-4 w-4" />
             {data?.connected ? 'Reconnect Google' : 'Connect Google Business'}
           </Button>

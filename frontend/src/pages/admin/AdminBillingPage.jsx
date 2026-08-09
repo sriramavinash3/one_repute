@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../../firebase/firebase'
 import apiClient from '../../services/apiClient'
+import { fetchAdminCustomers, normalizeCustomers } from '../../services/adminService'
 import { CheckCircle2, XCircle, ShieldCheck, Key, Globe, Database, Activity, RefreshCw } from 'lucide-react'
 
 const stagger = {
@@ -110,8 +111,8 @@ export default function AdminBillingPage() {
       setLoading(true)
       setError('')
       try {
-        const { data } = await apiClient.get('/api/admin/customers')
-        const allCustomers = Array.isArray(data) ? data : (data.customers || [])
+        const data = await fetchAdminCustomers()
+        const allCustomers = normalizeCustomers(data)
         
         let activeCount = 0
         let currentRev = 0

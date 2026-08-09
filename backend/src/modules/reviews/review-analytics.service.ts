@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
+import { validateActiveOutlet } from '../../common/utils/outlet-validator';
 
 @Injectable()
 export class ReviewAnalyticsService {
@@ -17,6 +18,9 @@ export class ReviewAnalyticsService {
 
   async getSummary(outletId?: string) {
     const db = this.firebaseService.getDb();
+    if (outletId) {
+      await validateActiveOutlet(db, outletId);
+    }
     let query: any = db.collection('reviews');
     if (outletId) query = query.where('outletId', '==', outletId);
 
@@ -95,6 +99,9 @@ export class ReviewAnalyticsService {
 
   async getTimeline(outletId?: string, dateRange: string = '30d') {
     const db = this.firebaseService.getDb();
+    if (outletId) {
+      await validateActiveOutlet(db, outletId);
+    }
     let query: any = db.collection('reviews');
     if (outletId) query = query.where('outletId', '==', outletId);
     const snap = await query.get();

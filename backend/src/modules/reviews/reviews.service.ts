@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { validateActiveOutlet } from '../../common/utils/outlet-validator';
 
 @Injectable()
 export class ReviewsService {
@@ -32,6 +33,10 @@ export class ReviewsService {
     const pageNum = Number(filter.page) || 1;
     const limitNum = Number(filter.limit) || 10;
     const skipNum = (pageNum - 1) * limitNum;
+
+    if (filter.outletId) {
+      await validateActiveOutlet(this.firebaseService.getDb(), filter.outletId);
+    }
 
     // 1. Primary path: Prisma / PostgreSQL
     if (process.env.DATABASE_URL) {
@@ -215,6 +220,9 @@ export class ReviewsService {
   }
 
   async getEscalatedReviews(outletId?: string) {
+    if (outletId) {
+      await validateActiveOutlet(this.firebaseService.getDb(), outletId);
+    }
     if (process.env.DATABASE_URL) {
       try {
         const reviews = await this.prismaService.review.findMany({

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Lock, Sparkles, Check, HelpCircle, X, ShieldAlert, ArrowRight } from 'lucide-react'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import Button from '../ui/button'
+import apiClient from '../../services/apiClient'
 
 /**
  * FeatureGate wrapper component to gate access to premium features.
@@ -97,14 +98,11 @@ export function UpgradeModal({ onClose }) {
       // Guest/Draft Geolocation Check
       async function detect() {
         try {
-          const res = await fetch('/api/payments/detect-location')
-          if (res.ok) {
-            const data = await res.json()
-            if (data.country !== 'IN') {
-              setSelectedCurrency('USD')
-              setShowIntlWarning(true)
-              setPendingCurrency('USD')
-            }
+          const { data } = await apiClient.get('/api/payments/detect-location')
+          if (data && data.country && data.country !== 'IN') {
+            setSelectedCurrency('USD')
+            setShowIntlWarning(true)
+            setPendingCurrency('USD')
           }
         } catch (e) {
           // ignore

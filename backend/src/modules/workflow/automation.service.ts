@@ -215,6 +215,13 @@ export class AutomationService {
     }
     const outlet = outletSnap.data();
 
+    // Guard: stop escalation processing for removed or deleted outlets
+    if (outlet?.status === 'removed' || outlet?.isDeleted === true || outlet?.status === 'deleted') {
+      this.logger.warn(`[Automation] Stopping escalation for removed outlet ${data.outletId}, review ${doc.id}`);
+      await doc.ref.update({ escalationStatus: 'completed', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      return;
+    }
+
     const customerId = outlet?.customerId;
     let maxLevel = 0;
     if (customerId) {

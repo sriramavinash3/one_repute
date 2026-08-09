@@ -10,8 +10,11 @@ export const configValidationSchema = Joi.object({
     .default('info'),
 
   // Frontend & App Base URLs
-  FRONTEND_BASE_URL: Joi.string().uri().default('http://localhost:5173'),
-  APP_URL: Joi.string().uri().default('http://localhost:3000'),
+  // NOTE: no Joi .default() here — @nestjs/config would inject those defaults into
+  // process.env, overriding the environment-aware defaults in app.config.ts
+  // (localhost for development, https://onerepute.com for production).
+  FRONTEND_BASE_URL: Joi.string().uri().optional(),
+  APP_URL: Joi.string().uri().optional(),
 
   // Database
   DATABASE_URL: Joi.string().optional(),
@@ -52,6 +55,9 @@ export const configValidationSchema = Joi.object({
   FIREBASE_PROJECT_ID: Joi.string().optional(),
   FIREBASE_CLIENT_EMAIL: Joi.string().optional(),
   FIREBASE_PRIVATE_KEY: Joi.string().optional(),
+
+  // Encryption
+  ENCRYPTION_KEY: Joi.string().min(32).default('d9f8e7d6c5b4a39281706f5e4d3c2b1a0987654321fedcba0987654321abcdef'),
 
   // Storage
   STORAGE_DRIVER: Joi.string().valid('local', 's3').default('local'),

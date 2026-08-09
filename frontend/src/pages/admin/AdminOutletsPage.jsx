@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Plus, Search, MoreVertical, ExternalLink, ShieldAlert, CheckCircle2, XCircle, X } from 'lucide-react'
+import { Plus, Search, MoreVertical, ExternalLink, ShieldAlert, CheckCircle2, XCircle, X, Trash2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import Button from '../../components/ui/button'
 import Input from '../../components/ui/input'
-import { fetchAdminOutlets, toggleAdminOutletStatus, createAdminOutlet, fetchPlaceDetails, fetchPlaceSuggestions } from '../../services/outletService'
+import { fetchAdminOutlets, toggleAdminOutletStatus, createAdminOutlet, fetchPlaceDetails, fetchPlaceSuggestions, deleteAdminOutlet } from '../../services/outletService'
+import { fetchAdminCustomers, normalizeCustomers } from '../../services/adminService'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_CUSTOMERS, MOCK_OUTLETS } from '../../config/mockData'
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle } from '../../components/ui/dialog'
@@ -65,19 +66,14 @@ export default function AdminOutletsPage() {
     queryKey: ['admin-customers'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
-      const { default: apiClient } = await import('../../services/apiClient');
-      const { data } = await apiClient.get('/api/admin/customers')
-      return data
+      return fetchAdminCustomers()
     }
   })
 
   const isLoading = outletsLoading || customersLoading;
 
   const customers = useMemo(() => {
-    if (Array.isArray(rawCustomers)) return rawCustomers;
-    if (rawCustomers && Array.isArray(rawCustomers.customers)) return rawCustomers.customers;
-    if (rawCustomers && Array.isArray(rawCustomers.data)) return rawCustomers.data;
-    return [];
+    return normalizeCustomers(rawCustomers)
   }, [rawCustomers]);
 
   const toggleStatusMutation = useMutation({
@@ -87,6 +83,28 @@ export default function AdminOutletsPage() {
       setDialogOpen(false)
     }
   })
+
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
+  const [outletToRemove, setOutletToRemove] = useState(null)
+
+  const removeOutletMutation = useMutation({
+    mutationFn: (id) => deleteAdminOutlet(id),
+    onSuccess: () => {
+      toast.success(`Outlet "${outletToRemove?.name || outletToRemove?.googleLocationName || 'Outlet'}" removed successfully`)
+      queryClient.invalidateQueries(['admin-outlets'])
+      setRemoveDialogOpen(false)
+      setOutletToRemove(null)
+    },
+    onError: (err) => {
+      const message = err?.response?.data?.error || err?.message || 'Failed to remove outlet'
+      toast.error(message)
+    }
+  })
+
+  const handleRemoveOutlet = () => {
+    if (!outletToRemove || removeOutletMutation.isPending) return
+    removeOutletMutation.mutate(outletToRemove.id)
+  }
 
   const handleToggleStatus = () => {
     if (!selectedOutlet) return
@@ -387,6 +405,15 @@ export default function AdminOutletsPage() {
                           >
                             <ShieldAlert className="h-4 w-4" /> {row.isActive ? 'Suspend' : 'Reactivate'}
                           </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="flex items-center gap-2 text-rose-600 focus:bg-rose-50 focus:text-rose-700 dark:focus:bg-rose-950/50"
+                            onClick={() => {
+                              setOutletToRemove(row)
+                              setRemoveDialogOpen(true)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" /> Remove
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>  
                     </td>
@@ -575,6 +602,51 @@ export default function AdminOutletsPage() {
               isLoading={toggleStatusMutation.isPending}
             >
               {selectedOutlet?.isActive ? 'Suspend Outlet' : 'Activate Outlet'}
+            </Button>
+          </div>
+        </DialogContent>
+      </DialogRoot>
+
+      <DialogRoot open={removeDialogOpen} onOpenChange={(open) => {
+        if (!removeOutletMutation.isPending) {
+          setRemoveDialogOpen(open)
+          if (!open) setOutletToRemove(null)
+        }
+      }}>
+        <DialogContent
+          className="max-w-md"
+          onInteractOutside={(event) => {
+            if (removeOutletMutation.isPending) event.preventDefault()
+          }}
+          onEscapeKeyDown={(event) => {
+            if (removeOutletMutation.isPending) event.preventDefault()
+          }}
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 mb-4 dark:bg-rose-950 dark:text-rose-400">
+            <Trash2 className="h-6 w-6" />
+          </div>
+          <DialogTitle>Remove Outlet?</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to remove <strong>{outletToRemove?.name || outletToRemove?.googleLocationName || 'this outlet'}</strong>? This action cannot be undone.
+          </DialogDescription>
+          <div className="mt-8 flex justify-end gap-3">
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                setRemoveDialogOpen(false)
+                setOutletToRemove(null)
+              }}
+              disabled={removeOutletMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="bg-rose-600 hover:bg-rose-700 shadow-rose text-white" 
+              onClick={handleRemoveOutlet}
+              isLoading={removeOutletMutation.isPending}
+              disabled={removeOutletMutation.isPending}
+            >
+              {removeOutletMutation.isPending ? 'Removing...' : 'Remove Outlet'}
             </Button>
           </div>
         </DialogContent>

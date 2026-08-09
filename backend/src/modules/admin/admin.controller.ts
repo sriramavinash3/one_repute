@@ -64,6 +64,12 @@ export class AdminController {
       return res.status(HttpStatus.OK).json(result);
     } catch (err: any) {
       this.logger.error('[AdminController] deleteOutlet failed', { error: err.message });
+      if (err.status === 404 || err.message?.includes('not found')) {
+        return res.status(HttpStatus.NOT_FOUND).json({ error: err.message || `Outlet ${id} not found` });
+      }
+      if (err.status === 400) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ error: err.message });
+      }
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to delete outlet' });
     }
   }

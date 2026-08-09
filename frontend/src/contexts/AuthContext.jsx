@@ -104,34 +104,41 @@ export function AuthProvider({ children }) {
       setOutletLoading(true)
       try {
         if (profile.customerId) {
-          // Fetch all outlets for this customer
+          // Fetch only ACTIVE outlets for this customer — removed outlets are excluded
           const { collection, query, where, getDocs } = await import('firebase/firestore')
-          const q = query(collection(db, 'outlets'), where('customerId', '==', profile.customerId))
+          const q = query(
+            collection(db, 'outlets'),
+            where('customerId', '==', profile.customerId),
+            where('status', '==', 'active')
+          )
           const querySnapshot = await getDocs(q)
           
           if (!querySnapshot.empty) {
             const fetchedOutlets = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
             setOutlets(fetchedOutlets)
             
-            // Set current outlet to the one matching profile.outletId, or the first one
+            // Set current outlet to the one matching profile.outletId, or the first active one.
+            // If profile.outletId was removed it won't be in fetchedOutlets, so we fall back to the first active outlet.
             const currentOutlet = fetchedOutlets.find(o => o.id === profile.outletId) || fetchedOutlets[0]
-            setOutlet(currentOutlet)
-            setOutletState(currentOutlet)
+            setOutlet(currentOutlet || null)
+            setOutletState(currentOutlet || null)
           } else {
             setOutlets([])
             setOutlet(null)
             setOutletState(null)
           }
         } else if (profile.outletId) {
-          // Fallback for older users without customerId
+          // Fallback for older users without customerId — also guard against removed outlets
           const outletRef = doc(db, 'outlets', profile.outletId)
           const snapshot = await getDoc(outletRef)
-          if (snapshot.exists()) {
-            const outletData = { id: snapshot.id, ...snapshot.data() }
-            setOutlet(outletData)
-            setOutlets([outletData])
-            setOutletState(outletData)
+          const outletData = snapshot.exists() ? snapshot.data() : null
+          if (outletData && outletData.status === 'active' && outletData.isDeleted !== true) {
+            const active = { id: snapshot.id, ...outletData }
+            setOutlet(active)
+            setOutlets([active])
+            setOutletState(active)
           } else {
+            // Outlet does not exist or has been removed
             setOutlet(null)
             setOutlets([])
             setOutletState(null)

@@ -40,10 +40,19 @@ export async function toggleAdminOutletStatus(outletId, isActive) {
   return data
 }
 
+export async function deleteAdminOutlet(outletId) {
+  const { data } = await apiClient.delete(`/api/admin/outlets/${outletId}`)
+  return data
+}
+
 export async function fetchOutletById(outletId) {
   const docSnap = await getDoc(doc(db, COLLECTION, outletId))
   if (docSnap.exists()) {
-    return { id: docSnap.id, ...docSnap.data() }
+    const data = docSnap.data()
+    if (data.status === 'removed' || data.isDeleted === true || data.status === 'deleted') {
+      return null
+    }
+    return { id: docSnap.id, ...data }
   }
   return null
 }

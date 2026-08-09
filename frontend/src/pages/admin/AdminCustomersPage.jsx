@@ -13,7 +13,7 @@ import Skeleton from '../../components/feedback/Skeleton'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu'
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle } from '../../components/ui/dialog'
 import { fetchAdminOutlets } from '../../services/outletService'
-import { fetchUsageInsights } from '../../services/adminService'
+import { fetchUsageInsights, fetchAdminCustomers, normalizeCustomers } from '../../services/adminService'
 import apiClient from '../../services/apiClient'
 import { Link } from 'react-router-dom'
 import { USE_MOCK_DATA } from '../../config/env'
@@ -43,16 +43,12 @@ export default function AdminCustomersPage() {
     queryKey: ['admin-customers'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
-      const { data } = await apiClient.get('/api/admin/customers')
-      return data
+      return fetchAdminCustomers()
     }
   })
 
   const customers = useMemo(() => {
-    if (Array.isArray(rawCustomers)) return rawCustomers;
-    if (rawCustomers && Array.isArray(rawCustomers.customers)) return rawCustomers.customers;
-    if (rawCustomers && Array.isArray(rawCustomers.data)) return rawCustomers.data;
-    return [];
+    return normalizeCustomers(rawCustomers)
   }, [rawCustomers]);
 
   const { data: outletData, isLoading: outletsLoading } = useQuery({

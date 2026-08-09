@@ -19,12 +19,25 @@ export class GoogleBusinessService {
     private readonly firebaseService: FirebaseService,
   ) {}
 
+  private resolveRedirectUri(): string {
+    const explicit = this.configService.get<string>('GOOGLE_REDIRECT_URI');
+    if (explicit) return explicit;
+    const isProduction = (process.env.NODE_ENV || 'development') === 'production';
+    // Never emit a localhost redirect URI outside local development.
+    return isProduction
+      ? 'https://onerepute.com/api/auth/google/callback'
+      : 'http://localhost:3000/api/auth/google/callback';
+  }
+
   createOAuthClient(googleRefreshToken?: string) {
-    const oauth2Client = new google.auth.OAuth2(
-      this.configService.get<string>('GOOGLE_CLIENT_ID'),
-      this.configService.get<string>('GOOGLE_CLIENT_SECRET'),
-      this.configService.get<string>('GOOGLE_REDIRECT_URI') || 'http://localhost:3000/api/auth/google/callback'
-    );
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
+    const redirectUri = this.resolveRedirectUri();
+
+    // Safe structural logging — no secrets, no auth codes, no refresh tokens.
+    this.logger.debug(`Google OAuth config: clientId=${clientId ? 'set' : 'MISSING'} clientSecret=${clientSecret ? 'set' : 'MISSING'} redirectUri=${redirectUri}`);
+
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
     if (googleRefreshToken) {
       oauth2Client.setCredentials({
@@ -37,14 +50,21 @@ export class GoogleBusinessService {
 
   getConsentUrl(outletId?: string): string {
     const oauth2Client = this.createOAuthClient();
-    const state = outletId ? encodeURIComponent(outletId) : undefined;
+    // Pass the raw value — generateAuthUrl applies proper query encoding exactly once.
+    // (Previously encodeURIComponent() caused double-encoded state params.)
+    const state = outletId || undefined;
 
-    return oauth2Client.generateAuthUrl({
+    const consentUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
       scope: SCOPES,
       state,
     });
+
+    // Structural audit of the URL that will be handed to the browser.
+    this.logger.debug(`Google consent URL: host=${(() => { try { return new URL(consentUrl).host; } catch { return 'INVALID'; } })()} path=${(() => { try { return new URL(consentUrl).pathname; } catch { return 'INVALID'; } })()} state=${state ? `present(${outletId.length} chars)` : 'absent'} scopeCount=${SCOPES.length} redirectUri=${this.resolveRedirectUri()}`);
+
+    return consentUrl;
   }
 
   async exchangeCodeForTokens(code: string) {

@@ -103,24 +103,10 @@ export default function AdminLogsPage() {
 
   const deleteLogsMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/admin/logs/delete-old`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            limit: deleteCount
-          })
-        }
-      )
-
-      if (!response.ok) {
-        throw new Error('Failed to delete logs')
-      }
-
-      return response.json()
+      const { data } = await apiClient.delete('/api/admin/logs/delete-old', {
+        data: { limit: deleteCount }
+      })
+      return data
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-logs'])

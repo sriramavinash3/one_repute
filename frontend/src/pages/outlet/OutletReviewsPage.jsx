@@ -478,6 +478,13 @@ export default function OutletReviewsPage() {
       return
     }
 
+    // Defence-in-depth: if the session outlet has been removed, do not subscribe to its reviews
+    if (outlet?.status === 'removed' || outlet?.isDeleted === true) {
+      setReviews([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     let q = query(
       collection(db, 'reviews'),
@@ -551,7 +558,8 @@ export default function OutletReviewsPage() {
       }
     )
     return () => unsubscribe()
-  }, [outletId, activeTab, minRating, searchQuery])
+  }, [outletId, outlet?.status, outlet?.isDeleted, activeTab, minRating, searchQuery])
+
 
   const filtered = reviews
 

@@ -9,6 +9,7 @@ import EmptyState from '../../components/feedback/EmptyState'
 import Skeleton from '../../components/feedback/Skeleton'
 import { fetchEscalations } from '../../services/reviewService'
 import { fetchAdminOutlets } from '../../services/outletService'
+import { fetchAdminCustomers, normalizeCustomers } from '../../services/adminService'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_CUSTOMERS, MOCK_ESCALATIONS, MOCK_OUTLETS } from '../../config/mockData'
 import { formatTimestamp } from '../../utils/format'
@@ -48,16 +49,17 @@ export default function AdminEscalationsPage() {
     }
   })
 
-  const { data: customers = [] } = useQuery({
+  const { data: rawCustomers } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_CUSTOMERS;
-      const { collection, getDocs } = await import('firebase/firestore')
-      const { db } = await import('../../firebase/firebase')
-      const snap = await getDocs(collection(db, 'customers'))
-      return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      return fetchAdminCustomers()
     }
   })
+
+  const customers = useMemo(() => {
+    return normalizeCustomers(rawCustomers)
+  }, [rawCustomers])
 
   const outletMap = useMemo(() => {
     const list = outletPayload?.outlets || []

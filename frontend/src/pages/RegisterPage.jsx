@@ -9,6 +9,7 @@ import Button from '../components/ui/button'
 import Input from '../components/ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import apiClient from '../services/apiClient'
+import { buildOAuthUrl } from '../services/googleAuthService'
 import { createSubscription, verifyPayment, loadRazorpayScript } from '../services/paymentService'
 import { fetchPlaceSuggestions, fetchPlaceDetails } from '../services/outletService'
 import Logo from '../components/common/Logo'
@@ -117,6 +118,19 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const handleMessage = async (event) => {
+      // Security: only accept messages from the known backend origin (OAuth popup host)
+      const allowedOrigins = [
+        import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:3000',
+        window.location.origin,
+      ]
+      const apiBase = import.meta.env.VITE_API_BASE_URL
+      if (apiBase && apiBase.startsWith('http')) {
+        try { allowedOrigins.push(new URL(apiBase).origin) } catch (_) {}
+      }
+      if (!allowedOrigins.includes(event.origin)) {
+        return // silently ignore messages from unexpected origins
+      }
+
       if (event.data?.type === 'gmb-connected') {
         toast.success('Google My Business connected successfully!')
         try {
@@ -139,14 +153,20 @@ export default function OnboardingPage() {
   }, [user?.uid])
 
   const handleConnectGoogle = () => {
+    if (!user?.uid) {
+      toast.error('Please sign in again before connecting Google.')
+      return
+    }
+
     const width = 500
     const height = 600
     const left = window.screenX + (window.outerWidth - width) / 2
     const top = window.screenY + (window.outerHeight - height) / 2
-    
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
-    const url = `${baseUrl}/api/auth/google/onboard?uid=${user.uid}`
-    
+
+    // Uses the same base-URL normalizer as startGoogleOAuth() so the popup
+    // URL can never be "/api/api/auth/google/..." or contain quote-encoded ids.
+    const url = buildOAuthUrl('/api/auth/google/onboard', { uid: user.uid })
+
     window.open(url, 'Connect GMB', `width=${width},height=${height},left=${left},top=${top}`)
   }
 

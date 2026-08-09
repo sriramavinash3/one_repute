@@ -21,7 +21,7 @@ const { EmailWorkerService } = loadModule('./email/workers/email.worker');
 const { EmailMetricsService } = loadModule('./email/metrics/email.metrics.service');
 const { ResendService } = loadModule('./email/resend/resend.service');
 const { TokenService } = loadModule('./auth/token.service');
-const logger = require('../../../utils/logger');
+const logger = console;
 
 // Instantiate singletons for Express routes
 const resendService = new ResendService();

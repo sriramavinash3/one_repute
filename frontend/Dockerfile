@@ -6,8 +6,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Build arguments for Vite environment variables
-ARG VITE_API_BASE_URL=""
-ARG VITE_LOCAL_API_URL=""
+# IMPORTANT: VITE_API_BASE_URL must be an EMPTY string (same-origin) or a bare
+# host like "https://onerepute.com" — never "/api". App code always appends
+# "/api/..." itself; a "/api" value here produces "/api/api/..." duplicates.
+ARG VITE_API_BASE_URL=
+ARG VITE_LOCAL_API_URL=http://backend:3000
 
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_LOCAL_API_URL=$VITE_LOCAL_API_URL

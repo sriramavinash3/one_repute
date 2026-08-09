@@ -153,7 +153,7 @@ function ReviewCard({ review }) {
 export default function AdminOutletDetailPage() {
   const { id } = useParams()
 
-  const { data: outlet } = useQuery({
+  const { data: outlet, isLoading: outletLoading } = useQuery({
     queryKey: ['admin-outlet', id],
     queryFn: () => fetchOutletById(id),
     enabled: Boolean(id)
@@ -185,6 +185,23 @@ export default function AdminOutletDetailPage() {
 
   const ratingStats = computeRatingStats(recentReviews)
   const statusCounts = computeStatusCounts(recentReviews)
+
+  if (!outletLoading && !outlet) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6 bg-white rounded-2xl border border-slatey-200 shadow-sm">
+        <AlertCircle className="h-12 w-12 text-rose-500 mb-4" />
+        <h2 className="text-xl font-bold text-slatey-900 mb-2">Outlet Unavailable</h2>
+        <p className="text-sm text-slatey-500 mb-6 max-w-md">
+          This outlet does not exist or has been removed. You cannot access or modify removed outlets.
+        </p>
+        <Link to="/admin-dashboard/outlets">
+          <Button variant="outline" className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Return to Outlets
+          </Button>
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
