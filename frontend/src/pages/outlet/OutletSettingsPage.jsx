@@ -640,7 +640,7 @@ export default function OutletSettingsPage() {
                           </h4>
                           <p className="text-xs text-slatey-400 mt-0.5">
                             {isLocked
-                              ? `Requires ${lvl === 2 ? 'Professional' : 'Enterprise'} subscription plan`
+                              ? `Requires ${lvl === 2 ? 'Growth' : 'Premium'} subscription plan`
                               : form.name
                                 ? `${form.name} (${form.designation || 'No title'}) • Trigger at ${form.escalationMinutes} mins`
                                 : 'Not configured (click to configure)'}

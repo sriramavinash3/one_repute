@@ -6,11 +6,11 @@ import { validateActiveOutlet } from '../../common/utils/outlet-validator';
 
 const PLAN_MAX_LEVELS: Record<string, number> = {
   enterprise: 3,
-  premium: 2,
+  premium: 3,
   pro: 2,
-  growth: 1,
-  starter: 0,
-  default: 2,
+  growth: 2,
+  starter: 1,
+  default: 1,
 };
 
 function getPlanMaxLevel(planName = ''): number {
