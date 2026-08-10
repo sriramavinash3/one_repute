@@ -1,0 +1,10 @@
+{
+  "level": 2,
+  "name": "Deploy Probe RM",
+  "designation": "Regional Manager",
+  "countryCode": "+91",
+  "whatsappNumber": "9123456789",
+  "email": "rm@deployprobe.test",
+  "escalationMinutes": 90,
+  "enabled": true
+}

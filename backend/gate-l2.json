@@ -1,0 +1,10 @@
+{
+  "level": 2,
+  "name": "Gate Probe L2",
+  "designation": "Manager",
+  "countryCode": "+91",
+  "whatsappNumber": "9111111111",
+  "escationMinutes": 15,
+  "escalationMinutes": 15,
+  "enabled": true
+}
