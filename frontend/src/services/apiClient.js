@@ -20,14 +20,22 @@ export const getBaseUrl = () => {
     return normalizeApiBase(import.meta.env.VITE_LOCAL_API_URL) || 'http://localhost:3000'
   }
   // In production behind Nginx, relative path '' ensures requests go to /api on same domain
-  return import.meta.env.VITE_API_BASE_URL !== undefined ? normalizeApiBase(import.meta.env.VITE_API_BASE_URL) : ''
+  const raw = import.meta.env.VITE_API_BASE_URL
+  if (raw && (raw.includes('api.onerepute.com') || (typeof window !== 'undefined' && window.location.hostname.includes('onerepute.com')))) {
+    return ''
+  }
+  return raw !== undefined ? normalizeApiBase(raw) : ''
 }
 
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     return normalizeApiBase(import.meta.env.VITE_LOCAL_API_URL) || 'http://localhost:3000'
   }
-  return normalizeApiBase(import.meta.env.VITE_API_BASE_URL) || window.location.origin
+  const base = getBaseUrl()
+  if (!base && typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  return base || (typeof window !== 'undefined' ? window.location.origin : '')
 }
 
 const apiClient = axios.create({
@@ -41,6 +49,8 @@ apiClient.interceptors.request.use(async (config) => {
   // Enforce localhost base URL if in local environment
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     config.baseURL = import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:3000'
+  } else if (typeof window !== 'undefined' && (config.baseURL?.includes('api.onerepute.com') || window.location.hostname.includes('onerepute.com'))) {
+    config.baseURL = ''
   }
 
   if (auth.currentUser) {

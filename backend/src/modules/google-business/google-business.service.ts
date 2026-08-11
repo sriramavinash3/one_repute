@@ -20,8 +20,13 @@ export class GoogleBusinessService {
   ) {}
 
   private resolveRedirectUri(): string {
-    const explicit = this.configService.get<string>('GOOGLE_REDIRECT_URI');
-    if (explicit) return explicit;
+    let explicit = this.configService.get<string>('GOOGLE_REDIRECT_URI');
+    if (explicit) {
+      if (explicit.includes('api.onerepute.com')) {
+        explicit = explicit.replace('api.onerepute.com', 'onerepute.com');
+      }
+      return explicit;
+    }
 
     const isProduction = this.configService.get<boolean>('app.isProduction');
     const appUrlConfig = this.configService.get<string>('app.appUrl');
