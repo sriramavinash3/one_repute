@@ -30,7 +30,7 @@ export class GoogleBusinessService {
     const appUrlConfig = this.configService.get<string>('app.appUrl');
 
     // In local development, ensure redirect_uri uses http://localhost:3000 unless explicit GOOGLE_REDIRECT_URI is provided
-    let baseAppUrl = appUrlConfig || (isProduction ? 'https://onerepute.com' : 'http://localhost:3000');
+    let baseAppUrl = appUrlConfig || (isProduction ? 'https://api.onerepute.com' : 'http://localhost:3000');
     if (!isProduction && baseAppUrl.includes('onerepute.com')) {
       baseAppUrl = 'http://localhost:3000';
     }

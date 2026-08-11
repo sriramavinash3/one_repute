@@ -34,6 +34,7 @@ async function bootstrap() {
         'http://localhost:3000',
         'https://onerepute.com',
         'https://www.onerepute.com',
+        'https://api.onerepute.com',
       ];
       // Allow requests with no origin (e.g., OAuth popup redirect, server-to-server)
       if (!origin || allowedOrigins.includes(origin)) {
