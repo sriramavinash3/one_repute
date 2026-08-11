@@ -119,9 +119,10 @@ const routes = [
 
 const html = readFileSync(join(distDir, 'index.html'), 'utf8')
 
-const assetTags = html.match(/<(?:script|link)[^>]+(?:src|href)="\/assets\/[^"]+"[^>]*>/g) || []
-const jsTags = assetTags.filter((t) => t.includes('<script'))
-const cssTags = assetTags.filter((t) => t.includes('rel="stylesheet"') || t.includes('rel="modulepreload"'))
+const linkTags = html.match(/<link[^>]+href="\/assets\/[^"]+"[^>]*>/g) || []
+const scriptTags = html.match(/<script[^>]+src="\/assets\/[^"]+"[^>]*>[\s\S]*?<\/script>/g) || []
+const jsTags = scriptTags
+const cssTags = linkTags.filter((t) => t.includes('rel="stylesheet"') || t.includes('rel="modulepreload"'))
 
 function renderHead(route) {
   const url = `${SITE_URL}${route.path === '/' ? '/' : route.path}`
