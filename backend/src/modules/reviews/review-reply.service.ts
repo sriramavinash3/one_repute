@@ -1,6 +1,5 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as admin from 'firebase-admin';
 import { FirebaseService } from '../firebase/firebase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GoogleBusinessService } from '../google-business/google-business.service';
@@ -34,119 +33,6 @@ export class ReviewReplyService {
     return result.text;
   }
 
-  async getApprovals(customerId: string) {
-    const db = this.firebaseService.getDb();
-    const snap = await db.collection('reviews')
-      .where('customerId', '==', customerId)
-      .where('status', '==', 'suggested')
-      .get();
-    return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  }
-
-  async approveReply(reviewId: string, customerId: string, approvedBy: string): Promise<void> {
-    const { db, docRef, data } = await this.getReviewDoc(reviewId, customerId);
-
-    const finalResponse = data.replySuggestion || data.aiResponse;
-    if (!finalResponse) {
-      throw new BadRequestException('No suggested response exists to approve.');
-    }
-
-
-
-    await docRef.update({
-      status: 'responded',
-      aiResponse: finalResponse,
-      repliedAt: admin.firestore.FieldValue.serverTimestamp(),
-      approvalStatus: 'approved',
-      approvedBy,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    await db.collection('activityLogs').add({
-      type: 'REPLY_APPROVED',
-      payload: { reviewId, customerId, approvedBy },
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    if (process.env.DATABASE_URL) {
-      try {
-        await this.prismaService.review.updateMany({
-          where: { reviewId },
-          data: { status: 'responded', repliedAt: new Date(), aiResponse: finalResponse },
-        });
-      } catch (err: any) {
-        this.logger.error(`Prisma approve sync failed: ${err.message}`);
-      }
-    }
-  }
-
-  async rejectReply(reviewId: string, customerId: string, rejectedBy: string): Promise<void> {
-    const { db, docRef } = await this.getReviewDoc(reviewId, customerId);
-
-
-    await docRef.update({
-      status: 'pending',
-      replySuggestion: null,
-      aiResponse: null,
-      approvalStatus: 'rejected',
-      rejectedBy,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    await db.collection('activityLogs').add({
-      type: 'REPLY_REJECTED',
-      payload: { reviewId, customerId, rejectedBy },
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    if (process.env.DATABASE_URL) {
-      try {
-        await this.prismaService.review.updateMany({
-          where: { reviewId },
-          data: { status: 'pending', replySuggestion: null, aiResponse: null },
-        });
-      } catch (err: any) {
-        this.logger.error(`Prisma reject sync failed: ${err.message}`);
-      }
-    }
-  }
-
-  async editAndApproveReply(reviewId: string, customerId: string, editedReply: string, approvedBy: string): Promise<void> {
-    if (!editedReply || editedReply.trim().length === 0) {
-      throw new BadRequestException('Reply text cannot be empty.');
-    }
-
-    const { db, docRef } = await this.getReviewDoc(reviewId, customerId);
-
-
-    await docRef.update({
-      status: 'responded',
-      aiResponse: editedReply,
-      replySuggestion: editedReply,
-      repliedAt: admin.firestore.FieldValue.serverTimestamp(),
-      approvalStatus: 'edited_and_approved',
-      approvedBy,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    await db.collection('activityLogs').add({
-      type: 'REPLY_EDITED_AND_APPROVED',
-      payload: { reviewId, customerId, approvedBy },
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    if (process.env.DATABASE_URL) {
-      try {
-        await this.prismaService.review.updateMany({
-          where: { reviewId },
-          data: { status: 'responded', repliedAt: new Date(), aiResponse: editedReply, replySuggestion: editedReply },
-        });
-      } catch (err: any) {
-        this.logger.error(`Prisma edit/approve sync failed: ${err.message}`);
-      }
-    }
-  }
-
   async postDirectReply(outletId: string, reviewId: string, replyText: string): Promise<void> {
     const db = this.firebaseService.getDb();
 
@@ -176,17 +62,5 @@ export class ReviewReplyService {
       review.rawName,
       replyText,
     );
-  }
-
-  private async getReviewDoc(reviewId: string, customerId: string) {
-    const db = this.firebaseService.getDb();
-    const docRef = db.collection('reviews').doc(reviewId);
-    const snap = await docRef.get();
-
-    if (!snap.exists) throw new NotFoundException('Review not found');
-    const data = snap.data() as any;
-    if (data.customerId !== customerId) throw new ForbiddenException('Access denied');
-
-    return { db, docRef, data };
   }
 }

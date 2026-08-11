@@ -9,18 +9,6 @@ export class GetReviewsDto {
   @IsOptional() @IsNumberString() limit?: string;
 }
 
-export class ApproveReplyDto {
-  // No body required; identity from JWT
-}
-
-export class RejectReplyDto {
-  // No body required; identity from JWT
-}
-
-export class EditReplyDto {
-  @IsString() editedReply: string;
-}
-
 export class UpdateCategoryRuleDto {
   @IsString() outletId: string;
   @IsString() categoryName: string;

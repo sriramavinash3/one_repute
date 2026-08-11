@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Star, MessageSquare, Sparkles, Filter, ClipboardCopy, Check, ExternalLink, X, Clock, AlertTriangle, CheckCircle, Mail, Phone, Lock } from 'lucide-react'
+import { Search, Star, Sparkles, Filter, ClipboardCopy, Check, X, Clock, CheckCircle, Mail, Phone } from 'lucide-react'
 import StatusBadge from '../../components/feedback/StatusBadge'
 import EmptyState from '../../components/feedback/EmptyState'
 import Skeleton from '../../components/feedback/Skeleton'
@@ -9,13 +9,9 @@ import { formatTimestamp } from '../../utils/format'
 import { collection, onSnapshot, orderBy, query, where, limit } from 'firebase/firestore'
 import { db } from '../../firebase/firebase'
 import Button from '../../components/ui/button'
-import useAppStore from '../../store/appStore'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
-import apiClient from '../../services/apiClient'
 import { fetchReviewEscalationStatus } from '../../services/escalationService'
-import { useSubscription } from '../../contexts/SubscriptionContext'
-import { toast } from 'sonner'
 
 const TABS = [
   { key: 'all', label: 'All' },
@@ -82,8 +78,6 @@ function EscalationTimer({ nextTime }) {
 }
 
 function ReviewCard({ review, onSelect }) {
-  const { hasFeature } = useSubscription()
-  const approvalMode = hasFeature('reply_approval_mode')
   const [copied, setCopied] = useState(false)
   const aiResponse = review.aiResponse || review.replySuggestion || ''
   const reviewUrl = review.reviewUrl || review.raw?.reviewUrl || ''
@@ -97,15 +91,6 @@ function ReviewCard({ review, onSelect }) {
       window.setTimeout(() => setCopied(false), 1500)
     } catch {
       setCopied(false)
-    }
-  }
-
-  const handleMarkResponded = async (e) => {
-    e.stopPropagation()
-    try {
-      await apiClient.patch(`/api/outlets/reviews/${review.id}/status`, { status: 'responded' })
-    } catch (err) {
-      console.error('Failed to mark as responded', err)
     }
   }
 
@@ -156,51 +141,6 @@ function ReviewCard({ review, onSelect }) {
               <Sparkles className="h-3 w-3" /> AI Reply
             </div>
             <div className="flex items-center gap-2">
-              {(review.status === 'suggested' || review.status === 'pending') && (
-                approvalMode ? (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={async (e) => {
-                        e.stopPropagation()
-                        try {
-                          await apiClient.post(`/api/approvals/${review.id}/approve`)
-                          toast.success('Reply approved and posted!')
-                        } catch (err) {
-                          toast.error('Failed to approve reply')
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
-                    >
-                      <Check className="h-3 w-3" /> Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async (e) => {
-                        e.stopPropagation()
-                        try {
-                          await apiClient.post(`/api/approvals/${review.id}/reject`)
-                          toast.success('Reply suggestion rejected')
-                        } catch (err) {
-                          toast.error('Failed to reject reply')
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-1 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100"
-                    >
-                      <X className="h-3 w-3" /> Reject
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleMarkResponded}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 hover:border-emerald-300"
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                    Mark as Responded
-                  </button>
-                )
-              )}
               <button
                 type="button"
                 onClick={handleCopy}

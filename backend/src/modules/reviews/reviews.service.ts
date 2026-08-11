@@ -265,50 +265,6 @@ export class ReviewsService {
     }));
   }
 
-  async updateReviewStatus(reviewId: string, status: string, user?: any) {
-    const db = this.firebaseService.getDb();
-    const docRef = db.collection('reviews').doc(reviewId);
-    const snap = await docRef.get();
-    
-    if (!snap.exists) {
-      throw new Error('Review not found');
-    }
-
-    const reviewData = snap.data();
-    const oldStatus = reviewData.status;
-    const normalizedNewStatus = this.normalizeStatus(status);
-
-    // Limit responses check
-    if (normalizedNewStatus === 'responded' && oldStatus !== 'responded') {
-      // Permission check passed
-    }
-
-    const updateData: any = { status: normalizedNewStatus, updatedAt: new Date() };
-    if (normalizedNewStatus === 'responded') {
-      updateData.repliedAt = new Date();
-    }
-
-    // Dual write update to Firestore
-    await docRef.update(updateData);
-
-    // Dual write update to PG
-    if (process.env.DATABASE_URL) {
-      try {
-        await this.prismaService.review.update({
-          where: { reviewId },
-          data: {
-            status: normalizedNewStatus,
-            ...(normalizedNewStatus === 'responded' ? { repliedAt: new Date() } : {}),
-          },
-        });
-      } catch (err: any) {
-        this.logger.error(`Prisma updateReviewStatus failed: ${err.message}`);
-      }
-    }
-
-    return { success: true };
-  }
-
   async getHistoricalSummary(outletId: string) {
     if (!outletId) throw new Error('outletId is required');
 
