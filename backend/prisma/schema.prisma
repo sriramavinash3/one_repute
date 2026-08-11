@@ -114,13 +114,15 @@ model Subscription {
 }
 
 model Plan {
-  id                    String  @id
-  name                  String
-  monthlyPrice          Int
-  annualPrice           Int
-  currency              String
-  razorpayMonthlyPlanId String?
-  razorpayAnnualPlanId  String?
+  id                      String  @id
+  name                    String
+  monthlyPrice            Int
+  quarterlyPrice          Int?
+  annualPrice             Int
+  currency                String
+  razorpayMonthlyPlanId   String?
+  razorpayQuarterlyPlanId String?
+  razorpayAnnualPlanId    String?
 
   @@map("plans")
 }
@@ -173,9 +175,14 @@ model Location {
   syncCooldownMinutes     Int       @default(180)
   lastReviewFetchAt       DateTime?
   latestReviewTimestamp   DateTime?
+  onboardingReviewCount   Int?      @default(0)
+  onboardingCompletedAt   DateTime?
+  onboardingBaselineTimestamp DateTime?
   autoResponseEnabled     Boolean   @default(false)
   minRatingForAutoResponse Int       @default(4)
   openaiPrompt            String?
+  countryCode             String?   @default("+91")
+  primaryWhatsAppNumber   String?
   whatsappNumber          String?
   escalationThreshold     Int       @default(3)
   createdAt               DateTime  @default(now())
@@ -205,6 +212,8 @@ model Review {
   processedAt       DateTime?
   lastProcessedAt   DateTime?
   isDeletedOnSource Boolean   @default(false)
+  isImported        Boolean   @default(false)
+  isOnboarding      Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

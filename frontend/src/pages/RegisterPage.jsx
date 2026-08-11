@@ -14,12 +14,14 @@ import { createSubscription, verifyPayment, loadRazorpayScript } from '../servic
 import { fetchPlaceSuggestions, fetchPlaceDetails } from '../services/outletService'
 import Logo from '../components/common/Logo'
 import Seo from '../components/seo/Seo'
+import { PRICING_CONFIG, formatPrice } from '../components/pricing/pricingConfig'
+
+import AutoResponseDisclosureModal from '../components/onboarding/AutoResponseDisclosureModal'
 
 const PLANS = [
   {
     id: 'plan_starter',
     name: 'Starter',
-    price: '$29',
     description: 'Essential reputation management for single locations.',
     features: [
       '100 Review Responses',
@@ -35,7 +37,6 @@ const PLANS = [
   {
     id: 'plan_growth',
     name: 'Growth',
-    price: '$79',
     description: 'For growing businesses wanting deeper insights.',
     features: [
       '250 Review Responses',
@@ -52,7 +53,6 @@ const PLANS = [
   {
     id: 'plan_premium',
     name: 'Premium',
-    price: '$199',
     description: 'Advanced analytics and premium support.',
     features: [
       '500 Review Responses',
@@ -75,7 +75,9 @@ export default function OnboardingPage() {
   
   const [form, setForm] = useState({
     businessName: '',
-    businessType: '',
+    businessType: 'General Business',
+    countryCode: '+91',
+    primaryWhatsAppNumber: '',
     managerPhone: '',
     address: '',
     placeId: '',
@@ -84,6 +86,7 @@ export default function OnboardingPage() {
 
   const [googleConnected, setGoogleConnected] = useState(false)
   const [gmbLocations, setGmbLocations] = useState([])
+  const [showDisclosureModal, setShowDisclosureModal] = useState(false)
   
   const [discountCode, setDiscountCode] = useState('')
   const [discountData, setDiscountData] = useState(null)
@@ -134,6 +137,7 @@ export default function OnboardingPage() {
 
       if (event.data?.type === 'gmb-connected') {
         toast.success('Google My Business connected successfully!')
+        setShowDisclosureModal(true)
         try {
           const { data } = await apiClient.get(`/api/auth/onboarding-session/${user.uid}`)
           setGmbLocations(data.googleLocations || [])
@@ -173,10 +177,12 @@ export default function OnboardingPage() {
 
   const handleSelectLocation = (locationId, locationsArray = gmbLocations) => {
     const loc = locationsArray.find(l => l.id === locationId)
+    const gmbCategory = loc?.category || loc?.primaryCategory?.displayName || loc?.primaryCategory || 'General Business'
     setForm(prev => ({
       ...prev,
       placeId: locationId,
-      businessName: loc?.name || prev.businessName
+      businessName: loc?.name || prev.businessName,
+      businessType: gmbCategory
     }))
   }
 
@@ -192,7 +198,20 @@ export default function OnboardingPage() {
       toast.error('Please connect your Google My Business account and select a location.')
       return
     }
-    if (step === 1 && form.businessName && form.businessType && form.managerPhone) {
+
+    const localPhone = (form.primaryWhatsAppNumber || form.managerPhone || '').trim()
+    if (localPhone.includes('+') || /^(\+?\d{1,4})\d{10,}$/.test(localPhone)) {
+      toast.error('Please enter only your local mobile number without adding the country code again.')
+      return
+    }
+
+    const cleaned = localPhone.replace(/\D/g, '')
+    if (cleaned.length < 7 || cleaned.length > 12) {
+      toast.error('Please enter a valid local WhatsApp mobile number (7-12 digits).')
+      return
+    }
+
+    if (step === 1 && form.businessName && form.businessType && localPhone) {
       setStep(2)
     }
   }
@@ -390,28 +409,59 @@ export default function OnboardingPage() {
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slatey-700 ml-1">Business Category</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slatey-700 ml-1">Business Category</label>
+                      <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">
+                        Fetched from GMB — Read Only
+                      </span>
+                    </div>
                     <Input
-                      placeholder="e.g. Fine Dining, Cafe, Fast Food"
-                      value={form.businessType}
-                      onChange={(e) => setForm({ ...form, businessType: e.target.value })}
-                      required
-                      className="h-12 bg-slatey-50"
+                      value={form.businessType || 'General Business'}
+                      readOnly
+                      disabled
+                      className="h-12 bg-slatey-100/70 text-slatey-600 font-medium cursor-not-allowed border-slatey-200"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slatey-700 ml-1">Manager WhatsApp Number</label>
-                    <Input
-                      type="tel"
-                      pattern="^\+[1-9]\d{1,14}$"
-                      title="Please include your country code (e.g. +1234567890)"
-                      placeholder="e.g. +1234567890"
-                      value={form.managerPhone}
-                      onChange={(e) => setForm({ ...form, managerPhone: e.target.value })}
-                      required
-                      className="h-12 bg-slatey-50"
-                    />
-                    <p className="text-[10px] text-slatey-400 ml-1">Used for critical escalation alerts. Must include country code (e.g., +1).</p>
+                    <label className="text-xs font-semibold text-slatey-700 ml-1">Primary WhatsApp Number</label>
+                    <div className="flex gap-2">
+                      <div className="w-32 shrink-0">
+                        <select
+                          value={form.countryCode || '+91'}
+                          onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
+                          className="w-full h-12 rounded-xl border border-slatey-200 bg-slatey-50 px-3 text-sm font-semibold text-slatey-800 outline-none transition focus:border-brand-400 focus:bg-white"
+                        >
+                          <option value="+91">🇮🇳 +91</option>
+                          <option value="+1">🇺🇸 +1</option>
+                          <option value="+44">🇬🇧 +44</option>
+                          <option value="+971">🇦🇪 +971</option>
+                          <option value="+49">🇩🇪 +49</option>
+                          <option value="+33">🇫🇷 +33</option>
+                          <option value="+61">🇦🇺 +61</option>
+                          <option value="+81">🇯🇵 +81</option>
+                          <option value="+65">🇸🇬 +65</option>
+                          <option value="+966">🇸🇦 +966</option>
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <Input
+                          type="tel"
+                          placeholder="Local WhatsApp number"
+                          value={form.primaryWhatsAppNumber}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            if (val.startsWith('+')) {
+                              toast.error('Do not enter country code inside local number field. Select country code from dropdown.')
+                              return
+                            }
+                            setForm({ ...form, primaryWhatsAppNumber: val.replace(/\D/g, ''), managerPhone: val.replace(/\D/g, '') })
+                          }}
+                          required
+                          className="h-12 bg-slatey-50"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slatey-400 ml-1">Primary WhatsApp contact for 1st level escalation alerts. Enter local number only.</p>
                   </div>
                   
                   <div className="pt-4">
@@ -436,44 +486,51 @@ export default function OnboardingPage() {
                 </div>
                 
                 <div className="mt-6 space-y-4">
-                  {PLANS.map(plan => (
-                    <div 
-                      key={plan.id}
-                      onClick={() => setForm({...form, planId: plan.id})}
-                      className={`relative cursor-pointer rounded-2xl border-2 p-5 transition-all ${
-                        form.planId === plan.id 
-                          ? 'border-brand-500 bg-brand-50 shadow-md shadow-brand-100/50' 
-                          : 'border-slatey-200 hover:border-brand-300 hover:bg-slatey-50'
-                      }`}
-                    >
-                      {plan.recommended && (
-                        <span className="absolute -top-3 left-4 bg-brand-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                          Recommended
-                        </span>
-                      )}
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-bold text-slatey-900 text-lg">{plan.name}</h3>
-                          <p className="text-xs text-slatey-500 mt-1">{plan.description}</p>
-                        </div>
-                        <div className="text-right">
-                          {discountData && form.planId === plan.id ? (
-                            <div className="flex flex-col items-end">
-                              <span className="text-sm font-bold text-slatey-400 line-through">{plan.price}</span>
-                              <span className="text-xl font-bold text-brand-600">
-                                {discountData.type === 'Percentage' 
-                                  ? `$${(Number(plan.price.replace('$','')) * (1 - discountData.value / 100)).toFixed(2)}`
-                                  : `$${Math.max(0, Number(plan.price.replace('$','')) - discountData.value).toFixed(2)}`}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xl font-bold text-brand-600">{plan.price}</span>
-                          )}
-                          <span className="text-xs text-slatey-500">/mo</span>
+                  {PLANS.map(plan => {
+                    const regionConfig = PRICING_CONFIG.regions.IN
+                    const planPrices = regionConfig.plans[plan.id] || {}
+                    const priceAmount = planPrices.monthly || 0
+                    const formattedPrice = formatPrice(priceAmount, regionConfig)
+
+                    return (
+                      <div 
+                        key={plan.id}
+                        onClick={() => setForm({...form, planId: plan.id})}
+                        className={`relative cursor-pointer rounded-2xl border-2 p-5 transition-all ${
+                          form.planId === plan.id 
+                            ? 'border-brand-500 bg-brand-50 shadow-md shadow-brand-100/50' 
+                            : 'border-slatey-200 hover:border-brand-300 hover:bg-slatey-50'
+                        }`}
+                      >
+                        {plan.recommended && (
+                          <span className="absolute -top-3 left-4 bg-brand-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                            Recommended
+                          </span>
+                        )}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-bold text-slatey-900 text-lg">{plan.name}</h3>
+                            <p className="text-xs text-slatey-500 mt-1">{plan.description}</p>
+                          </div>
+                          <div className="text-right">
+                            {discountData && form.planId === plan.id ? (
+                              <div className="flex flex-col items-end">
+                                <span className="text-sm font-bold text-slatey-400 line-through">{formattedPrice}</span>
+                                <span className="text-xl font-bold text-brand-600">
+                                  {discountData.type === 'Percentage' 
+                                    ? formatPrice(priceAmount * (1 - discountData.value / 100), regionConfig)
+                                    : formatPrice(Math.max(0, priceAmount - discountData.value), regionConfig)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xl font-bold text-brand-600">{formattedPrice}</span>
+                            )}
+                            <span className="text-xs text-slatey-500">/mo</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 
                 <div className="mt-6 p-4 rounded-xl border border-slatey-200 bg-slatey-50 flex flex-col gap-3">
@@ -526,6 +583,11 @@ export default function OnboardingPage() {
           </AnimatePresence>
         </div>
       </div>
+      <AutoResponseDisclosureModal
+        isOpen={showDisclosureModal}
+        onClose={() => setShowDisclosureModal(false)}
+        onConfirm={() => setShowDisclosureModal(false)}
+      />
     </div>
   )
 }

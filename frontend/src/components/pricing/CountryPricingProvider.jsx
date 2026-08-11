@@ -54,21 +54,15 @@ export function CountryPricingProvider({ children }) {
   const getPlanPricing = useMemo(() => {
     return (planId) => {
       const planPrices = regionConfig.plans[planId] || { monthly: 0, quarterly: 0, annual: 0 }
-      const original = planPrices[billingCycle] || 0
-
-      const isDiscounted = billingCycle === 'quarterly' || billingCycle === 'annual'
-      const discountPercent = isDiscounted ? PRICING_CONFIG.discountPercent : 0
-      const discounted = isDiscounted
-        ? Math.round(original * (1 - discountPercent / 100))
-        : original
+      const amount = planPrices[billingCycle] ?? 0
 
       return {
-        originalAmount: original,
-        discountedAmount: discounted,
-        formattedOriginal: formatPrice(original, regionConfig),
-        formattedDiscounted: formatPrice(discounted, regionConfig),
-        isDiscounted,
-        discountPercent,
+        originalAmount: amount,
+        discountedAmount: amount,
+        formattedOriginal: formatPrice(amount, regionConfig),
+        formattedDiscounted: formatPrice(amount, regionConfig),
+        isDiscounted: false,
+        discountPercent: 0,
         billingCycleLabel:
           billingCycle === 'monthly'
             ? '/ month'

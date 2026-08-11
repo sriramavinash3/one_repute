@@ -12,6 +12,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { FirebaseModule } from '../firebase/firebase.module';
 import { AuthModule } from '../auth/auth.module';
 import { AIModule } from '../ai/ai.module';
+import { WorkflowModule } from '../workflow/workflow.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AIModule } from '../ai/ai.module';
     FirebaseModule,
     AuthModule,
     AIModule,
+    WorkflowModule,
   ],
   controllers: [ReviewsController],
   providers: [

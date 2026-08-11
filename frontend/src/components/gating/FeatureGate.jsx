@@ -4,6 +4,7 @@ import { Lock, Sparkles, Check, HelpCircle, X, ShieldAlert, ArrowRight } from 'l
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import Button from '../ui/button'
 import apiClient from '../../services/apiClient'
+import { PRICING_CONFIG } from '../pricing/pricingConfig'
 
 /**
  * FeatureGate wrapper component to gate access to premium features.
@@ -117,10 +118,6 @@ export function UpgradeModal({ onClose }) {
       id: 'plan_starter',
       name: 'Starter',
       description: 'Ideal for local stores and startups looking to monitor basic reviews.',
-      monthlyPriceINR: 999,
-      annualPriceINR: 9990,
-      monthlyPriceUSD: 29,
-      annualPriceUSD: 290,
       features: [
         '100 Monthly Review Responses',
         'Google Review Auto Reply',
@@ -142,10 +139,6 @@ export function UpgradeModal({ onClose }) {
       id: 'plan_growth',
       name: 'Growth',
       description: 'Perfect for growing brands needing automation and multi-channel matrix alerts.',
-      monthlyPriceINR: 1999,
-      annualPriceINR: 19990,
-      monthlyPriceUSD: 79,
-      annualPriceUSD: 790,
       popular: true,
       features: [
         '250 Monthly Review Responses',
@@ -169,10 +162,6 @@ export function UpgradeModal({ onClose }) {
       id: 'plan_premium',
       name: 'Premium',
       description: 'Enterprise grade response controls, AI strategy advisory, and custom integrations.',
-      monthlyPriceINR: 2999,
-      annualPriceINR: 29990,
-      monthlyPriceUSD: 199,
-      annualPriceUSD: 1990,
       features: [
         '500 Monthly Review Responses',
         'Google Review Auto Reply',
@@ -260,20 +249,27 @@ export function UpgradeModal({ onClose }) {
             <div className="inline-flex items-center gap-1 bg-slatey-100 p-1 rounded-full shadow-inner">
               <button
                 onClick={() => setBillingCycle('monthly')}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition ${
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition ${
                   billingCycle === 'monthly' ? 'bg-white text-slatey-950 shadow-sm' : 'text-slatey-500 hover:text-slatey-800'
                 }`}
               >
-                Monthly Billing
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingCycle('quarterly')}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition ${
+                  billingCycle === 'quarterly' ? 'bg-white text-slatey-950 shadow-sm' : 'text-slatey-500 hover:text-slatey-800'
+                }`}
+              >
+                Quarterly
               </button>
               <button
                 onClick={() => setBillingCycle('annual')}
-                className={`text-xs font-semibold px-4 py-2 rounded-full transition flex items-center gap-1.5 ${
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition ${
                   billingCycle === 'annual' ? 'bg-white text-slatey-950 shadow-sm' : 'text-slatey-500 hover:text-slatey-800'
                 }`}
               >
-                Annual Billing 
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">Save 20%</span>
+                Annual
               </button>
             </div>
 
@@ -303,12 +299,20 @@ export function UpgradeModal({ onClose }) {
         <div className="grid gap-6 md:grid-cols-3">
           {PLAN_DETAILS.map((plan) => {
             const isCurrent = plan.id === currentPlan
+            const regionKey = selectedCurrency === 'INR' ? 'IN' : 'INT'
+            const regionConfig = PRICING_CONFIG.regions[regionKey]
+            const planPrices = regionConfig.plans[plan.id] || regionConfig.plans[plan.id.replace('plan_', '')] || {}
             const dbPlan = billingInfo?.plans?.find(p => p.id === plan.id)
-            const monthlyPrice = dbPlan ? dbPlan.monthlyPrice : (selectedCurrency === 'INR' ? plan.monthlyPriceINR : plan.monthlyPriceUSD)
-            const annualPrice = dbPlan ? dbPlan.annualPrice : (selectedCurrency === 'INR' ? plan.annualPriceINR : plan.annualPriceUSD)
-            const price = billingCycle === 'annual' ? annualPrice : monthlyPrice
-            const period = billingCycle === 'annual' ? '/ year' : '/ month'
-            const symbol = dbPlan ? dbPlan.currencySymbol : (selectedCurrency === 'INR' ? '₹' : '$')
+
+            let price = planPrices[billingCycle] || 0
+            if (dbPlan) {
+              if (billingCycle === 'annual' && dbPlan.annualPrice) price = dbPlan.annualPrice
+              else if (billingCycle === 'quarterly' && dbPlan.quarterlyPrice) price = dbPlan.quarterlyPrice
+              else if (billingCycle === 'monthly' && dbPlan.monthlyPrice) price = dbPlan.monthlyPrice
+            }
+
+            const period = billingCycle === 'annual' ? '/ year' : billingCycle === 'quarterly' ? '/ quarter' : '/ month'
+            const symbol = dbPlan ? dbPlan.currencySymbol : regionConfig.currencySymbol
 
             return (
               <div 

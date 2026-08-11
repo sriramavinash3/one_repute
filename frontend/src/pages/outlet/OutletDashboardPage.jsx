@@ -21,6 +21,7 @@ import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import { fetchReviews } from '../../services/reviewService'
+import HistoricalReviewSection from '../../components/dashboard/HistoricalReviewSection'
 
 const stagger = {
   hidden: {},
@@ -389,6 +390,9 @@ export default function OutletDashboardPage() {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Historical Review Section */}
+      <HistoricalReviewSection outletId={outletId} />
 
       {/* Response Rate Banner */}
       <motion.div variants={fadeUp}>

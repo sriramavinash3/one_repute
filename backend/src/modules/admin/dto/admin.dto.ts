@@ -119,11 +119,18 @@ export class SaveBillingPriceDto {
   monthlyPrice?: number | string;
 
   @IsOptional()
+  quarterlyPrice?: number | string;
+
+  @IsOptional()
   annualPrice?: number | string;
 
   @IsOptional()
   @IsString()
   razorpayMonthlyPlanId?: string;
+
+  @IsOptional()
+  @IsString()
+  razorpayQuarterlyPlanId?: string;
 
   @IsOptional()
   @IsString()

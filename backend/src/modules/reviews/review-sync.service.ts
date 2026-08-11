@@ -4,6 +4,7 @@ import * as admin from 'firebase-admin';
 import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { GoogleBusinessService } from '../google-business/google-business.service';
+import { AutomationService } from '../workflow/automation.service';
 
 interface SyncOptions {
   skipCooldown?: boolean;
@@ -29,6 +30,7 @@ export class ReviewSyncService {
     private readonly prismaService: PrismaService,
     private readonly firebaseService: FirebaseService,
     private readonly googleBusinessService: GoogleBusinessService,
+    private readonly automationService: AutomationService,
   ) {}
 
   private computeReviewHash(data: {
@@ -176,7 +178,18 @@ export class ReviewSyncService {
     let newCount = 0;
     let latestReviewTimestamp: Date | null = this.toDate(outlet.latestReviewTimestamp);
 
-    // 3. Normalize, deduplicate, and save
+    const isFirstOnboardingSync = !outlet.onboardingCompletedAt;
+
+    // Sort raw reviews by timestamp descending (most recent first)
+    rawReviews.sort((a, b) => {
+      const timeA = new Date(a.updateTime || a.createTime || 0).getTime();
+      const timeB = new Date(b.updateTime || b.createTime || 0).getTime();
+      return timeB - timeA;
+    });
+
+    let unrespondedOnboardingCount = 0;
+
+    // 3. Normalize, deduplicate, and save reviews
     for (const raw of rawReviews) {
       const reviewTimestamp = raw.updateTime || raw.createTime || null;
       const rating = this.normalizeRating(raw.starRating);
@@ -185,6 +198,9 @@ export class ReviewSyncService {
       const placeId = outlet.placeId || null;
       const providerReviewId = raw.reviewId || raw.name || null;
       const rawName = raw.name || null;
+      const hasExistingGmbReply = Boolean(raw.reviewReply?.comment);
+      const gmbReplyText = raw.reviewReply?.comment || null;
+      const gmbReplyTime = raw.reviewReply?.updateTime ? new Date(raw.reviewReply.updateTime) : null;
 
       const reviewHash = this.computeReviewHash({ placeId, customerName, text, rating, reviewTimestamp });
 
@@ -200,6 +216,36 @@ export class ReviewSyncService {
       // Parse the original Google timestamp — NOT insertion timestamp
       const parsedTimestamp = reviewTimestamp ? new Date(reviewTimestamp) : new Date();
 
+      let initialStatus = 'pending';
+      let aiResponseValue: string | null = null;
+      let shouldGenerateAI = false;
+
+      if (isFirstOnboardingSync) {
+        if (hasExistingGmbReply) {
+          // Existing review-response record (captured up to 30)
+          initialStatus = 'responded';
+          aiResponseValue = gmbReplyText;
+          shouldGenerateAI = false;
+        } else {
+          // Unresponded review during onboarding
+          unrespondedOnboardingCount++;
+          if (unrespondedOnboardingCount <= 10) {
+            // Process latest 10 unresponded reviews with AI
+            initialStatus = 'pending';
+            shouldGenerateAI = true;
+          } else {
+            // Older historical review beyond top 10: metadata only, no AI generation!
+            initialStatus = 'imported';
+            aiResponseValue = null;
+            shouldGenerateAI = false;
+          }
+        }
+      } else {
+        // Ongoing sync after onboarding: Genuinely new review
+        initialStatus = 'pending';
+        shouldGenerateAI = true;
+      }
+
       // Dual-write: Firestore primary
       const payload: any = {
         reviewId: reviewHash,
@@ -207,16 +253,19 @@ export class ReviewSyncService {
         placeId,
         providerSource: 'GBP',
         providerReviewId,
-        reviewTimestamp: parsedTimestamp,  // original Google date!
+        reviewTimestamp: parsedTimestamp,
         customerName,
         rating,
         text,
         rawName,
-        status: 'pending',
+        status: initialStatus,
+        isImported: isFirstOnboardingSync,
+        isOnboarding: isFirstOnboardingSync,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         syncedAt: admin.firestore.FieldValue.serverTimestamp(),
-        aiResponse: null,
-        replySuggestion: null,
+        aiResponse: aiResponseValue,
+        replySuggestion: aiResponseValue,
+        ...(hasExistingGmbReply ? { repliedAt: gmbReplyTime || parsedTimestamp } : {}),
       };
 
       try {
@@ -240,12 +289,17 @@ export class ReviewSyncService {
               placeId,
               providerSource: 'GBP',
               providerReviewId: providerReviewId || reviewHash,
-              reviewTimestamp: parsedTimestamp, // original Google date!
+              reviewTimestamp: parsedTimestamp,
               customerName,
               rating,
               text,
               rawName,
-              status: 'pending',
+              status: initialStatus,
+              isImported: isFirstOnboardingSync,
+              isOnboarding: isFirstOnboardingSync,
+              aiResponse: aiResponseValue,
+              replySuggestion: aiResponseValue,
+              ...(hasExistingGmbReply ? { repliedAt: gmbReplyTime || parsedTimestamp } : {}),
             },
             update: {},
           });
@@ -260,18 +314,44 @@ export class ReviewSyncService {
       if (!latestReviewTimestamp || parsedTimestamp > latestReviewTimestamp) {
         latestReviewTimestamp = parsedTimestamp;
       }
+
+      // Trigger AI response generation workflow ONLY for genuine new reviews or top 10 onboarding reviews
+      if (shouldGenerateAI) {
+        try {
+          await this.automationService.onReviewReceived({
+            reviewId: reviewHash,
+            outletId: outlet.id,
+            outletName: outlet.name || 'Business',
+            rating,
+            reviewText: text,
+            customerName,
+            managerPhone: outlet.managerPhone || outlet.whatsappNumber,
+            managerEmail: outlet.email,
+          });
+        } catch (aiErr: any) {
+          this.logger.error(`[Sync] AI generation failed for review ${reviewHash}: ${aiErr.message}`);
+        }
+      }
     }
 
-    // 4. Update outlet's sync state
-    await db.collection('outlets').doc(outlet.id).update({
+    // 4. Update outlet's sync state & onboarding metadata
+    const updateState: any = {
       lastReviewFetchAt: new Date(),
       latestReviewTimestamp: latestReviewTimestamp || null,
       fetchedReviewHashes: Array.from(knownHashes).slice(-500),
-    });
+    };
 
-    await this.writeSyncHistory(outlet.id, fetched, newCount, 0, 'success');
+    if (isFirstOnboardingSync) {
+      updateState.onboardingCompletedAt = new Date();
+      updateState.onboardingReviewCount = fetched;
+      updateState.onboardingBaselineTimestamp = new Date();
+    }
 
-    this.logger.log(`[Sync] Outlet ${outlet.id}: fetched=${fetched}, new=${newCount}`);
+    await db.collection('outlets').doc(outlet.id).update(updateState);
+
+    await this.writeSyncHistory(outlet.id, fetched, newCount, newCount, 'success');
+
+    this.logger.log(`[Sync] Outlet ${outlet.id}: fetched=${fetched}, new=${newCount}, isFirstOnboarding=${isFirstOnboardingSync}`);
     return { outletId: outlet.id, outletName: outlet.name, fetched, new: newCount, processed: newCount, status: 'success' };
   }
 
@@ -314,3 +394,4 @@ export class ReviewSyncService {
     }
   }
 }
+

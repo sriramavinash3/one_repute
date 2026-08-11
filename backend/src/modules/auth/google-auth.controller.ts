@@ -81,8 +81,8 @@ export class GoogleAuthController {
 
     // Include both uid and outletId in state so callback has a fallback
     // if the user profile is missing outletId.
-    const statePayload = safeUid 
-      ? { uid: safeUid, outletId: safeOutletId, ts: Date.now() } 
+    const statePayload = safeUid
+      ? { uid: safeUid, outletId: safeOutletId, ts: Date.now() }
       : { outletId: safeOutletId, ts: Date.now() };
     const encryptedState = this.encrypt(JSON.stringify(statePayload));
     const consentUrl = this.googleBusinessService.getConsentUrl(encryptedState);
@@ -176,17 +176,17 @@ export class GoogleAuthController {
         this.logger.log(`OAuth callback: looking up user by uid=${outletIdOrUid}`);
         const userDoc = await db.collection('users').doc(outletIdOrUid).get();
         this.logger.log(`OAuth callback: user document ${userDoc.exists ? 'FOUND' : 'NOT FOUND'} for uid=${outletIdOrUid}`);
-        
+
         if (userDoc.exists) {
           const userData = userDoc.data();
           const profileOutletId = userData?.outletId;
           const customerId = userData?.customerId;
           this.logger.log(`OAuth callback: user profile outletId=${profileOutletId || 'MISSING'} customerId=${customerId || 'MISSING'}`);
-          
+
           // Determine which outletId to use: profile first, then state, then customer lookup
           let targetOutletId = profileOutletId;
           let outletSource = 'profile';
-          
+
           if (!targetOutletId || typeof targetOutletId !== 'string' || targetOutletId.includes('"')) {
             if (stateOutletId && typeof stateOutletId === 'string' && !stateOutletId.includes('"')) {
               targetOutletId = stateOutletId;
@@ -206,7 +206,7 @@ export class GoogleAuthController {
               }
             }
           }
-          
+
           if (targetOutletId && typeof targetOutletId === 'string' && !targetOutletId.includes('"')) {
             // Verify the outlet document exists
             const outletDoc = await db.collection('outlets').doc(targetOutletId).get();
@@ -218,7 +218,7 @@ export class GoogleAuthController {
                 this.logger.error(`OAuth callback: outlet customerId mismatch - outlet belongs to customer ${outletData.customerId}, user belongs to ${customerId}`);
               }
             }
-            
+
             const encryptedRefreshToken = this.encrypt(tokens.refresh_token);
             await db.collection('outlets').doc(targetOutletId).set({
               googleRefreshToken: encryptedRefreshToken,
@@ -266,7 +266,7 @@ export class GoogleAuthController {
         }
       }
 
-      return res.send(this.getPopupHtml('gmb-connected', { 
+      return res.send(this.getPopupHtml('gmb-connected', {
         googleAccountEmail: accountEmail,
         googleLocations: locations,
       }, frontendUrl));

@@ -326,8 +326,15 @@ export class AutomationService {
     const contacts: Array<{ phone?: string; email?: string }> = [];
 
     if (level === 1) {
-      if (outlet?.managerPhone || outlet?.whatsappNumber) {
-        contacts.push({ phone: outlet.managerPhone || outlet.whatsappNumber, email: outlet.managerEmail });
+      // Primary WhatsApp Number is always the 1st escalation contact
+      const rawNum = outlet?.primaryWhatsAppNumber || outlet?.whatsappNumber || outlet?.managerPhone;
+      const cc = outlet?.countryCode || '';
+      if (rawNum) {
+        let phone = String(rawNum).trim();
+        if (cc && !phone.startsWith('+')) {
+          phone = `${cc}${phone}`.replace(/\s+/g, '');
+        }
+        contacts.push({ phone, email: outlet.primaryEmail || outlet.managerEmail || outlet.email });
       }
     } else if (level === 2) {
       if (outlet?.regionalManagerPhone || outlet?.regionalManagerEmail) {

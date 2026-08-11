@@ -308,4 +308,58 @@ export class ReviewsService {
 
     return { success: true };
   }
+
+  async getHistoricalSummary(outletId: string) {
+    if (!outletId) throw new Error('outletId is required');
+
+    const db = this.firebaseService.getDb();
+    const outletSnap = await db.collection('outlets').doc(outletId).get();
+    const outletData = outletSnap.exists ? outletSnap.data() : {};
+
+    const onboardingReviewCount = outletData?.onboardingReviewCount || 0;
+    const onboardingCompletedAt = outletData?.onboardingCompletedAt || null;
+
+    let reviews: any[] = [];
+    if (process.env.DATABASE_URL) {
+      try {
+        reviews = await this.prismaService.review.findMany({
+          where: { outletId },
+          orderBy: { reviewTimestamp: 'desc' },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma getHistoricalSummary failed: ${err.message}`);
+      }
+    }
+
+    if (!reviews.length) {
+      const snap = await db.collection('reviews').where('outletId', '==', outletId).get();
+      reviews = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      reviews.sort((a: any, b: any) => {
+        const timeA = a.reviewTimestamp ? (a.reviewTimestamp.toDate ? a.reviewTimestamp.toDate().getTime() : new Date(a.reviewTimestamp).getTime()) : 0;
+        const timeB = b.reviewTimestamp ? (b.reviewTimestamp.toDate ? b.reviewTimestamp.toDate().getTime() : new Date(b.reviewTimestamp).getTime()) : 0;
+        return timeB - timeA;
+      });
+    }
+
+    const importedReviews = reviews.filter((r) => r.isImported || r.isOnboarding || r.status === 'imported');
+    const existingResponses = reviews.filter((r) => r.status === 'responded' || (r.aiResponse && r.aiResponse.trim().length > 0));
+
+    const counts = {
+      totalOnboarding: onboardingReviewCount || importedReviews.length,
+      importedCount: importedReviews.length,
+      existingResponsesCount: existingResponses.length,
+      responded: reviews.filter((r) => r.status === 'responded').length,
+      pending: reviews.filter((r) => r.status === 'pending').length,
+      escalated: reviews.filter((r) => r.status === 'escalated' || (r.escalationStatus && r.escalationStatus !== 'no_escalation')).length,
+      imported: reviews.filter((r) => r.status === 'imported').length,
+    };
+
+    return {
+      onboardingReviewCount: counts.totalOnboarding,
+      onboardingCompletedAt,
+      latest10Imported: importedReviews.slice(0, 10),
+      latest30ExistingResponses: existingResponses.slice(0, 30),
+      statusCounts: counts,
+    };
+  }
 }

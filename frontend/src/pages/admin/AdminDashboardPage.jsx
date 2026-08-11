@@ -210,8 +210,8 @@ export default function AdminDashboardPage() {
 
   const getMonthlyFee = (planId) => {
     if (planId === 'plan_starter') return 29;
-    if (planId === 'plan_growth') return 79;
-    if (planId === 'plan_premium') return 199;
+    if (planId === 'plan_growth') return 39;
+    if (planId === 'plan_premium') return 49;
     return 0;
   };
 

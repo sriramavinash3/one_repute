@@ -377,22 +377,29 @@ export class AdminService {
 
     // Default price catalog if unpopulated
     return [
-      { id: 'price_starter_in', planId: 'plan_starter', country: 'IN', currency: 'INR', monthlyPrice: 999, annualPrice: 9990, status: 'active' },
-      { id: 'price_pro_in', planId: 'plan_pro', country: 'IN', currency: 'INR', monthlyPrice: 2499, annualPrice: 24990, status: 'active' },
-      { id: 'price_enterprise_in', planId: 'plan_enterprise', country: 'IN', currency: 'INR', monthlyPrice: 4999, annualPrice: 49990, status: 'active' },
+      { id: 'price_starter_in', planId: 'plan_starter', country: 'IN', currency: 'INR', monthlyPrice: 1299, quarterlyPrice: 3899, annualPrice: 15599, status: 'active' },
+      { id: 'price_growth_in', planId: 'plan_growth', country: 'IN', currency: 'INR', monthlyPrice: 1999, quarterlyPrice: 4999, annualPrice: 17999, status: 'active' },
+      { id: 'price_premium_in', planId: 'plan_premium', country: 'IN', currency: 'INR', monthlyPrice: 2999, quarterlyPrice: 7999, annualPrice: 25999, status: 'active' },
+      { id: 'price_starter_us', planId: 'plan_starter', country: 'US', currency: 'USD', monthlyPrice: 29, quarterlyPrice: 79, annualPrice: 339, status: 'active' },
+      { id: 'price_growth_us', planId: 'plan_growth', country: 'US', currency: 'USD', monthlyPrice: 39, quarterlyPrice: 109, annualPrice: 399, status: 'active' },
+      { id: 'price_premium_us', planId: 'plan_premium', country: 'US', currency: 'USD', monthlyPrice: 49, quarterlyPrice: 139, annualPrice: 499, status: 'active' },
     ];
   }
 
   async saveBillingPrice(dto: SaveBillingPriceDto) {
     const db = this.firebaseService.getDb();
-    const id = `price_${dto.planId || 'pro'}_${(dto.country || 'IN').toLowerCase()}`;
+    const id = `price_${dto.planId || 'starter'}_${(dto.country || 'IN').toLowerCase()}`;
 
     const data = {
-      planId: dto.planId || 'plan_pro',
+      planId: dto.planId || 'plan_starter',
       country: dto.country || 'IN',
       currency: dto.currency || 'INR',
-      monthlyPrice: Number(dto.monthlyPrice) || 2499,
-      annualPrice: Number(dto.annualPrice) || 24990,
+      monthlyPrice: Number(dto.monthlyPrice) || 1299,
+      quarterlyPrice: Number(dto.quarterlyPrice) || 3899,
+      annualPrice: Number(dto.annualPrice) || 15599,
+      razorpayMonthlyPlanId: dto.razorpayMonthlyPlanId || '',
+      razorpayQuarterlyPlanId: dto.razorpayQuarterlyPlanId || '',
+      razorpayAnnualPlanId: dto.razorpayAnnualPlanId || '',
       status: dto.status || 'active',
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };

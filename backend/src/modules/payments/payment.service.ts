@@ -47,6 +47,8 @@ export class PaymentService {
       const localizedPrice = await this.planService.getPlanPrice(planId, countryCode);
       const razorpayPlanId = billingCycle === 'annual'
         ? localizedPrice.razorpayAnnualPlanId
+        : billingCycle === 'quarterly'
+        ? localizedPrice.razorpayQuarterlyPlanId
         : localizedPrice.razorpayMonthlyPlanId;
 
       if (!razorpayPlanId || razorpayPlanId.endsWith('_dummy')) {
@@ -57,7 +59,7 @@ export class PaymentService {
       const subscriptionPayload: any = {
         plan_id: razorpayPlanId,
         customer_notify: 1,
-        total_count: billingCycle === 'annual' ? 10 : 120,
+        total_count: billingCycle === 'annual' ? 10 : billingCycle === 'quarterly' ? 40 : 120,
         quantity: 1,
       };
 

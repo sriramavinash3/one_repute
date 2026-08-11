@@ -94,6 +94,20 @@ export class ReviewsController {
     }
   }
 
+  /** GET /api/outlets/historical-summary or GET /api/reviews/historical-summary */
+  @Get('outlets/historical-summary')
+  @Get('reviews/historical-summary')
+  async getHistoricalSummary(@Query('outletId') outletId: string, @Res() res: Response) {
+    if (!outletId) return res.status(400).json({ error: 'outletId parameter is required' });
+    try {
+      const data = await this.reviewsService.getHistoricalSummary(outletId);
+      return res.status(200).json(data);
+    } catch (err: any) {
+      this.logger.error('[ReviewsController] getHistoricalSummary failed', { error: err.message });
+      return res.status(500).json({ error: 'Failed to fetch historical summary' });
+    }
+  }
+
   // ─── Analytics ───────────────────────────────────────────────────────────────
 
   /** GET /api/analytics/summary */

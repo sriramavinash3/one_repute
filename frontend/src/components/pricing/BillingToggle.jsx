@@ -2,8 +2,8 @@ import { motion } from 'framer-motion'
 
 const cycles = [
   { id: 'monthly', label: 'Monthly', badge: null },
-  { id: 'quarterly', label: 'Quarterly', badge: '20% OFF' },
-  { id: 'annual', label: 'Annual', badge: '20% OFF' },
+  { id: 'quarterly', label: 'Quarterly', badge: null },
+  { id: 'annual', label: 'Annual', badge: null },
 ]
 
 export default function BillingToggle({ value, onChange }) {

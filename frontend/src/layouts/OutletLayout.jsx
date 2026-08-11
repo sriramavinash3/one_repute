@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { BarChart3, FileText, LayoutDashboard, MessageSquareWarning, Settings, LogOut, Menu, BrainCircuit, QrCode } from 'lucide-react'
+import { toast } from 'sonner'
 import Sidebar from '../components/navigation/Sidebar'
 import Topbar from '../components/navigation/Topbar'
 import Button from '../components/ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import Logo from '../components/common/Logo'
 import Seo from '../components/seo/Seo'
+import { FEATURE_FLAGS } from '../config/featureFlags'
+
+const SMART_QR_LOCKED_MESSAGE = 'Smart QR Code Campaigns will be updated soon. Stay tuned.'
 
 export default function OutletLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -18,12 +22,24 @@ export default function OutletLayout() {
     navigate('/login')
   }
 
+  const handleLockedClick = (item) => {
+    toast.info(item.lockedMessage || 'This feature is temporarily unavailable.')
+  }
+
   const items = useMemo(
     () => [
       { to: '/outlet-dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, end: true },
       { to: '/outlet-dashboard/reviews', label: 'Reviews', icon: <FileText className="h-4 w-4" /> },
       { to: '/outlet-dashboard/escalations', label: 'Escalations', icon: <MessageSquareWarning className="h-4 w-4" /> },
-      { to: '/outlet-dashboard/qr', label: 'Smart QR', icon: <QrCode className="h-4 w-4" /> },
+      ...(FEATURE_FLAGS.SMART_QR_CAMPAIGNS
+        ? [{ to: '/outlet-dashboard/qr', label: 'Smart QR', icon: <QrCode className="h-4 w-4" /> }]
+        : [{
+            to: '/outlet-dashboard/qr',
+            label: 'Smart QR',
+            icon: <QrCode className="h-4 w-4" />,
+            locked: true,
+            lockedMessage: SMART_QR_LOCKED_MESSAGE
+          }]),
       { to: '/outlet-dashboard/analytics', label: 'Analytics', icon: <BarChart3 className="h-4 w-4" /> },
       { to: '/outlet-dashboard/reputation', label: 'Reputation', icon: <BrainCircuit className="h-4 w-4" /> },
       { to: '/outlet-dashboard/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> }
@@ -69,7 +85,7 @@ export default function OutletLayout() {
         noindex
       />
       <div className="flex">
-        <Sidebar header={headerContent} items={items} footer={footer} className="hidden lg:flex" />
+        <Sidebar header={headerContent} items={items} footer={footer} className="hidden lg:flex" onLockedClick={handleLockedClick} />
 
         <div className="flex min-h-screen flex-1 flex-col">
           <div className="flex items-center gap-3 border-b border-slatey-200 bg-white px-6 py-3 lg:hidden">
@@ -94,7 +110,7 @@ export default function OutletLayout() {
             className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-white p-0 shadow-2xl dark:bg-slatey-900"
             onClick={(event) => event.stopPropagation()}
           >
-            <Sidebar header={headerContent} items={items} footer={footer} className="flex h-full w-full border-r-0" onItemClick={() => setMobileOpen(false)} />
+            <Sidebar header={headerContent} items={items} footer={footer} className="flex h-full w-full border-r-0" onItemClick={() => setMobileOpen(false)} onLockedClick={handleLockedClick} />
           </div>
         </div>
       ) : null}

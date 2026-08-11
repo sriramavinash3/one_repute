@@ -144,13 +144,14 @@ export class GoogleBusinessService {
         try {
           const response = await locationClient.accounts.locations.list({
             parent: account.name,
-            readMask: 'name,title',
+            readMask: 'name,title,primaryCategory,categories',
           });
 
           const accountLocations = (response.data.locations || [])
             .map((location: any) => ({
               id: this.extractId(location.name),
               name: location.title || location.name || 'Unnamed location',
+              category: location.primaryCategory?.displayName || location.categories?.primaryCategory?.displayName || 'General Business',
             }))
             .filter((location: any) => location.id);
 

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { QrCode, Sparkles, Plus, Download, Copy, ExternalLink, RefreshCw, BarChart2, CheckCircle2 } from 'lucide-react'
+import { QrCode, Plus, Download, Copy, ExternalLink, RefreshCw } from 'lucide-react'
 import { Card } from '../../components/ui/card'
 import Button from '../../components/ui/button'
 import { toast } from 'sonner'
 import apiClient from '../../services/apiClient'
 import { FeatureGate } from '../../components/gating/FeatureGate'
+import ComingSoon from '../../components/feedback/ComingSoon'
+import { FEATURE_FLAGS } from '../../config/featureFlags'
 
 const stagger = {
   hidden: {},
@@ -17,6 +19,16 @@ const fadeUp = {
 }
 
 export default function OutletQrPage() {
+  if (!FEATURE_FLAGS.SMART_QR_CAMPAIGNS) {
+    return (
+      <ComingSoon
+        title="Smart QR Code Campaigns"
+        message="Smart QR Code Campaigns will be updated soon. Stay tuned."
+        badge="Updated Soon"
+      />
+    )
+  }
+
   return (
     <FeatureGate featureKey="smart_qr" customTitle="Smart QR Codes Locked">
       <OutletQrContent />

@@ -37,16 +37,18 @@ export default function AdminBillingPage() {
     country: '',
     currency: '',
     monthlyPrice: '',
+    quarterlyPrice: '',
     annualPrice: '',
     razorpayMonthlyPlanId: '',
+    razorpayQuarterlyPlanId: '',
     razorpayAnnualPlanId: '',
     status: 'active'
   })
 
   const PLAN_PRICES = {
     plan_starter: 29,
-    plan_growth: 79,
-    plan_premium: 199
+    plan_growth: 39,
+    plan_premium: 49
   }
 
   const fetchDiagnostics = async () => {
@@ -85,8 +87,10 @@ export default function AdminBillingPage() {
         country: '',
         currency: '',
         monthlyPrice: '',
+        quarterlyPrice: '',
         annualPrice: '',
         razorpayMonthlyPlanId: '',
+        razorpayQuarterlyPlanId: '',
         razorpayAnnualPlanId: '',
         status: 'active'
       })
@@ -459,7 +463,7 @@ export default function AdminBillingPage() {
                 <label className="block text-[10px] font-bold text-slatey-500 uppercase tracking-wider mb-1.5">Monthly Price</label>
                 <input
                   type="number"
-                  placeholder="999"
+                  placeholder="1299"
                   required
                   value={priceForm.monthlyPrice}
                   onChange={(e) => setPriceForm({ ...priceForm, monthlyPrice: e.target.value })}
@@ -468,10 +472,22 @@ export default function AdminBillingPage() {
               </div>
 
               <div>
+                <label className="block text-[10px] font-bold text-slatey-500 uppercase tracking-wider mb-1.5">Quarterly Price</label>
+                <input
+                  type="number"
+                  placeholder="3899"
+                  required
+                  value={priceForm.quarterlyPrice}
+                  onChange={(e) => setPriceForm({ ...priceForm, quarterlyPrice: e.target.value })}
+                  className="w-full text-xs rounded-lg border border-slatey-200 bg-white p-2.5 outline-none focus:border-brand-400"
+                />
+              </div>
+
+              <div>
                 <label className="block text-[10px] font-bold text-slatey-500 uppercase tracking-wider mb-1.5">Annual Price</label>
                 <input
                   type="number"
-                  placeholder="9999"
+                  placeholder="15599"
                   required
                   value={priceForm.annualPrice}
                   onChange={(e) => setPriceForm({ ...priceForm, annualPrice: e.target.value })}
@@ -483,9 +499,20 @@ export default function AdminBillingPage() {
                 <label className="block text-[10px] font-bold text-slatey-500 uppercase tracking-wider mb-1.5">Razorpay Monthly Plan ID</label>
                 <input
                   type="text"
-                  placeholder="plan_starter_in_monthly_dummy"
+                  placeholder="plan_starter_in_monthly"
                   value={priceForm.razorpayMonthlyPlanId}
                   onChange={(e) => setPriceForm({ ...priceForm, razorpayMonthlyPlanId: e.target.value })}
+                  className="w-full text-xs rounded-lg border border-slatey-200 bg-white p-2.5 outline-none focus:border-brand-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slatey-500 uppercase tracking-wider mb-1.5">Razorpay Quarterly Plan ID</label>
+                <input
+                  type="text"
+                  placeholder="plan_starter_in_quarterly"
+                  value={priceForm.razorpayQuarterlyPlanId}
+                  onChange={(e) => setPriceForm({ ...priceForm, razorpayQuarterlyPlanId: e.target.value })}
                   className="w-full text-xs rounded-lg border border-slatey-200 bg-white p-2.5 outline-none focus:border-brand-400"
                 />
               </div>
@@ -494,7 +521,7 @@ export default function AdminBillingPage() {
                 <label className="block text-[10px] font-bold text-slatey-500 uppercase tracking-wider mb-1.5">Razorpay Annual Plan ID</label>
                 <input
                   type="text"
-                  placeholder="plan_starter_in_annual_dummy"
+                  placeholder="plan_starter_in_annual"
                   value={priceForm.razorpayAnnualPlanId}
                   onChange={(e) => setPriceForm({ ...priceForm, razorpayAnnualPlanId: e.target.value })}
                   className="w-full text-xs rounded-lg border border-slatey-200 bg-white p-2.5 outline-none focus:border-brand-400"
@@ -524,8 +551,10 @@ export default function AdminBillingPage() {
                     <th className="px-4 py-3">Country</th>
                     <th className="px-4 py-3">Currency</th>
                     <th className="px-4 py-3">Monthly</th>
+                    <th className="px-4 py-3">Quarterly</th>
                     <th className="px-4 py-3">Annual</th>
                     <th className="px-4 py-3">Monthly Plan ID</th>
+                    <th className="px-4 py-3">Quarterly Plan ID</th>
                     <th className="px-4 py-3">Annual Plan ID</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right">Actions</th>
@@ -541,9 +570,13 @@ export default function AdminBillingPage() {
                         {p.currency === 'INR' ? '₹' : '$'}{p.monthlyPrice}
                       </td>
                       <td className="px-4 py-3 font-semibold text-slatey-800">
+                        {p.currency === 'INR' ? '₹' : '$'}{p.quarterlyPrice || '—'}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slatey-800">
                         {p.currency === 'INR' ? '₹' : '$'}{p.annualPrice}
                       </td>
                       <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayMonthlyPlanId || '—'}</td>
+                      <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayQuarterlyPlanId || '—'}</td>
                       <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayAnnualPlanId || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${

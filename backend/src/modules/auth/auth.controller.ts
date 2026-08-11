@@ -5,6 +5,8 @@
  */
 
 import { Controller, Post, Get, Body, Query, Param, HttpCode, HttpStatus, Logger, Req, UseGuards, HttpException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 import { TokenService } from './token.service';
 import { EmailService } from '../email/services/email.service';
 import { FirebaseService } from '../firebase/firebase.service';
@@ -19,6 +21,8 @@ interface OnboardBody {
   form?: {
     businessName?: string;
     businessType?: string;
+    countryCode?: string;
+    primaryWhatsAppNumber?: string;
     managerPhone?: string;
     whatsappNumber?: string;
     address?: string;
@@ -38,12 +42,17 @@ interface OnboardBody {
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
+  private readonly encryptionKey: Buffer;
 
   constructor(
     private readonly tokenService: TokenService,
     private readonly emailService: EmailService,
     private readonly firebaseService: FirebaseService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    const key = this.configService.get<string>('app.encryptionKey') || '';
+    this.encryptionKey = crypto.createHash('sha256').update(key).digest();
+  }
 
   /**
    * POST /api/auth/forgot-password
@@ -211,11 +220,7 @@ export class AuthController {
   /**
    * POST /api/auth/onboard
    * Finalizes brand-new user onboarding. Consumes the Google OAuth onboarding
-   * session (created by /api/auth/google/onboard + callback) and, in one batch,
-   * creates the customer + outlet and links the user document to them
-   * (outletId, customerId, isSetupComplete). This route existed in the legacy
-   * Express backend but was never ported to NestJS, which is why user profiles
-   * never received an outlet link and Google connect failed afterwards.
+   * session and creates the customer + outlet and links the user document.
    */
   @Post('onboard')
   @HttpCode(HttpStatus.OK)
@@ -240,11 +245,28 @@ export class AuthController {
     const selectedLocation = locations.find((l: any) => l?.id === form?.placeId) || {};
     const businessName = form?.businessName || selectedLocation.name || 'Unknown Business';
 
+    // Business Category fetched from GMB or pre-defined selection
+    const businessCategory = form?.businessType || selectedLocation.category || selectedLocation.primaryCategory?.displayName || 'General Business';
+
+    // Separate Country Code and Primary WhatsApp Number
+    let countryCode = (form?.countryCode || '+91').trim();
+    if (!countryCode.startsWith('+')) {
+      countryCode = `+${countryCode}`;
+    }
+
+    // Clean primary whatsapp number: remove country code prefix if user accidentally typed it
+    let localWhatsApp = (form?.primaryWhatsAppNumber || form?.managerPhone || form?.whatsappNumber || '').trim();
+    if (localWhatsApp.startsWith(countryCode)) {
+      localWhatsApp = localWhatsApp.slice(countryCode.length);
+    }
+    localWhatsApp = localWhatsApp.replace(/^\+\d{1,4}/, '').replace(/\D/g, '');
+
+    const fullWhatsAppNumber = `${countryCode}${localWhatsApp}`;
+
     const now = new Date();
     const trialEndsAt = isTrial ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
 
     // 2. Create customer + outlet and link the user in a single atomic batch.
-    //    The refresh token is copied AS-IS: the callback already encrypted it.
     const customerRef = db.collection('customers').doc();
     const outletRef = db.collection('outlets').doc();
     const userRef = db.collection('users').doc(userUid);
@@ -254,7 +276,7 @@ export class AuthController {
     batch.set(customerRef, {
       name: businessName,
       email: userEmail,
-      phone: form?.managerPhone || '',
+      phone: fullWhatsAppNumber,
       plan: form?.planId || null,
       subscriptionStatus: isTrial ? 'trialing' : 'active',
       trialEndsAt,
@@ -266,9 +288,12 @@ export class AuthController {
 
     batch.set(outletRef, {
       name: businessName,
-      businessType: form?.businessType || '',
-      managerPhone: form?.managerPhone || '',
-      whatsappNumber: form?.whatsappNumber || form?.managerPhone || '',
+      businessType: businessCategory,
+      businessCategory: businessCategory,
+      countryCode: countryCode,
+      primaryWhatsAppNumber: localWhatsApp,
+      whatsappNumber: fullWhatsAppNumber,
+      managerPhone: fullWhatsAppNumber,
       address: form?.address || '',
       placeId: form?.placeId || '',
       providerType: 'GBP',
@@ -303,10 +328,33 @@ export class AuthController {
 
     await batch.commit();
 
-    // 3. Clean up the temporary session
+    // 3. Initialize Level 1 escalation setting with the Primary WhatsApp Number
+    try {
+      await db.collection('escalationSettings').doc(outletRef.id).set({
+        masterEnabled: true,
+        levels: {
+          "1": {
+            level: 1,
+            name: "Primary Contact",
+            designation: "Primary WhatsApp Contact",
+            countryCode: countryCode,
+            whatsappNumber: localWhatsApp,
+            email: userEmail,
+            escalationMinutes: 15,
+            enabled: true,
+          },
+        },
+        createdAt: now,
+        updatedAt: now,
+      }, { merge: true });
+    } catch (escErr: any) {
+      this.logger.warn(`Failed to initialize level 1 escalation setting for outlet ${outletRef.id}: ${escErr.message}`);
+    }
+
+    // 4. Clean up the temporary session
     await db.collection('onboarding_sessions').doc(userUid).delete();
 
-    this.logger.log(`Onboarding completed: user=${userUid}, customer=${customerRef.id}, outlet=${outletRef.id}`);
+    this.logger.log(`Onboarding completed: user=${userUid}, customer=${customerRef.id}, outlet=${outletRef.id}, category="${businessCategory}", primaryWhatsApp=${countryCode}${localWhatsApp}`);
 
     return { success: true, outletId: outletRef.id };
   }

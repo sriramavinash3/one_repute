@@ -11,16 +11,34 @@ export const PRICING_CONFIG = {
       locale: 'en-IN',
       plans: {
         starter: {
-          monthly: 999,
-          annual: 9999,
+          monthly: 1299,
+          quarterly: 3899,
+          annual: 15599,
         },
         growth: {
           monthly: 1999,
-          annual: 19999,
+          quarterly: 4999,
+          annual: 17999,
         },
         premium: {
           monthly: 2999,
-          annual: 29999,
+          quarterly: 7999,
+          annual: 25999,
+        },
+        plan_starter: {
+          monthly: 1299,
+          quarterly: 3899,
+          annual: 15599,
+        },
+        plan_growth: {
+          monthly: 1999,
+          quarterly: 4999,
+          annual: 17999,
+        },
+        plan_premium: {
+          monthly: 2999,
+          quarterly: 7999,
+          annual: 25999,
         },
       },
     },
@@ -33,15 +51,33 @@ export const PRICING_CONFIG = {
       plans: {
         starter: {
           monthly: 29,
-          annual: 290,
+          quarterly: 79,
+          annual: 339,
         },
         growth: {
-          monthly: 79,
-          annual: 790,
+          monthly: 39,
+          quarterly: 109,
+          annual: 399,
         },
         premium: {
-          monthly: 199,
-          annual: 1990,
+          monthly: 49,
+          quarterly: 139,
+          annual: 499,
+        },
+        plan_starter: {
+          monthly: 29,
+          quarterly: 79,
+          annual: 339,
+        },
+        plan_growth: {
+          monthly: 39,
+          quarterly: 109,
+          annual: 399,
+        },
+        plan_premium: {
+          monthly: 49,
+          quarterly: 139,
+          annual: 499,
         },
       },
     },
@@ -49,18 +85,21 @@ export const PRICING_CONFIG = {
   plansInfo: [
     {
       id: 'starter',
+      planId: 'plan_starter',
       name: 'Starter',
       tagline: 'Essential AI review management for single outlets.',
       isPopular: false,
     },
     {
       id: 'growth',
+      planId: 'plan_growth',
       name: 'Growth',
       tagline: 'Advanced automation and insights for expanding brands.',
       isPopular: true,
     },
     {
       id: 'premium',
+      planId: 'plan_premium',
       name: 'Premium',
       tagline: 'Enterprise-grade reputation control for multi-chain outlets.',
       isPopular: false,
@@ -77,3 +116,4 @@ export function formatPrice(amount, regionConfig) {
   const formattedNumber = Math.round(amount).toLocaleString(regionConfig.locale)
   return `${regionConfig.currencySymbol}${formattedNumber}`
 }
+

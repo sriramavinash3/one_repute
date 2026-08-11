@@ -53,10 +53,12 @@ export class SubscriptionService {
         return {
           ...plan,
           monthlyPrice: localized.monthlyPrice,
+          quarterlyPrice: localized.quarterlyPrice,
           annualPrice: localized.annualPrice,
           currency: localized.currency,
           currencySymbol: this.planService.getCurrencySymbol(localized.currency),
           razorpayMonthlyPlanId: localized.razorpayMonthlyPlanId,
+          razorpayQuarterlyPlanId: localized.razorpayQuarterlyPlanId,
           razorpayAnnualPlanId: localized.razorpayAnnualPlanId,
         };
       })
@@ -117,6 +119,8 @@ export class SubscriptionService {
 
     const newRazorpayPlanId = billingCycle === 'annual'
       ? localizedPrice.razorpayAnnualPlanId
+      : billingCycle === 'quarterly'
+      ? localizedPrice.razorpayQuarterlyPlanId
       : localizedPrice.razorpayMonthlyPlanId;
 
     const subscriptionId = customer.razorpaySubscriptionId;
@@ -134,7 +138,7 @@ export class SubscriptionService {
         });
       }
 
-      const renewalTime = Date.now() + (billingCycle === 'annual' ? 365 : 30) * 24 * 60 * 60 * 1000;
+      const renewalTime = Date.now() + (billingCycle === 'annual' ? 365 : billingCycle === 'quarterly' ? 90 : 30) * 24 * 60 * 60 * 1000;
       const customerUpdate = {
         plan: newPlanId,
         billingCycle,

@@ -13,6 +13,8 @@ import {
 import Button from '../components/ui/button'
 import { useAuth } from '../contexts/AuthContext'
 
+import AutoResponseDisclosureModal from '../components/onboarding/AutoResponseDisclosureModal'
+
 const GBP_API_PENDING = true// flip to false once GBP API access is approved
 
 export default function ConnectGooglePage() {
@@ -20,6 +22,7 @@ export default function ConnectGooglePage() {
   const queryClient = useQueryClient()
   const [settingLocationId, setSettingLocationId] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
+  const [showDisclosureModal, setShowDisclosureModal] = useState(false)
 
   const outletId = profile?.outletId || ''
   const enabled = useMemo(() => Boolean(outletId && outletId.length > 0), [outletId])
@@ -37,6 +40,7 @@ export default function ConnectGooglePage() {
     const handleMessage = (event) => {
       if (event.data?.type === 'gmb-connected') {
         toast.success('Google Business Profile connected successfully!')
+        setShowDisclosureModal(true)
         queryClient.invalidateQueries({ queryKey: ['google-connection', outletId] })
       } else if (event.data?.type === 'gmb-error') {
         toast.error(`Google Connection failed: ${event.data.error}`)
@@ -278,6 +282,11 @@ export default function ConnectGooglePage() {
         </div>
       </motion.div>
 
+      <AutoResponseDisclosureModal
+        isOpen={showDisclosureModal}
+        onClose={() => setShowDisclosureModal(false)}
+        onConfirm={() => setShowDisclosureModal(false)}
+      />
     </div>
   )
 }

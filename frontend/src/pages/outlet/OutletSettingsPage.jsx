@@ -448,10 +448,10 @@ export default function OutletSettingsPage() {
               <SectionHeader icon={<Phone className="h-4 w-4" />} title="WhatsApp Notification Threshold" description="Trigger standard real-time alert notifications." />
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
-                  label="WhatsApp number" id="wa-number" type="tel"
+                  label="Primary WhatsApp number" id="wa-number" type="tel"
                   value={whatsapp.number} onChange={(e) => setWhatsapp({ ...whatsapp, number: e.target.value })}
                   placeholder="+91 98765 43210"
-                  hint="Must be registered on WhatsApp Business API"
+                  hint="Primary WhatsApp contact for 1st level escalation alerts"
                 />
                 <div className="space-y-1.5">
                   <label htmlFor="escalation-threshold" className="block text-xs font-medium text-slatey-600">

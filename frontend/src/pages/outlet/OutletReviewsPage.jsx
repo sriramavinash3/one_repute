@@ -137,6 +137,11 @@ function ReviewCard({ review, onSelect }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {(review.isImported || review.isOnboarding || review.status === 'imported') && (
+            <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[11px] font-bold text-purple-700 border border-purple-200 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/20">
+              Imported
+            </span>
+          )}
           {isEscalating && <EscalationTimer nextTime={review.nextEscalationTime} />}
           <StatusBadge status={review.escalationStatus || review.status} />
         </div>

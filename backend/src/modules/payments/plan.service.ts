@@ -104,10 +104,12 @@ export class PlanService {
       planId,
       country: 'IN',
       currency: 'INR',
-      monthlyPrice: 999,
-      annualPrice: 9999,
-      razorpayMonthlyPlanId: 'plan_starter_in_monthly_dummy',
-      razorpayAnnualPlanId: 'plan_starter_in_annual_dummy',
+      monthlyPrice: 1299,
+      quarterlyPrice: 3899,
+      annualPrice: 15599,
+      razorpayMonthlyPlanId: 'plan_starter_in_monthly',
+      razorpayQuarterlyPlanId: 'plan_starter_in_quarterly',
+      razorpayAnnualPlanId: 'plan_starter_in_annual',
       status: 'active'
     };
   }
