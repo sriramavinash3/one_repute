@@ -102,7 +102,21 @@ export class ReviewSyncService {
     }
 
     // 2. Validate credentials
-    if (!outlet.googleAccountId || !outlet.googleLocationId || !outlet.googleRefreshToken) {
+    const targetLocationId = outlet.googleLocationId || outlet.googleActiveLocation || (Array.isArray(outlet.googleLocations) && outlet.googleLocations[0]?.id) || null;
+
+    if (outlet.googleTokenInvalid === true || outlet.googleConnectionStatus === 'invalid_grant') {
+      this.logger.warn(`[Sync] Skipping sync for outlet ${outlet.id}: Google authorization invalid/revoked (invalid_grant). Reconnection required.`);
+      return {
+        outletId: outlet.id,
+        outletName: outlet.name,
+        fetched: 0, new: 0, processed: 0,
+        status: 'error',
+        error: 'Google authorization revoked or expired (invalid_grant). Reconnection required.',
+      };
+    }
+
+    if (!outlet.googleAccountId || !targetLocationId || !outlet.googleRefreshToken) {
+      this.logger.warn(`[Sync] Missing credentials for outlet ${outlet.id}: accountId=${!!outlet.googleAccountId}, locationId=${!!targetLocationId}, refreshToken=${!!outlet.googleRefreshToken}`);
       return {
         outletId: outlet.id,
         outletName: outlet.name,
@@ -116,10 +130,41 @@ export class ReviewSyncService {
     try {
       rawReviews = await this.googleBusinessService.fetchReviews(
         outlet.googleAccountId,
-        outlet.googleLocationId,
+        targetLocationId,
         outlet.googleRefreshToken,
       );
     } catch (err: any) {
+      const isInvalidGrant = /invalid_grant/i.test(err?.message || '') ||
+        err?.response?.data?.error === 'invalid_grant' ||
+        /invalid_token/i.test(err?.message || '') ||
+        /unauthorized_client/i.test(err?.message || '');
+
+      if (isInvalidGrant) {
+        this.logger.error(`[Sync] Google OAuth token for outlet ${outlet.id} is invalid or revoked (invalid_grant). Flagging outlet for reconnection.`);
+        
+        try {
+          const db = this.firebaseService.getDb();
+          await db.collection('outlets').doc(outlet.id).update({
+            googleConnectionStatus: 'invalid_grant',
+            googleTokenInvalid: true,
+            googleTokenInvalidAt: new Date(),
+            lastSyncError: 'Google account connection revoked or expired (invalid_grant). Please reconnect Google Business Profile.',
+          });
+        } catch (dbErr: any) {
+          this.logger.error(`[Sync] Failed to update outlet ${outlet.id} on invalid_grant: ${dbErr.message}`);
+        }
+
+        await this.writeSyncHistory(outlet.id, 0, 0, 0, 'error', 'Google account connection revoked or expired (invalid_grant). Reconnection required.');
+
+        return {
+          outletId: outlet.id,
+          outletName: outlet.name,
+          fetched: 0, new: 0, processed: 0,
+          status: 'error',
+          error: 'Google authorization revoked or expired (invalid_grant). Please reconnect your Google Business Profile.',
+        };
+      }
+
       this.logger.error(`[Sync] Failed to fetch reviews for outlet ${outlet.id}: ${err.message}`);
       await this.writeSyncHistory(outlet.id, 0, 0, 0, 'error', err.message);
       return { outletId: outlet.id, outletName: outlet.name, fetched: 0, new: 0, processed: 0, status: 'error', error: err.message };

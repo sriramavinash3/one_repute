@@ -20,6 +20,7 @@ import { formatTimestamp } from '../../utils/format'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
 import { useSubscription } from '../../contexts/SubscriptionContext'
+import { fetchReviews } from '../../services/reviewService'
 
 const stagger = {
   hidden: {},
@@ -61,6 +62,19 @@ export default function OutletDashboardPage() {
       return
     }
 
+    // Helper to fetch from REST API fallback
+    const loadFromApi = () => {
+      fetchReviews({ outletId, limit: 200 })
+        .then((res) => {
+          if (res?.data && Array.isArray(res.data)) {
+            setReviews(res.data)
+          }
+        })
+        .catch((err) => {
+          console.warn('[OutletDashboard] REST API fallback failed:', err?.message)
+        })
+    }
+
     const q = query(
       collection(db, 'reviews'),
       where('outletId', '==', outletId),
@@ -72,13 +86,17 @@ export default function OutletDashboardPage() {
       q,
       (snap) => {
         console.debug('[OutletDashboard] snapshot received', { outletId, size: snap.size })
-        const items = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-        setReviews(items)
-        console.debug('[OutletDashboard] setReviews ->', items.length)
+        if (snap.empty) {
+          // Attempt REST API fallback if Firestore yields empty set
+          loadFromApi()
+        } else {
+          const items = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+          setReviews(items)
+        }
       },
       (err) => {
         console.error('[OutletDashboard] snapshot error', err)
-        setReviews([])
+        loadFromApi()
       }
     )
     console.debug('[OutletDashboard] listening for reviews with outletId', outletId)

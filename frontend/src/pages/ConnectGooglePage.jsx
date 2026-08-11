@@ -226,6 +226,18 @@ export default function ConnectGooglePage() {
                 </div>
               )}
             </div>
+          ) : data?.needsReconnection || data?.error === 'invalid_grant' ? (
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2 font-semibold text-rose-600">
+                <AlertTriangle className="h-4 w-4" /> Reconnection Required
+              </div>
+              <p className="text-xs text-rose-600 font-medium">
+                Google account authorization was revoked or expired (invalid_grant).
+              </p>
+              <p className="text-xs text-slatey-500">
+                Click <strong>Connect Google Business</strong> above to grant access and restore review automation.
+              </p>
+            </div>
           ) : outletId ? (
             <div className="flex items-center gap-2 text-sm text-slatey-500">
               <Store className="h-4 w-4" /> No Google connection detected yet. Click <strong>Connect Google Business</strong> to begin.

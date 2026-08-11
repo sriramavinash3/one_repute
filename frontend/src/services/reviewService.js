@@ -6,7 +6,7 @@ export async function fetchReviews(params = {}) {
 }
 
 export async function fetchEscalations(params = {}) {
-  const { data } = await apiClient.get('/api/reviews/escalations', { params })
+  const { data } = await apiClient.get('/api/escalations', { params })
   return data
 }
 

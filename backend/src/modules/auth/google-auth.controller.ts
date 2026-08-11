@@ -226,6 +226,9 @@ export class GoogleAuthController {
               googleAccountEmail: accountEmail,
               googleLocations: locations,
               googleConnectedAt: new Date(),
+              googleConnectionStatus: 'connected',
+              googleTokenInvalid: false,
+              lastSyncError: null,
             }, { merge: true });
             this.logger.log(`Stored Google tokens for outlet: ${targetOutletId} (resolved via ${outletSource})`);
           } else {
@@ -243,6 +246,9 @@ export class GoogleAuthController {
               googleAccountEmail: accountEmail,
               googleLocations: locations,
               googleConnectedAt: new Date(),
+              googleConnectionStatus: 'connected',
+              googleTokenInvalid: false,
+              lastSyncError: null,
             }, { merge: true });
             this.logger.log(`Stored Google tokens directly for outlet: ${outletIdOrUid}`);
           } else {
@@ -285,12 +291,39 @@ export class GoogleAuthController {
     }
 
     const data = outletDoc.data();
+    const isTokenInvalid = data?.googleTokenInvalid === true || data?.googleConnectionStatus === 'invalid_grant';
+    const isConnected = !!data?.googleRefreshToken && !isTokenInvalid;
+
     return {
-      connected: !!data?.googleRefreshToken,
+      connected: isConnected,
+      needsReconnection: isTokenInvalid || (!data?.googleRefreshToken && !!data?.googleAccountId),
+      error: isTokenInvalid ? 'invalid_grant' : (data?.lastSyncError || null),
       accountEmail: data?.googleAccountEmail || null,
       activeLocation: data?.googleActiveLocation || null,
       locations: data?.googleLocations || [],
     };
+  }
+
+  @Post('disconnect')
+  async disconnect(@Body() body: { outletId: string }) {
+    const { outletId } = body || {};
+    const safeOutletId = this.sanitizeId(outletId, 'outletId');
+
+    const db = this.firebaseService.getDb();
+    await db.collection('outlets').doc(safeOutletId).set({
+      googleRefreshToken: null,
+      googleAccountId: null,
+      googleAccountEmail: null,
+      googleLocations: [],
+      googleActiveLocation: null,
+      googleLocationId: null,
+      googleConnectionStatus: 'disconnected',
+      googleTokenInvalid: false,
+      lastSyncError: null,
+      googleDisconnectedAt: new Date(),
+    }, { merge: true });
+
+    return { success: true, message: 'Google account disconnected successfully.' };
   }
 
   @Post('active-location')
@@ -302,6 +335,7 @@ export class GoogleAuthController {
     const db = this.firebaseService.getDb();
     await db.collection('outlets').doc(safeOutletId).set({
       googleActiveLocation: safeLocationId,
+      googleLocationId: safeLocationId,
     }, { merge: true });
 
     return { success: true };

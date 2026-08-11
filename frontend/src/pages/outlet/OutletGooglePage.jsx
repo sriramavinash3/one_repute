@@ -125,6 +125,18 @@ export default function OutletGooglePage() {
                   <p className="text-xs text-amber-600">⚠ No active location set — sync required</p>
                 )}
               </div>
+            ) : data?.needsReconnection || data?.error === 'invalid_grant' ? (
+              <div className="mt-2 space-y-1">
+                <p className="flex items-center gap-2 text-lg font-semibold text-rose-600">
+                  <AlertTriangle className="h-5 w-5" /> Reconnection Required
+                </p>
+                <p className="text-xs text-rose-600 font-medium">
+                  Google account authorization was revoked or expired (invalid_grant).
+                </p>
+                <p className="text-xs text-slatey-500">
+                  Please click <strong>Reconnect</strong> below to grant access and resume review syncing.
+                </p>
+              </div>
             ) : outletId ? (
               <p className="mt-2 flex items-center gap-2 text-sm text-slatey-500">
                 <Store className="h-4 w-4" /> Not connected yet

@@ -61,8 +61,9 @@ export class ReviewsController {
     }
   }
 
-  /** GET /api/escalations */
+  /** GET /api/escalations or GET /api/reviews/escalations */
   @Get('escalations')
+  @Get('reviews/escalations')
   async getEscalations(@Query('outletId') outletId: string, @Res() res: Response) {
     try {
       const data = await this.reviewsService.getEscalatedReviews(outletId);

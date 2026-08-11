@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
 import { FirebaseService } from '../firebase/firebase.service';
+import { decryptToken } from '../../common/utils/token-encryption.util';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/business.manage',
@@ -46,14 +47,17 @@ export class GoogleBusinessService {
     const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
     const redirectUri = this.resolveRedirectUri();
 
+    // Decrypt token if it is stored encrypted (iv:authTag:ciphertext format)
+    const rawToken = googleRefreshToken ? decryptToken(googleRefreshToken) : undefined;
+
     // Safe structural logging — no secrets, no auth codes, no refresh tokens.
-    this.logger.debug(`Google OAuth config: clientId=${clientId ? 'set' : 'MISSING'} clientSecret=${clientSecret ? 'set' : 'MISSING'} redirectUri=${redirectUri}`);
+    this.logger.debug(`Google OAuth config: clientId=${clientId ? 'set' : 'MISSING'} clientSecret=${clientSecret ? 'set' : 'MISSING'} redirectUri=${redirectUri} tokenPresent=${!!rawToken}`);
 
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-    if (googleRefreshToken) {
+    if (rawToken) {
       oauth2Client.setCredentials({
-        refresh_token: googleRefreshToken,
+        refresh_token: rawToken,
       });
     }
 
@@ -170,7 +174,10 @@ export class GoogleBusinessService {
     const auth = this.createOAuthClient(googleRefreshToken);
     const allReviews: any[] = [];
     let nextPageToken: string | undefined = undefined;
-    const locationName = `accounts/${googleAccountId}/locations/${googleLocationId}`;
+    
+    const cleanAccountId = this.extractId(googleAccountId);
+    const cleanLocationId = this.extractId(googleLocationId);
+    const locationName = `accounts/${cleanAccountId}/locations/${cleanLocationId}`;
 
     do {
       const response = await this.handleQuotaErrors(async () => {
@@ -191,27 +198,33 @@ export class GoogleBusinessService {
       nextPageToken = response.nextPageToken;
 
       if (allReviews.length >= 500) {
-        this.logger.warn(`Hit max reviews fetch limit (500) for location: ${googleLocationId}`);
+        this.logger.warn(`Hit max reviews fetch limit (500) for location: ${cleanLocationId}`);
         break;
       }
     } while (nextPageToken);
 
-    this.logger.log(`Fetched ${allReviews.length} reviews for location: ${googleLocationId}`);
+    this.logger.log(`Fetched ${allReviews.length} reviews for location: ${cleanLocationId}`);
     return allReviews;
   }
 
   async postReply(googleAccountId: string, googleLocationId: string, googleRefreshToken: string, reviewResourceName: string, replyText: string): Promise<void> {
     const auth = this.createOAuthClient(googleRefreshToken);
+    
+    // Ensure reviewResourceName is correctly formatted
+    const cleanResourceName = reviewResourceName.startsWith('accounts/') 
+      ? reviewResourceName 
+      : `accounts/${this.extractId(googleAccountId)}/locations/${this.extractId(googleLocationId)}/reviews/${reviewResourceName}`;
+
     await this.handleQuotaErrors(async () => {
       await auth.request({
-        url: `https://mybusiness.googleapis.com/v4/${reviewResourceName}/reply`,
+        url: `https://mybusiness.googleapis.com/v4/${cleanResourceName}/reply`,
         method: 'PUT',
         data: {
           comment: replyText,
         },
       });
     });
-    this.logger.log(`Reply posted successfully to review ${reviewResourceName}`);
+    this.logger.log(`Reply posted successfully to review ${cleanResourceName}`);
   }
 
   private async handleQuotaErrors<T>(apiCall: () => Promise<T>, retries = 3): Promise<T> {
@@ -223,6 +236,16 @@ export class GoogleBusinessService {
       try {
         return await apiCall();
       } catch (err: any) {
+        const isInvalidGrant =
+          /invalid_grant/i.test(err?.message || '') ||
+          err?.response?.data?.error === 'invalid_grant' ||
+          /invalid_token/i.test(err?.message || '');
+
+        if (isInvalidGrant) {
+          this.logger.error(`Google OAuth token invalid/revoked (invalid_grant). Aborting retries.`);
+          throw new Error(`invalid_grant: Google account authorization revoked or expired. Please reconnect.`);
+        }
+
         const isQuotaError =
           err?.code === 429 ||
           err?.response?.status === 429 ||
