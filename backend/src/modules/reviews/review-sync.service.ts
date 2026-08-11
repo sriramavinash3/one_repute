@@ -144,12 +144,12 @@ export class ReviewSyncService {
         
         try {
           const db = this.firebaseService.getDb();
-          await db.collection('outlets').doc(outlet.id).update({
+          await db.collection('outlets').doc(outlet.id).set({
             googleConnectionStatus: 'invalid_grant',
             googleTokenInvalid: true,
             googleTokenInvalidAt: new Date(),
             lastSyncError: 'Google account connection revoked or expired (invalid_grant). Please reconnect Google Business Profile.',
-          });
+          }, { merge: true });
         } catch (dbErr: any) {
           this.logger.error(`[Sync] Failed to update outlet ${outlet.id} on invalid_grant: ${dbErr.message}`);
         }
