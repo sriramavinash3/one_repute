@@ -113,7 +113,16 @@ export class GoogleAuthController {
       const { oauth2Client, tokens } = await this.googleBusinessService.exchangeCodeForTokens(code);
 
       const accountEmail = await this.googleBusinessService.fetchAccountEmail(oauth2Client);
-      const { accountId, locations } = await this.googleBusinessService.fetchAccountsAndLocations(oauth2Client);
+      const { accountId, locations, fetchErrors } = await this.googleBusinessService.fetchAccountsAndLocations(oauth2Client);
+
+      // Distinguish "account has no locations" from "Google API call failed"
+      // (quota pending / scope / permission), so the user sees a real error
+      // instead of a silent success with an empty location list.
+      const locationsWarning = locations.length === 0
+        ? (fetchErrors.length
+            ? `Google could not load your Business Profile locations: ${fetchErrors[0]}`
+            : 'No business locations were found for this Google account.')
+        : '';
 
       if (!tokens.refresh_token) {
         this.logger.warn('No refresh token received from Google');
@@ -155,19 +164,25 @@ export class GoogleAuthController {
       // POST /api/auth/onboard can finalize the customer + outlet + user link.
       if (onboardStateUid) {
         const encryptedRefreshToken = this.encrypt(tokens.refresh_token);
-        await db.collection('onboarding_sessions').doc(onboardStateUid).set({
+        const sessionPayload = {
           googleRefreshToken: encryptedRefreshToken,
           googleAccountId: accountId,
           googleAccountEmail: accountEmail,
           googleLocations: locations,
+          googleLocationsWarning: locationsWarning,
+          googleLocationsFetchedAt: new Date(),
           googleTokenScope: tokens.scope || '',
           googleTokenExpiresAt: tokens.expiry_date || null,
           createdAt: new Date(),
-        }, { merge: true });
-        this.logger.log(`Stored Google tokens in onboarding session: ${onboardStateUid}`);
+        };
+        await db.collection('onboarding_sessions').doc(onboardStateUid).set(sessionPayload, { merge: true });
+        this.logger.log(
+          `Stored Google tokens in onboarding session: ${onboardStateUid} (locations=${locations.length}${locationsWarning ? `, warning: ${locationsWarning}` : ''})`
+        );
         return res.send(this.getPopupHtml('gmb-connected', {
           googleAccountEmail: accountEmail,
           googleLocations: locations,
+          googleLocationsWarning: locationsWarning,
         }, frontendUrl));
       }
 
@@ -269,6 +284,7 @@ export class GoogleAuthController {
       return res.send(this.getPopupHtml('gmb-connected', {
         googleAccountEmail: accountEmail,
         googleLocations: locations,
+        googleLocationsWarning: locationsWarning,
       }, frontendUrl));
 
     } catch (err: any) {

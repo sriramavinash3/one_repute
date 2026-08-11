@@ -116,56 +116,89 @@ export class GoogleBusinessService {
     return parts[parts.length - 1] || '';
   }
 
+  /**
+   * Maps a single MyBusinessBusinessInformation v1 Location resource to the
+   * compact shape stored in onboarding sessions / outlet docs.
+   * NOTE: readMask field names are top-level Location fields. `categories`
+   * is valid; `primaryCategory` alone is NOT a top-level field (the category
+   * lives at `categories.primaryCategory`) — using it in a readMask makes
+   * Google reject the whole request with INVALID_ARGUMENT.
+   */
+  private mapLocation(location: any): any {
+    const postal = location.storefrontAddress || {};
+    const addressLines = Array.isArray(postal.addressLines) ? postal.addressLines : [];
+
+    return {
+      id: this.extractId(location.name),
+      name: location.title || location.name || 'Unnamed location',
+      category: location.categories?.primaryCategory?.displayName || 'General Business',
+      addressLines,
+      address: addressLines.join(', '),
+      locality: postal.locality || '',
+      postalCode: postal.postalCode || '',
+      regionCode: postal.regionCode || '',
+      phone: location.phoneNumbers?.primaryPhone || '',
+      websiteUri: location.websiteUri || '',
+      latitude: location.latlng?.latitude ?? null,
+      longitude: location.latlng?.longitude ?? null,
+      placeId: location.metadata?.placeId || '',
+      storeCode: location.storeCode || '',
+    };
+  }
+
+  /**
+   * Lists the Google Business Profiles the authenticated account can access.
+   * Returns locations plus a `fetchErrors` list so callers can distinguish
+   * "no locations exist" from "the API call itself failed" (e.g. quota/scope).
+   */
   async fetchAccountsAndLocations(oauth2Client: any) {
-    try {
-      const accountClient = google.mybusinessaccountmanagement({
-        version: 'v1',
-        auth: oauth2Client,
-      });
+    const accountClient = google.mybusinessaccountmanagement({
+      version: 'v1',
+      auth: oauth2Client,
+    });
 
-      const locationClient = google.mybusinessbusinessinformation({
-        version: 'v1',
-        auth: oauth2Client,
-      });
+    const locationClient = google.mybusinessbusinessinformation({
+      version: 'v1',
+      auth: oauth2Client,
+    });
 
-      const accountsResponse = await accountClient.accounts.list();
-      const accounts = accountsResponse.data.accounts || [];
+    const accountsResponse = await accountClient.accounts.list();
+    const accounts = accountsResponse.data.accounts || [];
 
-      const locations: any[] = [];
-      let primaryAccountId = '';
+    const locations: any[] = [];
+    const fetchErrors: string[] = [];
+    let primaryAccountId = '';
 
-      for (const account of accounts) {
-        const accountId = this.extractId(account.name);
+    for (const account of accounts) {
+      const accountId = this.extractId(account.name);
 
-        if (!primaryAccountId) {
-          primaryAccountId = accountId;
-        }
-
-        try {
-          const response = await locationClient.accounts.locations.list({
-            parent: account.name,
-            readMask: 'name,title,primaryCategory,categories',
-          });
-
-          const accountLocations = (response.data.locations || [])
-            .map((location: any) => ({
-              id: this.extractId(location.name),
-              name: location.title || location.name || 'Unnamed location',
-              category: location.primaryCategory?.displayName || location.categories?.primaryCategory?.displayName || 'General Business',
-            }))
-            .filter((location: any) => location.id);
-
-          locations.push(...accountLocations);
-        } catch (err: any) {
-          this.logger.warn(`Failed to fetch locations for account ${accountId}: ${err.message}`);
-        }
+      if (!primaryAccountId) {
+        primaryAccountId = accountId;
       }
 
-      return { accountId: primaryAccountId, locations };
-    } catch (err: any) {
-      this.logger.warn(`Failed to fetch accounts/locations: ${err.message}`);
-      return { accountId: '', locations: [] };
+      try {
+        // readMask is REQUIRED by this API. Only valid top-level Location
+        // fields may be used (e.g. categories, storefrontAddress, metadata).
+        const response = await locationClient.accounts.locations.list({
+          parent: account.name,
+          readMask: 'name,title,categories,storefrontAddress,phoneNumbers,websiteUri,latlng,metadata,storeCode',
+        });
+
+        const accountLocations = (response.data.locations || [])
+          .map((location: any) => this.mapLocation(location))
+          .filter((location: any) => location.id);
+
+        locations.push(...accountLocations);
+        this.logger.log(`Fetched ${accountLocations.length} location(s) for account ${accountId}`);
+      } catch (err: any) {
+        const message = `Failed to fetch locations for account ${accountId}: ${err.message}`;
+        this.logger.warn(message);
+        fetchErrors.push(err.message);
+      }
     }
+
+    this.logger.log(`Accounts/locations fetch complete: ${accounts.length} account(s), ${locations.length} location(s), ${fetchErrors.length} error(s)`);
+    return { accountId: primaryAccountId, locations, fetchErrors };
   }
 
   async fetchReviews(googleAccountId: string, googleLocationId: string, googleRefreshToken: string): Promise<any[]> {

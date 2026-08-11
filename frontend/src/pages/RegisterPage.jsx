@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, ChevronRight, Store, CreditCard, Sparkles, Tag, X } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Store, CreditCard, Sparkles, Tag, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
 import { db } from '../firebase/firebase'
 import Button from '../components/ui/button'
 import Input from '../components/ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import apiClient from '../services/apiClient'
-import { buildOAuthUrl } from '../services/googleAuthService'
+import { buildOAuthUrl, getOAuthMessageOrigins } from '../services/googleAuthService'
 import { createSubscription, verifyPayment, loadRazorpayScript } from '../services/paymentService'
 import { fetchPlaceSuggestions, fetchPlaceDetails } from '../services/outletService'
 import Logo from '../components/common/Logo'
@@ -86,11 +86,74 @@ export default function OnboardingPage() {
 
   const [googleConnected, setGoogleConnected] = useState(false)
   const [gmbLocations, setGmbLocations] = useState([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
+  const [locationsError, setLocationsError] = useState(null)
   const [showDisclosureModal, setShowDisclosureModal] = useState(false)
   
   const [discountCode, setDiscountCode] = useState('')
   const [discountData, setDiscountData] = useState(null)
   const [validatingDiscount, setValidatingDiscount] = useState(false)
+
+  const handleSelectLocation = useCallback((locationId, locationsArray = gmbLocations) => {
+    const loc = locationsArray.find(l => l.id === locationId)
+    if (!loc) return
+    const gmbCategory = loc?.category || loc?.primaryCategory?.displayName || loc?.primaryCategory || 'General Business'
+    setForm(prev => ({
+      ...prev,
+      placeId: locationId,
+      businessName: loc?.name || prev.businessName,
+      businessType: gmbCategory,
+      address: loc?.address || loc?.addressLines?.join(', ') || prev.address
+    }))
+  }, [gmbLocations])
+
+  /**
+   * Reliably loads the Google Business data collected during the OAuth flow.
+   * Used both when the popup confirms the connection AND on page load/refresh
+   * so a refresh after connecting never loses the selected outlet.
+   */
+  const loadOnboardingSession = useCallback(async (fallbackLocations) => {
+    if (!user?.uid) return false
+    setLocationsLoading(true)
+    setLocationsError(null)
+    try {
+      const { data } = await apiClient.get(`/api/auth/onboarding-session/${user.uid}`)
+      const locs = data.googleLocations || []
+      setGmbLocations(locs)
+      setGoogleConnected(true)
+      if (locs.length === 1) {
+        handleSelectLocation(locs[0].id, locs)
+      }
+      if (locs.length === 0 && data.googleLocationsWarning) {
+        setLocationsError({ type: 'warning', message: data.googleLocationsWarning })
+      }
+      return true
+    } catch (error) {
+      // No session yet, or a transient failure — fall back to the locations
+      // the OAuth popup itself delivered so the flow still advances.
+      if (Array.isArray(fallbackLocations) && fallbackLocations.length > 0) {
+        setGmbLocations(fallbackLocations)
+        setGoogleConnected(true)
+        if (fallbackLocations.length === 1) {
+          handleSelectLocation(fallbackLocations[0].id, fallbackLocations)
+        }
+        return true
+      }
+      if (error?.response?.status !== 404) {
+        setLocationsError({ type: 'error', message: 'Failed to load Google Business data. Please try again.' })
+      }
+      return false
+    } finally {
+      setLocationsLoading(false)
+    }
+  }, [user?.uid, handleSelectLocation])
+
+  // Recover the Google connection + selected outlet after a page refresh.
+  useEffect(() => {
+    if (user?.uid) {
+      loadOnboardingSession(null)
+    }
+  }, [user?.uid, loadOnboardingSession])
 
   const handleApplyDiscount = async () => {
     if (!discountCode.trim()) return;
@@ -122,40 +185,28 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const handleMessage = async (event) => {
-      // Security: only accept messages from the known backend origin (OAuth popup host)
-      const allowedOrigins = [
-        import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:3000',
-        window.location.origin,
-      ]
-      const apiBase = import.meta.env.VITE_API_BASE_URL
-      if (apiBase && apiBase.startsWith('http')) {
-        try { allowedOrigins.push(new URL(apiBase).origin) } catch (_) {}
-      }
+      // Security: only accept messages from the known backend origin (OAuth popup host).
+      // In production the popup callback is served from https://api.onerepute.com while
+      // this page runs on https://onerepute.com — both must be allowed.
+      const allowedOrigins = getOAuthMessageOrigins()
       if (!allowedOrigins.includes(event.origin)) {
+        console.warn('[Onboarding] ignoring postMessage from unexpected origin:', event.origin)
         return // silently ignore messages from unexpected origins
       }
 
       if (event.data?.type === 'gmb-connected') {
         toast.success('Google My Business connected successfully!')
         setShowDisclosureModal(true)
-        try {
-          const { data } = await apiClient.get(`/api/auth/onboarding-session/${user.uid}`)
-          setGmbLocations(data.googleLocations || [])
-          setGoogleConnected(true)
-          if (data.googleLocations?.length === 1) {
-            handleSelectLocation(data.googleLocations[0].id, data.googleLocations)
-          }
-        } catch (error) {
-          toast.error('Failed to load locations. Please try again.')
-        }
+        await loadOnboardingSession(event.data.googleLocations)
       } else if (event.data?.type === 'gmb-error') {
+        setLocationsError({ type: 'error', message: event.data.error || 'Google connection failed.' })
         toast.error(`Google Connection failed: ${event.data.error}`)
       }
     }
 
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [user?.uid])
+  }, [loadOnboardingSession])
 
   const handleConnectGoogle = () => {
     if (!user?.uid) {
@@ -174,23 +225,6 @@ export default function OnboardingPage() {
 
     window.open(url, 'Connect GMB', `width=${width},height=${height},left=${left},top=${top}`)
   }
-
-  const handleSelectLocation = (locationId, locationsArray = gmbLocations) => {
-    const loc = locationsArray.find(l => l.id === locationId)
-    const gmbCategory = loc?.category || loc?.primaryCategory?.displayName || loc?.primaryCategory || 'General Business'
-    setForm(prev => ({
-      ...prev,
-      placeId: locationId,
-      businessName: loc?.name || prev.businessName,
-      businessType: gmbCategory
-    }))
-  }
-
-  useEffect(() => {
-    if (profile?.outletId && profile?.isSetupComplete) {
-      navigate('/outlet-dashboard')
-    }
-  }, [profile, navigate])
 
   const handleNextStep = (e) => {
     e.preventDefault()
@@ -360,7 +394,12 @@ export default function OnboardingPage() {
                 </div>
                 
                 <form onSubmit={handleNextStep} className="mt-8 space-y-5">
-                  {!googleConnected ? (
+                  {locationsLoading ? (
+                    <div className="flex items-center justify-center gap-3 rounded-2xl border border-slatey-200 bg-slatey-50 p-6 text-sm text-slatey-500">
+                      <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+                      Loading your Google Business Profile data…
+                    </div>
+                  ) : !googleConnected ? (
                     <div className="space-y-3 rounded-2xl border border-slatey-200 bg-slatey-50 p-5 text-center">
                       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
                         <Store className="h-6 w-6 text-brand-600" />
@@ -375,22 +414,54 @@ export default function OnboardingPage() {
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slatey-700 ml-1">Select Business Location</label>
                       {gmbLocations.length > 0 ? (
-                        <select
-                          className="w-full h-12 rounded-xl border border-slatey-200 bg-slatey-50 px-4 text-sm text-slatey-700 outline-none transition focus:border-brand-400 focus:bg-white"
-                          value={form.placeId}
-                          onChange={(e) => handleSelectLocation(e.target.value)}
-                          required
-                        >
-                          <option value="" disabled>-- Select a location --</option>
-                          {gmbLocations.map(loc => (
-                            <option key={loc.id} value={loc.id}>{loc.name}</option>
-                          ))}
-                        </select>
+                        <>
+                          <label className="text-xs font-semibold text-slatey-700 ml-1">Select Business Location</label>
+                          <select
+                            className="w-full h-12 rounded-xl border border-slatey-200 bg-slatey-50 px-4 text-sm text-slatey-700 outline-none transition focus:border-brand-400 focus:bg-white"
+                            value={form.placeId}
+                            onChange={(e) => handleSelectLocation(e.target.value)}
+                            required
+                          >
+                            <option value="" disabled>-- Select a location --</option>
+                            {gmbLocations.map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                          </select>
+                        </>
                       ) : (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                          No locations found in this Google Account. Please ensure you manage a Google Business Profile.
+                        <div className="space-y-3">
+                          <div className={`rounded-xl border p-4 text-sm ${
+                            locationsError?.type === 'error'
+                              ? 'border-rose-200 bg-rose-50 text-rose-800'
+                              : 'border-amber-200 bg-amber-50 text-amber-800'
+                          }`}>
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                              <div>
+                                <p className="font-semibold">
+                                  {locationsError ? 'Google connection needs attention' : 'No locations found in this Google Account'}
+                                </p>
+                                <p className="mt-1 text-xs leading-relaxed">
+                                  {locationsError?.message || 'Please ensure you manage a Google Business Profile.'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => loadOnboardingSession(null)}
+                                className="bg-white"
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" /> Retry
+                              </Button>
+                              <Button type="button" variant="outline" size="sm" onClick={handleConnectGoogle} className="bg-white">
+                                Reconnect Google
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

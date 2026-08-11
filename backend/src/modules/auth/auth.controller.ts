@@ -200,6 +200,8 @@ export class AuthController {
     return {
       googleAccountEmail: data?.googleAccountEmail,
       googleLocations: data?.googleLocations || [],
+      googleLocationsWarning: data?.googleLocationsWarning || '',
+      googleLocationsFetchedAt: data?.googleLocationsFetchedAt || null,
       googleAccountId: data?.googleAccountId,
     };
   }
@@ -244,6 +246,7 @@ export class AuthController {
     const locations = sessionData.googleLocations || [];
     const selectedLocation = locations.find((l: any) => l?.id === form?.placeId) || {};
     const businessName = form?.businessName || selectedLocation.name || 'Unknown Business';
+    const businessAddress = (form?.address || selectedLocation.address || '').trim();
 
     // Business Category fetched from GMB or pre-defined selection
     const businessCategory = form?.businessType || selectedLocation.category || selectedLocation.primaryCategory?.displayName || 'General Business';
@@ -294,11 +297,17 @@ export class AuthController {
       primaryWhatsAppNumber: localWhatsApp,
       whatsappNumber: fullWhatsAppNumber,
       managerPhone: fullWhatsAppNumber,
-      address: form?.address || '',
+      address: businessAddress,
       placeId: form?.placeId || '',
       providerType: 'GBP',
       googleLocationId: form?.placeId || '',
       googleLocationName: selectedLocation.name || '',
+      googleLocationAddress: selectedLocation.address || '',
+      googleLocationPhone: selectedLocation.phone || '',
+      googleLocationWebsite: selectedLocation.websiteUri || '',
+      googlePlaceId: selectedLocation.placeId || '',
+      googleLocationLatitude: selectedLocation.latitude ?? null,
+      googleLocationLongitude: selectedLocation.longitude ?? null,
       googleAccountId: sessionData.googleAccountId || '',
       googleRefreshToken: sessionData.googleRefreshToken,
       googleAccountEmail: sessionData.googleAccountEmail || '',

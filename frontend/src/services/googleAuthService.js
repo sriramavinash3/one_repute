@@ -36,6 +36,51 @@ export function buildOAuthUrl(path, queryParams = {}) {
   return url
 }
 
+/**
+ * Origins that may legitimately deliver OAuth popup postMessage events.
+ *
+ * The OAuth *popup opens* on the app origin, but Google redirects the callback
+ * to the backend host (redirect_uri), so the popup page that posts the
+ * `gmb-connected` / `gmb-error` message is served from the BACKEND origin:
+ *  - local dev:    http://localhost:3000 (VITE_LOCAL_API_URL)
+ *  - production:   https://api.onerepute.com  (app itself runs on onerepute.com)
+ *
+ * The opener page must accept messages from that backend origin or the
+ * connection result is silently dropped and the UI never advances.
+ */
+export function getOAuthMessageOrigins() {
+  const origins = new Set()
+  if (typeof window === 'undefined') {
+    return Array.from(origins)
+  }
+
+  const host = window.location.hostname
+
+  // Dev: the backend runs on the local API URL (VITE_LOCAL_API_URL or localhost:3000)
+  const localApi = import.meta.env.VITE_LOCAL_API_URL
+  if (localApi && localApi.startsWith('http')) {
+    try { origins.add(new URL(localApi).origin) } catch (_) {}
+  }
+  if (host === 'localhost' || host === '127.0.0.1') {
+    origins.add('http://localhost:3000')
+  }
+
+  // The popup may open on the app origin itself (callback host = app host)
+  origins.add(window.location.origin)
+
+  // Production: the app origin and the backend (callback) host differ
+  if (host === 'onerepute.com' || host.endsWith('.onerepute.com')) {
+    origins.add('https://api.onerepute.com')
+  }
+
+  const apiBase = import.meta.env.VITE_API_BASE_URL
+  if (apiBase && apiBase.startsWith('http')) {
+    try { origins.add(new URL(apiBase).origin) } catch (_) {}
+  }
+
+  return Array.from(origins)
+}
+
 export async function getGoogleConnectionStatus(outletId) {
   if (!outletId) throw new Error('Outlet ID is required');
 
