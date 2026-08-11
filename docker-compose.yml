@@ -49,6 +49,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-onerepute}:${POSTGRES_PASSWORD:-onerepute_secret_password}@postgres:5432/${POSTGRES_DB:-onerepute_db}?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # Production OAuth URLs — MUST match the Authorized redirect URIs in
+      # Google Cloud Console for the OAuth 2.0 Client (111717206874-...apps.googleusercontent.com).
+      # These override any conflicting values in backend/.env (environment wins over env_file).
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-https://onerepute.com/api/auth/google/callback}
+      APP_URL: ${APP_URL:-https://onerepute.com}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-https://onerepute.com}
     env_file:
       - ./backend/.env
     depends_on:
