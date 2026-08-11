@@ -141,8 +141,7 @@ function renderHead(route) {
 
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.ico" />
     <link rel="canonical" href="${url}" />
     <link rel="manifest" href="/manifest.webmanifest" />
 
