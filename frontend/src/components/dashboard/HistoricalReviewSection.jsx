@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { History, Sparkles, MessageCircle, CheckCircle2, Clock, AlertTriangle, Layers, ChevronRight } from 'lucide-react'
+import { History, Sparkles, MessageCircle, CheckCircle2, Clock, AlertTriangle, ChevronRight } from 'lucide-react'
 import { formatTimestamp } from '../../utils/format'
 import StatusBadge from '../feedback/StatusBadge'
 import Skeleton from '../feedback/Skeleton'
@@ -70,11 +70,6 @@ export default function HistoricalReviewSection({ outletId }) {
               Preserved onboarding history, AI context records, and baseline review tracking.
             </p>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700 border border-purple-200 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/20">
-            <Layers className="h-3.5 w-3.5" /> Token Efficient Strategy
-          </span>
         </div>
       </div>
 
