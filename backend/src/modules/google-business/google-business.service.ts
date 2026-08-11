@@ -22,11 +22,18 @@ export class GoogleBusinessService {
   private resolveRedirectUri(): string {
     const explicit = this.configService.get<string>('GOOGLE_REDIRECT_URI');
     if (explicit) return explicit;
-    const isProduction = (process.env.NODE_ENV || 'development') === 'production';
-    // Never emit a localhost redirect URI outside local development.
-    return isProduction
-      ? 'https://onerepute.com/api/auth/google/callback'
-      : 'http://localhost:3000/api/auth/google/callback';
+
+    const isProduction = this.configService.get<boolean>('app.isProduction');
+    const appUrlConfig = this.configService.get<string>('app.appUrl');
+
+    // In local development, ensure redirect_uri uses http://localhost:3000 unless explicit GOOGLE_REDIRECT_URI is provided
+    let baseAppUrl = appUrlConfig || (isProduction ? 'https://onerepute.com' : 'http://localhost:3000');
+    if (!isProduction && baseAppUrl.includes('onerepute.com')) {
+      baseAppUrl = 'http://localhost:3000';
+    }
+
+    const appUrl = baseAppUrl.replace(/\/+$/, '');
+    return `${appUrl}/api/auth/google/callback`;
   }
 
   createOAuthClient(googleRefreshToken?: string) {
@@ -51,7 +58,6 @@ export class GoogleBusinessService {
   getConsentUrl(outletId?: string): string {
     const oauth2Client = this.createOAuthClient();
     // Pass the raw value — generateAuthUrl applies proper query encoding exactly once.
-    // (Previously encodeURIComponent() caused double-encoded state params.)
     const state = outletId || undefined;
 
     const consentUrl = oauth2Client.generateAuthUrl({
@@ -61,8 +67,21 @@ export class GoogleBusinessService {
       state,
     });
 
-    // Structural audit of the URL that will be handed to the browser.
-    this.logger.debug(`Google consent URL: host=${(() => { try { return new URL(consentUrl).host; } catch { return 'INVALID'; } })()} path=${(() => { try { return new URL(consentUrl).pathname; } catch { return 'INVALID'; } })()} state=${state ? `present(${outletId.length} chars)` : 'absent'} scopeCount=${SCOPES.length} redirectUri=${this.resolveRedirectUri()}`);
+    // Safe logging of generated OAuth request parameters without sensitive secrets or tokens
+    try {
+      const parsed = new URL(consentUrl);
+      this.logger.log(
+        `Generated Google OAuth URL: client_id=${parsed.searchParams.get('client_id')} ` +
+        `redirect_uri=${parsed.searchParams.get('redirect_uri')} ` +
+        `response_type=${parsed.searchParams.get('response_type')} ` +
+        `scope=${parsed.searchParams.get('scope')} ` +
+        `access_type=${parsed.searchParams.get('access_type')} ` +
+        `prompt=${parsed.searchParams.get('prompt')} ` +
+        `state_present=${!!parsed.searchParams.get('state')}`
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to parse consentUrl: ${e.message}`);
+    }
 
     return consentUrl;
   }
@@ -92,49 +111,54 @@ export class GoogleBusinessService {
   }
 
   async fetchAccountsAndLocations(oauth2Client: any) {
-    const accountClient = google.mybusinessaccountmanagement({
-      version: 'v1',
-      auth: oauth2Client,
-    });
+    try {
+      const accountClient = google.mybusinessaccountmanagement({
+        version: 'v1',
+        auth: oauth2Client,
+      });
 
-    const locationClient = google.mybusinessbusinessinformation({
-      version: 'v1',
-      auth: oauth2Client,
-    });
+      const locationClient = google.mybusinessbusinessinformation({
+        version: 'v1',
+        auth: oauth2Client,
+      });
 
-    const accountsResponse = await accountClient.accounts.list();
-    const accounts = accountsResponse.data.accounts || [];
+      const accountsResponse = await accountClient.accounts.list();
+      const accounts = accountsResponse.data.accounts || [];
 
-    const locations: any[] = [];
-    let primaryAccountId = '';
+      const locations: any[] = [];
+      let primaryAccountId = '';
 
-    for (const account of accounts) {
-      const accountId = this.extractId(account.name);
+      for (const account of accounts) {
+        const accountId = this.extractId(account.name);
 
-      if (!primaryAccountId) {
-        primaryAccountId = accountId;
+        if (!primaryAccountId) {
+          primaryAccountId = accountId;
+        }
+
+        try {
+          const response = await locationClient.accounts.locations.list({
+            parent: account.name,
+            readMask: 'name,title',
+          });
+
+          const accountLocations = (response.data.locations || [])
+            .map((location: any) => ({
+              id: this.extractId(location.name),
+              name: location.title || location.name || 'Unnamed location',
+            }))
+            .filter((location: any) => location.id);
+
+          locations.push(...accountLocations);
+        } catch (err: any) {
+          this.logger.warn(`Failed to fetch locations for account ${accountId}: ${err.message}`);
+        }
       }
 
-      try {
-        const response = await locationClient.accounts.locations.list({
-          parent: account.name,
-          readMask: 'name,title',
-        });
-
-        const accountLocations = (response.data.locations || [])
-          .map((location: any) => ({
-            id: this.extractId(location.name),
-            name: location.title || location.name || 'Unnamed location',
-          }))
-          .filter((location: any) => location.id);
-
-        locations.push(...accountLocations);
-      } catch (err: any) {
-        this.logger.warn(`Failed to fetch locations for account ${accountId}: ${err.message}`);
-      }
+      return { accountId: primaryAccountId, locations };
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch accounts/locations: ${err.message}`);
+      return { accountId: '', locations: [] };
     }
-
-    return { accountId: primaryAccountId, locations };
   }
 
   async fetchReviews(googleAccountId: string, googleLocationId: string, googleRefreshToken: string): Promise<any[]> {

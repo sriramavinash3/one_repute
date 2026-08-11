@@ -387,7 +387,7 @@ export default function OutletSettingsPage() {
         </div>
         
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-slatey-100 rounded-xl border border-slatey-200">
+        <div className="flex max-w-full overflow-x-auto whitespace-nowrap items-center gap-1.5 p-1 bg-slatey-100 rounded-xl border border-slatey-200">
           <button
             onClick={() => setActiveTab('general')}
             className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${activeTab === 'general' ? 'bg-white text-brand-600 shadow-sm' : 'text-slatey-500 hover:text-slatey-800'}`}

@@ -212,7 +212,7 @@ export default function AdminEscalationsPage() {
             ))}
           </div>
         ) : filtered.length > 0 ? (
-          <div className="overflow-hidden rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40 overflow-x-auto">
+          <div className="rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40 overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm whitespace-nowrap">
               <thead className="bg-slatey-50/80 text-xs font-medium uppercase tracking-wider text-slatey-500 dark:bg-slatey-900 dark:text-slatey-400">
                 <tr>

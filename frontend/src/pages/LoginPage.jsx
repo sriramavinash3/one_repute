@@ -12,6 +12,7 @@ import Input from '../components/ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import apiClient from '../services/apiClient'
 import Logo from '../components/common/Logo'
+import Seo from '../components/seo/Seo'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -106,8 +107,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <div className="glass-panel w-full max-w-md rounded-3xl p-8">
+    <div className="flex min-h-screen items-center justify-center px-3 sm:px-6 py-6">
+      <Seo
+        title="Login | One Repute"
+        description="Sign in to your One Repute dashboard to manage Google review automation, AI replies, and WhatsApp escalation alerts."
+        path="/login"
+        noindex
+      />
+      <div className="glass-panel w-full max-w-md rounded-3xl p-5 sm:p-8">
         <div className="mb-6 flex justify-center">
           <Logo size="lg" to="/" />
         </div>

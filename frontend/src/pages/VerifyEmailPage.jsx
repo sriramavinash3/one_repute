@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../components/ui/button'
 import Logo from '../components/common/Logo'
+import Seo from '../components/seo/Seo'
 import apiClient from '../services/apiClient'
 
 export default function VerifyEmailPage() {
@@ -36,8 +37,14 @@ export default function VerifyEmailPage() {
   }, [email, token])
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <div className="glass-panel w-full max-w-md rounded-3xl p-8 text-center">
+    <div className="flex min-h-screen items-center justify-center px-3 sm:px-6 py-6">
+      <Seo
+        title="Verify Email | One Repute"
+        description="Verify your email address to activate your One Repute account."
+        path="/verify-email"
+        noindex
+      />
+      <div className="glass-panel w-full max-w-md rounded-3xl p-5 sm:p-8 text-center">
         <div className="mb-6 flex justify-center">
           <Logo size="lg" to="/" />
         </div>

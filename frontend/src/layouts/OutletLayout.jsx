@@ -6,6 +6,7 @@ import Topbar from '../components/navigation/Topbar'
 import Button from '../components/ui/button'
 import { useAuth } from '../contexts/AuthContext'
 import Logo from '../components/common/Logo'
+import Seo from '../components/seo/Seo'
 
 export default function OutletLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -61,6 +62,12 @@ export default function OutletLayout() {
 
   return (
     <div className="dashboard-shell">
+      <Seo
+        title="Outlet Dashboard | One Repute"
+        description="Your One Repute outlet workspace for reviews, escalations, and analytics."
+        path="/outlet-dashboard"
+        noindex
+      />
       <div className="flex">
         <Sidebar header={headerContent} items={items} footer={footer} className="hidden lg:flex" />
 
@@ -75,7 +82,7 @@ export default function OutletLayout() {
           </div>
 
           <Topbar title="Outlet Performance" user={profile} onLogout={handleLogout} />
-          <main className="flex-1 px-6 py-6">
+          <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 overflow-x-hidden">
             <Outlet />
           </main>
         </div>
@@ -84,10 +91,10 @@ export default function OutletLayout() {
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 bg-slatey-900/40 lg:hidden" onClick={() => setMobileOpen(false)}>
           <div
-            className="absolute left-0 top-0 h-full w-64 bg-white px-5 py-6"
+            className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-white p-0 shadow-2xl dark:bg-slatey-900"
             onClick={(event) => event.stopPropagation()}
           >
-            <Sidebar header={headerContent} items={items} footer={footer} className="flex" />
+            <Sidebar header={headerContent} items={items} footer={footer} className="flex h-full w-full border-r-0" onItemClick={() => setMobileOpen(false)} />
           </div>
         </div>
       ) : null}

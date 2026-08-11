@@ -64,7 +64,7 @@ function PricingInner() {
 
       {/* Header & Region Switcher */}
       <div className="text-center max-w-3xl mx-auto">
-        <div className="flex items-center justify-center gap-2 mb-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
           <Badge variant="brand">Flexible Plans</Badge>
 
           {/* Region Toggle Selector */}
@@ -72,7 +72,7 @@ function PricingInner() {
             <button
               onClick={() => setRegion('IN')}
               type="button"
-              className={`rounded-full px-3 py-1 transition-all ${
+              className={`rounded-full px-2.5 sm:px-3 py-1.5 sm:py-1 transition-all whitespace-nowrap ${
                 region === 'IN'
                   ? 'bg-white text-slatey-900 shadow-sm dark:bg-slatey-700 dark:text-white'
                   : 'text-slatey-500 hover:text-slatey-800 dark:text-slatey-400'
@@ -83,7 +83,7 @@ function PricingInner() {
             <button
               onClick={() => setRegion('INT')}
               type="button"
-              className={`rounded-full px-3 py-1 transition-all ${
+              className={`rounded-full px-2.5 sm:px-3 py-1.5 sm:py-1 transition-all whitespace-nowrap ${
                 region === 'INT'
                   ? 'bg-white text-slatey-900 shadow-sm dark:bg-slatey-700 dark:text-white'
                   : 'text-slatey-500 hover:text-slatey-800 dark:text-slatey-400'
@@ -95,7 +95,7 @@ function PricingInner() {
           </div>
         </div>
 
-        <h2 className="text-4xl font-extrabold tracking-tight text-slatey-900 dark:text-white sm:text-5xl">
+        <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slatey-900 dark:text-white md:text-5xl">
           Simple &amp; Transparent Pricing
         </h2>
         <p className="mt-4 text-lg text-slatey-500 dark:text-slatey-400 leading-relaxed">
@@ -165,22 +165,22 @@ function PricingInner() {
         <div className="absolute left-0 top-0 -translate-x-1/3 -translate-y-1/3 rounded-full bg-brand-600/20 blur-3xl h-64 w-64" />
         <div className="absolute right-0 bottom-0 translate-x-1/3 translate-y-1/3 rounded-full bg-brand-500/20 blur-3xl h-64 w-64" />
 
-        <h3 className="relative z-10 text-3xl font-extrabold sm:text-4xl text-white">
+        <h3 className="relative z-10 text-2xl sm:text-3xl md:text-4xl text-white font-extrabold">
           Ready to Grow Your Online Reputation?
         </h3>
-        <p className="relative z-10 mt-3 text-base text-slatey-300 max-w-2xl mx-auto">
+        <p className="relative z-10 mt-3 text-sm sm:text-base text-slatey-300 max-w-2xl mx-auto">
           Start automating review management with AI and deliver exceptional customer experiences.
         </p>
 
-        <div className="relative z-10 mt-8 flex flex-wrap justify-center gap-4">
-          <Link to="/login">
-            <Button size="lg" className="h-12 px-8 bg-brand-600 hover:bg-brand-500 text-white shadow-brand font-semibold">
+        <div className="relative z-10 mt-8 flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-4">
+          <Link to="/login" className="w-full sm:w-auto">
+            <Button size="lg" className="h-12 w-full sm:w-auto px-8 bg-brand-600 hover:bg-brand-500 text-white shadow-brand font-semibold">
               Get Started
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
-          <Link to="/login">
-            <Button variant="outline" size="lg" className="h-12 px-8 bg-slatey-800 text-white border-slatey-700 hover:bg-slatey-700 font-semibold">
+          <Link to="/login" className="w-full sm:w-auto">
+            <Button variant="outline" size="lg" className="h-12 w-full sm:w-auto px-8 bg-slatey-800 text-white border-slatey-700 hover:bg-slatey-700 font-semibold">
               Contact Sales
             </Button>
           </Link>

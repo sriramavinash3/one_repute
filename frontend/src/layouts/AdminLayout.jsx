@@ -20,6 +20,7 @@ import {
 import Sidebar from '../components/navigation/Sidebar'
 import Topbar from '../components/navigation/Topbar'
 import Button from '../components/ui/button'
+import Seo from '../components/seo/Seo'
 import { useAuth } from '../contexts/AuthContext'
 import Logo from '../components/common/Logo'
 
@@ -68,6 +69,12 @@ export default function AdminLayout() {
 
   return (
     <div className="dashboard-shell">
+      <Seo
+        title="Admin Dashboard | One Repute"
+        description="Admin command center for One Repute."
+        path="/admin-dashboard"
+        noindex
+      />
       <div className="flex">
         <Sidebar
           header={adminHeader}
@@ -85,7 +92,7 @@ export default function AdminLayout() {
           </div>
 
           <Topbar title="Admin Command Center" user={profile} onLogout={handleLogout} />
-          <main className="flex-1 px-6 py-6">
+          <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 overflow-x-hidden">
             <Outlet />
           </main>
         </div>
@@ -94,10 +101,10 @@ export default function AdminLayout() {
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 bg-slatey-900/40 lg:hidden" onClick={() => setMobileOpen(false)}>
           <div
-            className="absolute left-0 top-0 h-full w-64 bg-white px-5 py-6"
+            className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-white p-0 shadow-2xl dark:bg-slatey-900"
             onClick={(event) => event.stopPropagation()}
           >
-            <Sidebar header={adminHeader} items={items} footer={footer} className="flex" />
+            <Sidebar header={adminHeader} items={items} footer={footer} className="flex h-full w-full border-r-0" onItemClick={() => setMobileOpen(false)} />
           </div>
         </div>
       ) : null}

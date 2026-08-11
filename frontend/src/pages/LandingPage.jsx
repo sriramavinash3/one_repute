@@ -1,9 +1,11 @@
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Bot, CheckCircle2, ShieldCheck, Zap, Layout, MessageSquare, PieChart, BellRing } from 'lucide-react'
+import { ArrowRight, Bot, CheckCircle2, ShieldCheck, Zap, Layout, MessageSquare, PieChart, BellRing, Menu, X } from 'lucide-react'
 import Button from '../components/ui/button'
 import PricingSection from '../components/pricing/PricingSection'
 import Logo from '../components/common/Logo'
+import Seo from '../components/seo/Seo'
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -14,55 +16,123 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.1 } }
 }
 
+const LANDING_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'One Repute',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  url: 'https://onerepute.com/',
+  description:
+    'Enterprise reputation management system that automates Google review responses with AI and escalates critical reviews to managers via WhatsApp.',
+  publisher: {
+    '@type': 'Organization',
+    name: 'One Repute',
+    url: 'https://onerepute.com',
+    logo: 'https://onerepute.com/logo.png'
+  }
+}
+
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  const navLinks = [
+    { href: '#features', label: 'Features' },
+    { href: '#workflow', label: 'Workflow' },
+    { href: '#pricing', label: 'Pricing' },
+    { href: '#security', label: 'Security' }
+  ]
+
   return (
     <div className="min-h-screen bg-white selection:bg-brand-100 selection:text-brand-900">
+      <Seo
+        title="One Repute — AI-Powered Google Review Management"
+        description="Automate Google review replies with human-like AI, get instant WhatsApp escalation alerts for negative reviews, and manage multi-outlet reputation from one secure dashboard."
+        path="/"
+        jsonLd={LANDING_JSONLD}
+      />
       {/* Navigation */}
       <nav className="fixed top-0 z-50 w-full border-b border-slatey-100 bg-white/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
           <Logo to="/" size="md" showText={false} />
           <div className="hidden items-center gap-8 text-sm font-medium text-slatey-500 md:flex">
-            <a href="#features" className="hover:text-brand-600 transition-colors">Features</a>
-            <a href="#workflow" className="hover:text-brand-600 transition-colors">Workflow</a>
-            <a href="#pricing" className="hover:text-brand-600 transition-colors">Pricing</a>
-            <a href="#security" className="hover:text-brand-600 transition-colors">Security</a>
+            {navLinks.map((link) => (
+              <a key={link.href} href={link.href} className="hover:text-brand-600 transition-colors">{link.label}</a>
+            ))}
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/login">
+            <Link to="/login" className="hidden sm:block">
               <Button size="sm" className="shadow-brand">Login to Dashboard</Button>
             </Link>
+            <Link to="/login" className="sm:hidden">
+              <Button size="sm" className="shadow-brand px-3">Login</Button>
+            </Link>
+            <button
+              type="button"
+              aria-label="Toggle navigation menu"
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slatey-200 text-slatey-600 transition-colors hover:text-brand-600 md:hidden"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="overflow-hidden border-t border-slatey-100 bg-white/95 backdrop-blur-xl md:hidden"
+            >
+              <div className="flex flex-col gap-1 px-4 py-4">
+                {navLinks.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-slatey-600 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
-      <main className="pt-32">
+      <main className="pt-24 sm:pt-32">
         {/* Hero Section */}
-        <section className="mx-auto max-w-7xl px-6 pb-24 text-center">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 pb-16 sm:pb-24 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger} className="mx-auto max-w-4xl">
             <motion.div variants={fadeIn} className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-200">
               <Zap className="h-3 w-3 fill-brand-500 text-brand-500" />
               <span>Enterprise Reputation Management System</span>
             </motion.div>
-            <motion.h1 variants={fadeIn} className="mt-8 text-5xl font-extrabold tracking-tight text-slatey-900 sm:text-7xl">
+            <motion.h1 variants={fadeIn} className="mt-6 text-3xl font-extrabold tracking-tight text-slatey-900 sm:text-5xl md:text-7xl">
               Turn Every Google Review <span className="text-brand-600">Into Trust.</span>
             </motion.h1>
-            <motion.p variants={fadeIn} className="mt-8 text-xl leading-relaxed text-slatey-500">
+            <motion.p variants={fadeIn} className="mt-6 text-base sm:text-xl leading-relaxed text-slatey-500">
               One Repute provides an exclusive infrastructure for automated reputation management. Authorized outlets get human-like AI replies and instant manager escalations via WhatsApp.
             </motion.p>
-            <motion.div variants={fadeIn} className="mt-10 flex flex-wrap justify-center gap-4">
-              <Link to="/login">
-                <Button size="lg" className="h-14 px-8 text-lg shadow-brand">
+            <motion.div variants={fadeIn} className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+              <Link to="/login" className="w-full sm:w-auto">
+                <Button size="lg" className="h-12 sm:h-14 w-full sm:w-auto px-8 text-base sm:text-lg shadow-brand">
                   Access Portal
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link to="/login">
-                <Button variant="outline" size="lg" className="h-14 px-8 text-lg bg-white">
+              <Link to="/login" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="h-12 sm:h-14 w-full sm:w-auto px-8 text-base sm:text-lg bg-white">
                   Dashboard Preview
                 </Button>
               </Link>
             </motion.div>
-            <motion.div variants={fadeIn} className="mt-12 flex justify-center gap-8 text-sm font-medium text-slatey-400">
+            <motion.div variants={fadeIn} className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-8 text-sm font-medium text-slatey-400">
               <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Admin-Managed Access</span>
               <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Real-time Monitoring</span>
             </motion.div>
@@ -89,11 +159,11 @@ export default function LandingPage() {
         </section>
 
         {/* Feature Grid */}
-        <section id="features" className="bg-slatey-50 py-24">
-          <div id="security" className="mx-auto max-w-7xl px-6">
+        <section id="features" className="bg-slatey-50 py-16 sm:py-24">
+          <div id="security" className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-slatey-900">Enterprise-grade security & automation.</h2>
-              <p className="mt-4 text-lg text-slatey-500">Authorized tools for multi-outlet management.</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slatey-900">Enterprise-grade security & automation.</h2>
+              <p className="mt-4 text-base sm:text-lg text-slatey-500">Authorized tools for multi-outlet management.</p>
             </div>
 
             <div className="mt-16 grid gap-8 md:grid-cols-3">
@@ -146,10 +216,10 @@ export default function LandingPage() {
         </section>
 
         {/* Workflow Section */}
-        <section id="workflow" className="mx-auto max-w-7xl px-6 py-24">
-          <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
+        <section id="workflow" className="mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-24">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-16">
             <div className="space-y-8">
-              <h2 className="text-4xl font-bold text-slatey-900">How One Repute works for your business</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-slatey-900">How One Repute works for your business</h2>
               <div className="space-y-6">
                 {[
                   { step: '01', title: 'Connect Google', text: 'Securely link your Google Business Profile via OAuth in one click.' },
@@ -167,23 +237,23 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-            <div className="rounded-3xl bg-slatey-900 p-8 shadow-2xl text-white">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-2">
+            <div className="rounded-3xl bg-slatey-900 p-6 sm:p-8 shadow-2xl text-white">
+              <div className="flex items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-2 shrink-0">
                   <div className="h-3 w-3 rounded-full bg-rose-500" />
                   <div className="h-3 w-3 rounded-full bg-amber-500" />
                   <div className="h-3 w-3 rounded-full bg-emerald-500" />
                 </div>
-                <span className="text-xs font-mono text-slatey-500">terminal@onerepute:~$ monitoring --live</span>
+                <span className="text-[10px] sm:text-xs font-mono text-slatey-500 truncate">terminal@onerepute:~$ monitoring --live</span>
               </div>
-              <div className="space-y-4 font-mono text-sm">
-                <p className="text-emerald-400">[09:12:04] New 5★ Review from Priya K. - "Excellent!"</p>
-                <p className="text-slatey-400">[09:12:06] AI Generating Response... (Professional Tone)</p>
-                <p className="text-emerald-400">[09:12:08] Response Posted to Google Profile.</p>
-                <p className="text-rose-400 mt-6">[10:04:22] ALERT: 1★ Review from Rohan M. - "Slow service"</p>
-                <p className="text-slatey-400">[10:04:23] Sentiment Analyzed: CRITICAL</p>
-                <p className="text-amber-400">[10:04:25] Escalating to WhatsApp: Manager Sunil...</p>
-                <p className="text-emerald-400">[10:04:28] WhatsApp Dispatch SUCCESS.</p>
+              <div className="space-y-4 font-mono text-xs sm:text-sm overflow-x-auto">
+                <p className="text-emerald-400 whitespace-nowrap">[09:12:04] New 5★ Review from Priya K. - "Excellent!"</p>
+                <p className="text-slatey-400 whitespace-nowrap">[09:12:06] AI Generating Response... (Professional Tone)</p>
+                <p className="text-emerald-400 whitespace-nowrap">[09:12:08] Response Posted to Google Profile.</p>
+                <p className="text-rose-400 mt-6 whitespace-nowrap">[10:04:22] ALERT: 1★ Review from Rohan M. - "Slow service"</p>
+                <p className="text-slatey-400 whitespace-nowrap">[10:04:23] Sentiment Analyzed: CRITICAL</p>
+                <p className="text-amber-400 whitespace-nowrap">[10:04:25] Escalating to WhatsApp: Manager Sunil...</p>
+                <p className="text-emerald-400 whitespace-nowrap">[10:04:28] WhatsApp Dispatch SUCCESS.</p>
               </div>
             </div>
           </div>
@@ -193,16 +263,16 @@ export default function LandingPage() {
         <PricingSection />
 
         {/* CTA Section */}
-        <section className="mx-auto max-w-7xl px-6 py-24">
-          <div className="relative overflow-hidden rounded-[40px] bg-brand-600 px-8 py-20 text-center text-white shadow-brand">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-24">
+          <div className="relative overflow-hidden rounded-[32px] sm:rounded-[40px] bg-brand-600 px-6 sm:px-8 py-16 sm:py-20 text-center text-white shadow-brand">
             <div className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl h-96 w-96" />
             <div className="absolute right-0 bottom-0 translate-x-1/2 translate-y-1/2 rounded-full bg-brand-400/20 blur-3xl h-96 w-96" />
 
-            <h2 className="relative z-10 text-4xl font-extrabold sm:text-5xl">Streamline your brand reputation.</h2>
-            <p className="relative z-10 mt-6 text-xl text-brand-100">Authorized outlets can access the dashboard to monitor automation and escalations.</p>
-            <div className="relative z-10 mt-12 flex justify-center gap-4">
-              <Link to="/login">
-                <Button size="lg" className="h-14 px-10 bg-white text-brand-600 hover:bg-brand-50 shadow-lg">
+            <h2 className="relative z-10 text-3xl sm:text-4xl md:text-5xl font-extrabold">Streamline your brand reputation.</h2>
+            <p className="relative z-10 mt-6 text-base sm:text-xl text-brand-100">Authorized outlets can access the dashboard to monitor automation and escalations.</p>
+            <div className="relative z-10 mt-10 sm:mt-12 flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-4">
+              <Link to="/login" className="w-full sm:w-auto">
+                <Button size="lg" className="h-14 w-full sm:w-auto px-10 bg-white text-brand-600 hover:bg-brand-50 shadow-lg">
                   Authorized Login
                 </Button>
               </Link>

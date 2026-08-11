@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import Button from '../components/ui/button'
 import Input from '../components/ui/input'
 import Logo from '../components/common/Logo'
+import Seo from '../components/seo/Seo'
 import apiClient from '../services/apiClient'
 
 export default function ResetPasswordPage() {
@@ -46,8 +47,14 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <div className="glass-panel w-full max-w-md rounded-3xl p-8">
+    <div className="flex min-h-screen items-center justify-center px-3 sm:px-6 py-6">
+      <Seo
+        title="Reset Password | One Repute"
+        description="Reset your One Repute account password securely."
+        path="/reset-password"
+        noindex
+      />
+      <div className="glass-panel w-full max-w-md rounded-3xl p-5 sm:p-8">
         <div className="mb-6 flex justify-center">
           <Logo size="lg" to="/" />
         </div>

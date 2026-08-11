@@ -189,7 +189,7 @@ function OutletQrContent() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md bg-white rounded-2xl p-6 border border-slatey-200 shadow-xl space-y-4"
+              className="relative w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-2xl p-5 sm:p-6 border border-slatey-200 shadow-xl space-y-4"
             >
               <h3 className="text-base font-bold text-slatey-800">Generate Smart QR Code</h3>
               

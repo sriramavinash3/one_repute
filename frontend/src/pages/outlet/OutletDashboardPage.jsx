@@ -294,7 +294,7 @@ export default function OutletDashboardPage() {
                   <Tooltip contentStyle={{ borderRadius: '10px', fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="mt-2 flex gap-4 text-xs text-slatey-500">
+              <div className="mt-2 flex flex-wrap justify-center gap-2 sm:gap-4 text-xs text-slatey-500">
                 {sentimentData.map((s) => (
                   <span key={s.name} className="flex items-center gap-1.5">
                     <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
@@ -331,7 +331,7 @@ export default function OutletDashboardPage() {
         </motion.div>
 
         <motion.div className="lg:col-span-2" variants={fadeUp}>
-          <div className="rounded-2xl border border-slatey-200 bg-white/80 p-5 shadow-sm dark:border-slatey-800 dark:bg-slatey-900/80">
+          <div className="rounded-2xl border border-slatey-200 bg-white/80 p-4 sm:p-5 shadow-sm dark:border-slatey-800 dark:bg-slatey-900/80">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slatey-800 dark:text-slatey-200">Recent activity</p>
               <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">Live</span>
@@ -374,16 +374,18 @@ export default function OutletDashboardPage() {
 
       {/* Response Rate Banner */}
       <motion.div variants={fadeUp}>
-        <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-6 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
-            <TrendingUp className="h-5 w-5" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 sm:px-6 sm:py-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{autoRate}% auto-response rate this week</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">AI handled {statusCounts.responded + statusCounts.suggested} reviews automatically.</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{autoRate}% auto-response rate this week</p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">AI handled {statusCounts.responded + statusCounts.suggested} reviews automatically.</p>
-          </div>
-          <div className="ml-auto text-right">
-            <p className="text-2xl font-bold text-emerald-700">{autoRate}%</p>
+          <div className="sm:ml-auto text-left sm:text-right">
+            <p className="text-xl sm:text-2xl font-bold text-emerald-700">{autoRate}%</p>
             <p className="text-xs text-emerald-500">Automation</p>
           </div>
         </div>

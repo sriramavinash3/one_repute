@@ -233,16 +233,30 @@ export class GoogleAuthController {
             return res.send(this.getPopupHtml('gmb-error', { error: 'Your account is not linked to an outlet. Please contact support or re-complete onboarding.' }, frontendUrl));
           }
         } else {
-          this.logger.log(`OAuth callback: user not found, storing in onboarding_sessions for ${outletIdOrUid}`);
-          const encryptedRefreshToken = this.encrypt(tokens.refresh_token);
-          await db.collection('onboarding_sessions').doc(outletIdOrUid).set({
-            googleRefreshToken: encryptedRefreshToken,
-            googleAccountId: accountId,
-            googleAccountEmail: accountEmail,
-            googleLocations: locations,
-            createdAt: new Date(),
-          }, { merge: true });
-          this.logger.log(`Stored Google tokens in onboarding session: ${outletIdOrUid}`);
+          // Check if outletIdOrUid is directly an outlet document ID
+          const directOutletDoc = await db.collection('outlets').doc(outletIdOrUid).get();
+          if (directOutletDoc.exists) {
+            const encryptedRefreshToken = this.encrypt(tokens.refresh_token);
+            await db.collection('outlets').doc(outletIdOrUid).set({
+              googleRefreshToken: encryptedRefreshToken,
+              googleAccountId: accountId,
+              googleAccountEmail: accountEmail,
+              googleLocations: locations,
+              googleConnectedAt: new Date(),
+            }, { merge: true });
+            this.logger.log(`Stored Google tokens directly for outlet: ${outletIdOrUid}`);
+          } else {
+            this.logger.log(`OAuth callback: user/outlet not found, storing in onboarding_sessions for ${outletIdOrUid}`);
+            const encryptedRefreshToken = this.encrypt(tokens.refresh_token);
+            await db.collection('onboarding_sessions').doc(outletIdOrUid).set({
+              googleRefreshToken: encryptedRefreshToken,
+              googleAccountId: accountId,
+              googleAccountEmail: accountEmail,
+              googleLocations: locations,
+              createdAt: new Date(),
+            }, { merge: true });
+            this.logger.log(`Stored Google tokens in onboarding session: ${outletIdOrUid}`);
+          }
         }
       }
 
@@ -341,8 +355,10 @@ export class GoogleAuthController {
       const message = { type: '${safeType}', ...${safeData} };
       if (window.opener) {
         window.opener.postMessage(message, '${safeFrontendUrl}');
+        setTimeout(function() { window.close(); }, 2000);
+      } else {
+        setTimeout(function() { window.location.href = '${safeFrontendUrl}/connect-google'; }, 2000);
       }
-      setTimeout(function() { window.close(); }, 2000);
     })();
   </script>
 </body>

@@ -55,12 +55,21 @@ export function startGoogleOAuth(outletId, uid) {
     console.error('[GoogleOAuth] refusing to start OAuth with malformed outletId:', JSON.stringify(outletId))
     throw new Error('Outlet ID is malformed (empty or contains quote characters). Check the user profile.outletId value in Firestore.')
   }
-  if (!uid || typeof uid !== 'string' || uid.includes('"') || uid.includes('%22')) {
-    console.error('[GoogleOAuth] refusing to start OAuth with malformed uid:', JSON.stringify(uid))
-    throw new Error('User UID is malformed. Cannot initiate Google OAuth.')
+  const query = { outletId }
+  if (uid && typeof uid === 'string' && !uid.includes('"') && !uid.includes('%22')) {
+    query.uid = uid
   }
-  const url = buildOAuthUrl('/api/auth/google', { outletId, uid })
-  window.location.href = url
+  const url = buildOAuthUrl('/api/auth/google', query)
+
+  const width = 500
+  const height = 600
+  const left = window.screenX + (window.outerWidth - width) / 2
+  const top = window.screenY + (window.outerHeight - height) / 2
+
+  const popup = window.open(url, 'Connect Google Business', `width=${width},height=${height},left=${left},top=${top}`)
+  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+    window.location.href = url
+  }
 }
 
 export async function syncBusinessData(outletId, forceRefresh = false) {

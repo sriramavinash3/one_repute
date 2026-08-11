@@ -316,7 +316,7 @@ export default function AdminDashboardPage() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-4 flex items-center justify-center gap-6 text-xs font-medium text-slatey-500">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs font-medium text-slatey-500">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-brand-500"></span>
                 Reviews
@@ -349,7 +349,7 @@ export default function AdminDashboardPage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-4 flex items-center justify-center gap-6 text-xs font-medium text-slatey-500">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs font-medium text-slatey-500">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-brand-600"></span>
                 High (4-5★)

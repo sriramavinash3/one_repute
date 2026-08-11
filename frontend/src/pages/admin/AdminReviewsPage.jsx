@@ -137,7 +137,7 @@ export default function AdminReviewsPage() {
 
       <Card className="p-4 border-none shadow-glow">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-1 min-w-[280px] items-center gap-3 rounded-xl border border-slatey-200 bg-slatey-50/50 px-4 py-2 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100 transition-all">
+          <div className="flex flex-1 min-w-[200px] w-full sm:w-auto items-center gap-3 rounded-xl border border-slatey-200 bg-slatey-50/50 px-4 py-2 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100 transition-all">
             <Search className="h-4 w-4 text-slatey-400" />
             <input
               className="w-full bg-transparent text-sm text-slatey-700 outline-none"
@@ -238,7 +238,7 @@ export default function AdminReviewsPage() {
             ))}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40 overflow-x-auto">
+          <div className="rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40 overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm whitespace-nowrap">
               <thead className="bg-slatey-50/80 text-xs font-medium uppercase tracking-wider text-slatey-500 dark:bg-slatey-900 dark:text-slatey-400">
                 <tr>

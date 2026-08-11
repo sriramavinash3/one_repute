@@ -260,13 +260,15 @@ function ReviewDetailsDrawer({ review, onClose }) {
   const isEscalating = review.escalationStatus && review.escalationStatus.endsWith('_pending')
 
   return (
-    <motion.div
-      initial={{ x: '100%' }}
-      animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white border-l border-slatey-200 shadow-2xl flex flex-col"
-    >
+    <>
+      <div className="fixed inset-0 z-40 bg-slatey-900/40" onClick={onClose} />
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white border-l border-slatey-200 shadow-2xl flex flex-col dark:bg-slatey-900 dark:border-slatey-800"
+      >
       {/* Drawer Header */}
       <div className="p-5 border-b border-slatey-150 flex items-center justify-between bg-slatey-50">
         <div>
@@ -448,6 +450,7 @@ function ReviewDetailsDrawer({ review, onClose }) {
         )}
       </div>
     </motion.div>
+    </>
   )
 }
 
@@ -612,7 +615,7 @@ export default function OutletReviewsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-slatey-200 bg-slatey-50/80 p-1 w-fit">
+      <div className="flex max-w-full overflow-x-auto whitespace-nowrap gap-1 rounded-xl border border-slatey-200 bg-slatey-50/80 p-1">
         {TABS.map((tab) => (
           <button
             key={tab.key}

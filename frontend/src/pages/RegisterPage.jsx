@@ -13,6 +13,7 @@ import { buildOAuthUrl } from '../services/googleAuthService'
 import { createSubscription, verifyPayment, loadRazorpayScript } from '../services/paymentService'
 import { fetchPlaceSuggestions, fetchPlaceDetails } from '../services/outletService'
 import Logo from '../components/common/Logo'
+import Seo from '../components/seo/Seo'
 
 const PLANS = [
   {
@@ -283,7 +284,13 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slatey-50 items-center justify-center p-4">
+    <div className="flex min-h-screen bg-slatey-50 items-center justify-center p-2 sm:p-4">
+      <Seo
+        title="Create Account | One Repute"
+        description="Set up your One Repute workspace and start your free trial for AI-powered Google review management."
+        path="/onboarding"
+        noindex
+      />
       <div className="w-full max-w-4xl grid md:grid-cols-5 bg-white rounded-3xl shadow-2xl overflow-hidden border border-slatey-100">
         
         {/* Left Sidebar Steps */}
@@ -313,7 +320,11 @@ export default function OnboardingPage() {
         </div>
 
         {/* Right Content Area */}
-        <div className="col-span-3 p-8 md:p-12 relative">
+        <div className="col-span-3 p-5 sm:p-8 md:p-12 relative">
+          <div className="md:hidden flex items-center justify-between mb-6 pb-4 border-b border-slatey-100">
+            <Logo size="sm" to="/" />
+            <span className="text-xs font-semibold text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full">Step {step} of 2</span>
+          </div>
           <AnimatePresence mode="wait">
             
             {step === 1 && (

@@ -193,7 +193,7 @@ export default function AdminLogsPage() {
 
       <Card className="p-4 border-none shadow-glow">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-1 min-w-[240px] items-center gap-3 rounded-xl border border-slatey-200 bg-slatey-50/50 px-4 py-2 focus-within:border-brand-400 transition-all dark:border-slatey-800 dark:bg-slatey-900/50">
+          <div className="flex flex-1 min-w-[180px] w-full sm:w-auto items-center gap-3 rounded-xl border border-slatey-200 bg-slatey-50/50 px-4 py-2 focus-within:border-brand-400 transition-all dark:border-slatey-800 dark:bg-slatey-900/50">
             <Search className="h-4 w-4 text-slatey-400" />
             <input
               className="w-full bg-transparent text-sm text-slatey-700 outline-none dark:text-slatey-300"
@@ -202,7 +202,7 @@ export default function AdminLogsPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex gap-1 rounded-lg border border-slatey-100 bg-slatey-50 p-1 dark:border-slatey-800 dark:bg-slatey-950">
+          <div className="flex gap-1 rounded-lg border border-slatey-100 bg-slatey-50 p-1 dark:border-slatey-800 dark:bg-slatey-950 w-full sm:w-auto">
             {['all', 'success', 'warning', 'danger'].map((s) => (
               <button
                 key={s}
@@ -220,7 +220,7 @@ export default function AdminLogsPage() {
         </div>
       </Card>
 
-      <div className="overflow-hidden rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40">
+      <div className="rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40 overflow-x-auto">
               <div className="divide-y divide-slatey-100 dark:divide-slatey-800">
                 {isLoading ? (
                   <div className="p-4 space-y-3">

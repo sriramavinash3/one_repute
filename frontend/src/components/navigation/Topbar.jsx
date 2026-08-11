@@ -26,7 +26,7 @@ export default function Topbar({ title, user, onLogout }) {
     : 'AI'
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slatey-200 bg-white/70 px-6 py-4 dark:border-slatey-800 dark:bg-slatey-900/70">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slatey-200 bg-white/70 px-4 py-3 sm:px-6 sm:py-4 dark:border-slatey-800 dark:bg-slatey-900/70">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-slatey-400">Workspace</p>
         <h1 className="text-xl font-semibold text-slatey-900">{title}</h1>

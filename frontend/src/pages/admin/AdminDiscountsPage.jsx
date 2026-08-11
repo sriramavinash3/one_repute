@@ -60,7 +60,7 @@ export default function AdminDiscountsPage() {
           <div className="h-12 bg-slate-200 rounded-xl"></div>
         </div>
       ) : (
-        <div className="bg-white overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>

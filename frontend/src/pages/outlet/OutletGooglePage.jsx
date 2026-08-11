@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   CheckCircle2, Link2, Loader2, Store, RefreshCw,
@@ -45,6 +45,7 @@ const PIPELINE_STEPS = [
 
 export default function OutletGooglePage() {
   const { profile } = useAuth()
+  const queryClient = useQueryClient()
   const outletId = profile?.outletId || ''
   const enabled = useMemo(() => Boolean(outletId && outletId.length > 0), [outletId])
 
@@ -56,6 +57,16 @@ export default function OutletGooglePage() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data?.type === 'gmb-connected') {
+        queryClient.invalidateQueries({ queryKey: ['google-connection', outletId] })
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [outletId, queryClient])
 
   const isConnected = Boolean(data?.connected)
 

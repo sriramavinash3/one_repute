@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -32,6 +32,19 @@ export default function ConnectGooglePage() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false
   })
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data?.type === 'gmb-connected') {
+        toast.success('Google Business Profile connected successfully!')
+        queryClient.invalidateQueries({ queryKey: ['google-connection', outletId] })
+      } else if (event.data?.type === 'gmb-error') {
+        toast.error(`Google Connection failed: ${event.data.error}`)
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [outletId, queryClient])
 
   const handleSync = async () => {
     if (!outletId) return
@@ -68,14 +81,14 @@ export default function ConnectGooglePage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-12">
+    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 sm:gap-8 px-3 py-6 sm:px-6 sm:py-12">
 
       {/* Page header */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <span className="badge-ring">
           <Link2 className="h-4 w-4" /> Google Business Profile
         </span>
-        <h1 className="mt-4 text-3xl font-semibold">Connect Google Business</h1>
+        <h1 className="mt-4 text-2xl sm:text-3xl font-semibold">Connect Google Business</h1>
         <p className="mt-2 text-sm text-slatey-500">
           Securely link your Google Business Profile. OAuth tokens are stored encrypted on the backend — the frontend only initiates the auth flow.
         </p>
@@ -85,7 +98,7 @@ export default function ConnectGooglePage() {
       {GBP_API_PENDING && (
         <motion.div
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }}
-          className="flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-5 py-4"
+          className="flex items-start gap-3 sm:gap-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 sm:px-5 sm:py-4"
         >
           <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
           <div>
@@ -93,7 +106,7 @@ export default function ConnectGooglePage() {
             <p className="mt-1 text-xs leading-relaxed text-amber-700">
               Your Google Business Profile API access request has been submitted. Google typically approves these within <strong>7–10 business days</strong>. Once approved, "Sync Locations" will work and the review automation pipeline will activate.
             </p>
-            <div className="mt-3 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-2 sm:gap-3">
               <div className="flex items-center gap-1.5 text-xs text-amber-700">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> OAuth connected ✓
               </div>
@@ -111,7 +124,7 @@ export default function ConnectGooglePage() {
       {/* Main connection card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}
-        className="glass-panel rounded-3xl p-6"
+        className="glass-panel rounded-3xl p-4 sm:p-6"
       >
         <div className="flex items-center justify-between">
           <div>

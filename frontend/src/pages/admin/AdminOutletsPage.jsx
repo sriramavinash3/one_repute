@@ -279,7 +279,7 @@ export default function AdminOutletsPage() {
 
       <Card className="p-4 border-none shadow-glow">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-1 min-w-[280px] items-center gap-3 rounded-xl border border-slatey-200 bg-slatey-50/50 px-4 py-2 transition-all focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100 dark:border-slatey-800 dark:bg-slatey-900/50">
+          <div className="flex flex-1 min-w-[200px] w-full sm:w-auto items-center gap-3 rounded-xl border border-slatey-200 bg-slatey-50/50 px-4 py-2 transition-all focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100 dark:border-slatey-800 dark:bg-slatey-900/50">
             <Search className="h-4 w-4 text-slatey-400" />
             <input
               className="w-full bg-transparent text-sm text-slatey-700 outline-none placeholder:text-slatey-400 dark:text-slatey-300"
@@ -288,11 +288,11 @@ export default function AdminOutletsPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <select
               value={ratingFilter}
               onChange={(e) => setRatingFilter(e.target.value)}
-              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-sm text-slatey-700 outline-none focus:border-brand-400 dark:border-slatey-800 dark:bg-slatey-900/50 dark:text-slatey-300"
+              className="rounded-xl border border-slatey-200 bg-white px-3 py-2 text-sm text-slatey-700 outline-none focus:border-brand-400 dark:border-slatey-800 dark:bg-slatey-900/50 dark:text-slatey-300 w-full sm:w-auto"
             >
               <option value="all">All Ratings</option>
               <option value="high">High (4.0+)</option>
@@ -318,7 +318,7 @@ export default function AdminOutletsPage() {
         </div>
       </Card>
 
-      <div className="overflow-hidden rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40">
+      <div className="rounded-2xl border border-slatey-200 bg-white shadow-sm dark:border-slatey-800 dark:bg-slatey-900/40 overflow-x-auto">
         <table className="w-full border-collapse text-left text-sm">
           <thead className="bg-slatey-50/80 text-xs font-medium uppercase tracking-wider text-slatey-500 dark:bg-slatey-900 dark:text-slatey-400">
             <tr>

@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Private / authenticated sections
+Disallow: /login
+Disallow: /onboarding
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /admin-dashboard
+Disallow: /outlet-dashboard
+
+Sitemap: https://onerepute.com/sitemap.xml
