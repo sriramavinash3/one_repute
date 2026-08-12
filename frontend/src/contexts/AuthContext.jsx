@@ -104,7 +104,7 @@ export function AuthProvider({ children }) {
       setOutletLoading(true)
       try {
         if (profile.customerId) {
-          // Fetch only ACTIVE outlets for this customer — removed outlets are excluded
+          // Fetch only ACTIVE outlets for this customer: removed outlets are excluded
           const { collection, query, where, getDocs } = await import('firebase/firestore')
           const q = query(
             collection(db, 'outlets'),
@@ -128,7 +128,7 @@ export function AuthProvider({ children }) {
             setOutletState(null)
           }
         } else if (profile.outletId) {
-          // Fallback for older users without customerId — also guard against removed outlets
+          // Fallback for older users without customerId: also guard against removed outlets
           const outletRef = doc(db, 'outlets', profile.outletId)
           const snapshot = await getDoc(outletRef)
           const outletData = snapshot.exists() ? snapshot.data() : null

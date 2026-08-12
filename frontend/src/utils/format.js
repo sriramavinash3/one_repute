@@ -3,7 +3,7 @@ export function formatRating(value) {
 }
 
 export function formatTimestamp(value) {
-  if (!value) return '—'
+  if (!value) return 'N/A'
   const date = typeof value === 'string'
     ? new Date(value)
     : value.toDate?.() || (value._seconds ? new Date(value._seconds * 1000) : new Date(value))

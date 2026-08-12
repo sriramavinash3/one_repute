@@ -570,14 +570,14 @@ export default function AdminBillingPage() {
                         {p.currency === 'INR' ? '₹' : '$'}{p.monthlyPrice}
                       </td>
                       <td className="px-4 py-3 font-semibold text-slatey-800">
-                        {p.currency === 'INR' ? '₹' : '$'}{p.quarterlyPrice || '—'}
+                        {p.currency === 'INR' ? '₹' : '$'}{p.quarterlyPrice || 'N/A'}
                       </td>
                       <td className="px-4 py-3 font-semibold text-slatey-800">
                         {p.currency === 'INR' ? '₹' : '$'}{p.annualPrice}
                       </td>
-                      <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayMonthlyPlanId || '—'}</td>
-                      <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayQuarterlyPlanId || '—'}</td>
-                      <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayAnnualPlanId || '—'}</td>
+                      <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayMonthlyPlanId || 'N/A'}</td>
+                      <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayQuarterlyPlanId || 'N/A'}</td>
+                      <td className="px-4 py-3 text-slatey-500 font-mono text-[10px]">{p.razorpayAnnualPlanId || 'N/A'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                           p.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-slatey-100 text-slatey-600'

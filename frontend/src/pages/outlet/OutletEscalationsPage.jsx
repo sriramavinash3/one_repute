@@ -74,7 +74,7 @@ function EscalationCard({ item }) {
         <Phone className="h-3.5 w-3.5 shrink-0" />
         {item.whatsappSent
           ? `WhatsApp alert sent to manager · ${item.whatsappTime}`
-          : 'WhatsApp alert pending — will send on next cron run'}
+          : 'WhatsApp alert pending: will send on next cron run'}
       </div>
 
       {/* Expanded: AI suggestion */}
@@ -100,7 +100,7 @@ function EscalationCard({ item }) {
                 </div>
               ) : (
                 <p className="text-xs text-slatey-400 italic">
-                  AI suggestion not yet generated — pending next processing run.
+                  AI suggestion not yet generated: pending next processing run.
                 </p>
               )}
             </div>

@@ -94,7 +94,7 @@ export default function ConnectGooglePage() {
         </span>
         <h1 className="mt-4 text-2xl sm:text-3xl font-semibold">Connect Google Business</h1>
         <p className="mt-2 text-sm text-slatey-500">
-          Securely link your Google Business Profile. OAuth tokens are stored encrypted on the backend — the frontend only initiates the auth flow.
+          Securely link your Google Business Profile. OAuth tokens are stored encrypted on the backend: the frontend only initiates the auth flow.
         </p>
       </motion.div>
 
@@ -115,10 +115,10 @@ export default function ConnectGooglePage() {
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> OAuth connected ✓
               </div>
               <div className="flex items-center gap-1.5 text-xs text-amber-700">
-                <Clock className="h-3.5 w-3.5" /> Account Management API — pending quota
+                <Clock className="h-3.5 w-3.5" /> Account Management API: pending quota
               </div>
               <div className="flex items-center gap-1.5 text-xs text-amber-700">
-                <Clock className="h-3.5 w-3.5" /> Reviews API — pending quota
+                <Clock className="h-3.5 w-3.5" /> Reviews API: pending quota
               </div>
             </div>
           </div>
@@ -167,7 +167,7 @@ export default function ConnectGooglePage() {
         {GBP_API_PENDING && data?.connected && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
             <AlertTriangle className="h-3.5 w-3.5" />
-            "Sync Locations" will fail until GBP API quota is approved — this is expected.
+            "Sync Locations" will fail until GBP API quota is approved: this is expected.
           </p>
         )}
 
@@ -190,7 +190,7 @@ export default function ConnectGooglePage() {
                 <div className="flex items-center gap-2">
                   <span className="w-36 text-xs font-medium text-slatey-400">Active location</span>
                   <span className={data.activeLocation ? 'font-medium' : 'text-slatey-400 italic'}>
-                    {data.activeLocation || 'Not set — sync locations to configure'}
+                    {data.activeLocation || 'Not set: sync locations to configure'}
                   </span>
                 </div>
               </div>
@@ -266,7 +266,7 @@ export default function ConnectGooglePage() {
           {[
             { icon: <Link2 className="h-4 w-4" />, title: 'OAuth only on frontend', body: 'The frontend redirects to Google and returns to your callback URL. No tokens are ever exposed in the browser.' },
             { icon: <ShieldCheck className="h-4 w-4" />, title: 'Encrypted token storage', body: 'Refresh tokens are AES-encrypted before being written to Firestore. The frontend never reads tokens.' },
-            { icon: <RefreshCw className="h-4 w-4" />, title: 'Location sync (requires GBP API)', body: 'Syncing locations calls the Account Management and Business Information APIs — both require approved quota.' },
+            { icon: <RefreshCw className="h-4 w-4" />, title: 'Location sync (requires GBP API)', body: 'Syncing locations calls the Account Management and Business Information APIs: both require approved quota.' },
             { icon: <Sparkles className="h-4 w-4" />, title: 'Review automation (requires GBP API)', body: 'Reviews are fetched via the Reviews API on a schedule, then AI-replied or escalated via WhatsApp.' },
           ].map((item) => (
             <div key={item.title} className="flex items-start gap-3 rounded-xl border border-slatey-100 bg-slatey-50/60 p-4">

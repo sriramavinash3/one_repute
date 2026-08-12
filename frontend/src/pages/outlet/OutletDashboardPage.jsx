@@ -202,7 +202,7 @@ export default function OutletDashboardPage() {
             value={
               reviews.length > 0
                 ? `${ratingStats.averageRating.toFixed(1)} ★`
-                : '—'
+                : 'N/A'
             }
             delta={
               previousWeekReviews.length > 0
@@ -215,7 +215,7 @@ export default function OutletDashboardPage() {
         <motion.div variants={fadeUp}>
           <StatCard
             title="Total reviews"
-            value={reviews.length > 0 ? `${reviews.length}` : '—'}
+            value={reviews.length > 0 ? `${reviews.length}` : 'N/A'}
             delta={
               reviewDelta > 0
                 ? `+${reviewDelta} this week`
@@ -232,12 +232,12 @@ export default function OutletDashboardPage() {
             value={
               reviews.length > 0
                 ? `${statusCounts.responded + statusCounts.suggested}`
-                : '—'
+                : 'N/A'
             }
             delta={
               reviews.length > 0
                 ? `${autoRate}% automated`
-                : '—'
+                : 'N/A'
             }
             icon={<Sparkles className="h-5 w-5" />}
           />
@@ -248,7 +248,7 @@ export default function OutletDashboardPage() {
             value={
               reviews.length > 0
                 ? `${statusCounts.escalated}`
-                : '—'
+                : 'N/A'
             }
             delta={
               escalationDelta > 0

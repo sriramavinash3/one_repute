@@ -906,7 +906,7 @@ function BillingTabContent() {
               <div className="flex flex-col gap-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium mt-3 shadow-sm">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
-                  <span className="font-bold text-sm">Paid Plan Scheduled — Trial Preserved</span>
+                  <span className="font-bold text-sm">Paid Plan Scheduled: Trial Preserved</span>
                 </div>
                 <p className="text-xs text-emerald-800 leading-relaxed">
                   Your paid <span className="font-bold uppercase text-emerald-950">{(sub.scheduledPlan || sub.plan).replace('plan_', '')}</span> plan starts on <span className="font-bold text-emerald-950">{sub.trialEndDate ? new Date(sub.trialEndDate).toLocaleDateString() : 'Trial End Date'}</span>. Your remaining trial period ({sub.remainingTrialDays || 0} days remaining) is preserved.
@@ -1064,9 +1064,9 @@ function BillingTabContent() {
                 {invoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-slatey-50/50">
                     <td className="px-4 py-3.5 text-slatey-600">
-                      {inv.issuedAt ? new Date(inv.issuedAt.toDate ? inv.issuedAt.toDate() : inv.issuedAt).toLocaleDateString() : '—'}
+                      {inv.issuedAt ? new Date(inv.issuedAt.toDate ? inv.issuedAt.toDate() : inv.issuedAt).toLocaleDateString() : 'N/A'}
                     </td>
-                    <td className="px-4 py-3.5 font-medium text-slatey-800">{inv.invoiceId || '—'}</td>
+                    <td className="px-4 py-3.5 font-medium text-slatey-800">{inv.invoiceId || 'N/A'}</td>
                     <td className="px-4 py-3.5 text-slatey-800 font-semibold">
                       {inv.currency === 'INR' ? '₹' : '$'}{inv.amount} {inv.currency}
                     </td>

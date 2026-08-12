@@ -54,9 +54,9 @@ function webPageLd(path) {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: path === '/' ? 'One Repute — AI-Powered Google Review Management' : `${path.replace('/', '')} | One Repute`,
+    name: path === '/' ? 'One Repute | AI-Powered Google Review Management' : `${path.replace('/', '')} | One Repute`,
     url: `${SITE_URL}${path === '/' ? '/' : path}`,
-    description: 'One Repute — AI-powered Google review management.',
+    description: 'One Repute | AI-powered Google review management.',
     isPartOf: { '@type': 'WebSite', name: 'One Repute', url: `${SITE_URL}/` }
   }
 }
@@ -65,7 +65,7 @@ const routes = [
   {
     path: '/',
     outFile: 'index.html',
-    title: 'One Repute — AI-Powered Google Review Management',
+    title: 'One Repute | AI-Powered Google Review Management',
     description:
       'Automate Google review replies with human-like AI, get instant WhatsApp escalation alerts for negative reviews, and manage multi-outlet reputation from one secure dashboard.',
     robots: 'index, follow',

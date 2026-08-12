@@ -46,7 +46,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white selection:bg-brand-100 selection:text-brand-900">
       <Seo
-        title="One Repute — AI-Powered Google Review Management"
+        title="One Repute | AI-Powered Google Review Management"
         description="Automate Google review replies with human-like AI, get instant WhatsApp escalation alerts for negative reviews, and manage multi-outlet reputation from one secure dashboard."
         path="/"
         jsonLd={LANDING_JSONLD}

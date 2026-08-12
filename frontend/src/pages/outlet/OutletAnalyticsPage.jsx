@@ -142,7 +142,7 @@ export default function OutletAnalyticsPage() {
           { title: 'Avg rating (30d)', value: `${ratingStats.averageRating.toFixed(1)} ★`, delta: 0, icon: <Star className="h-5 w-5" /> },
           { title: 'Reviews (30d)', value: `${reviews.length}`, delta: 0, icon: <TrendingUp className="h-5 w-5" /> },
           { title: 'Response rate', value: `${responseRate}%`, delta: 0, icon: <TrendingUp className="h-5 w-5" /> },
-          { title: 'Avg response time', value: avgResponseMinutes ? `${avgResponseMinutes} min` : '—', delta: 0, icon: <TrendingDown className="h-5 w-5" /> },
+          { title: 'Avg response time', value: avgResponseMinutes ? `${avgResponseMinutes} min` : 'N/A', delta: 0, icon: <TrendingDown className="h-5 w-5" /> },
         ].map((s) => (
           <motion.div key={s.title} variants={fadeUp}>
             <StatCard

@@ -136,7 +136,7 @@ function ReviewCard({ review }) {
       {review.status === 'pending' && (
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-xs text-amber-700">
           <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-          Awaiting AI processing — will be handled in the next cron run
+          Awaiting AI processing: will be handled in the next cron run
         </div>
       )}
 
@@ -294,19 +294,19 @@ export default function AdminOutletDetailPage() {
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slatey-100 text-slatey-500 dark:bg-slatey-800 dark:text-slatey-400">
                   <MapPin className="h-4 w-4" />
                 </div>
-                {outlet?.address || '—'}
+                {outlet?.address || 'N/A'}
               </div>
               <div className="flex items-center gap-3 text-sm text-slatey-600 dark:text-slatey-400">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slatey-100 text-slatey-500 dark:bg-slatey-800 dark:text-slatey-400">
                   <Mail className="h-4 w-4" />
                 </div>
-                {outlet?.email || '—'}
+                {outlet?.email || 'N/A'}
               </div>
               <div className="flex items-center gap-3 text-sm text-slatey-600 dark:text-slatey-400">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slatey-100 text-slatey-500 dark:bg-slatey-800 dark:text-slatey-400">
                   <Phone className="h-4 w-4" />
                 </div>
-                {outlet?.whatsappNumber || '—'}
+                {outlet?.whatsappNumber || 'N/A'}
               </div>
               <div className="flex items-center gap-3 text-sm text-slatey-600 dark:text-slatey-400">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slatey-100 text-slatey-500 dark:bg-slatey-800 dark:text-slatey-400">
@@ -332,7 +332,7 @@ export default function AdminOutletDetailPage() {
             </div>
             <div className="space-y-1">
               <p className="text-xs font-medium text-slatey-500 uppercase tracking-wider dark:text-slatey-400">Active Location ID</p>
-              <p className="text-sm font-semibold text-slatey-800 font-mono dark:text-slatey-200">{outlet?.googleLocationId || outlet?.placeId || '—'}</p>
+              <p className="text-sm font-semibold text-slatey-800 font-mono dark:text-slatey-200">{outlet?.googleLocationId || outlet?.placeId || 'N/A'}</p>
             </div>
             <div className="pt-2">
               <Button variant="outline" className="w-full bg-white text-xs h-9">

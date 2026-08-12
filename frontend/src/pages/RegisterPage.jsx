@@ -573,7 +573,7 @@ export default function OnboardingPage() {
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-slatey-700 ml-1">Business Category</label>
                       <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">
-                        Fetched from GMB — Read Only
+                        Fetched from GMB: Read Only
                       </span>
                     </div>
                     <Input

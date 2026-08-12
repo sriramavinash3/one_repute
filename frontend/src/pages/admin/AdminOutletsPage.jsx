@@ -372,7 +372,7 @@ export default function AdminOutletsPage() {
                         row.avgRating >= 4.0 ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 
                         'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
                       }`}>
-                        {row.avgRating ? `${row.avgRating} ★` : '—'}
+                        {row.avgRating ? `${row.avgRating} ★` : 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4">

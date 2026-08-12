@@ -122,7 +122,7 @@ export default function OutletGooglePage() {
                     Active: <span className="font-medium text-slatey-700">{data.activeLocation}</span>
                   </div>
                 ) : (
-                  <p className="text-xs text-amber-600">⚠ No active location set — sync required</p>
+                  <p className="text-xs text-amber-600">⚠ No active location set: sync required</p>
                 )}
               </div>
             ) : data?.needsReconnection || data?.error === 'invalid_grant' ? (
