@@ -137,25 +137,6 @@ export default function LandingPage() {
               <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Real-time Monitoring</span>
             </motion.div>
           </motion.div>
-
-          {/* Hero Image / UI Preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.8 }}
-            className="mt-20 relative"
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-10 h-full" />
-            <div className="mx-auto max-w-5xl rounded-3xl border border-slatey-200 bg-slatey-50 p-2 shadow-2xl overflow-hidden">
-              <div className="rounded-[20px] overflow-hidden border border-slatey-100 bg-white">
-                <img
-                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=2426&ixlib=rb-4.0.3"
-                  alt="Dashboard Preview"
-                  className="w-full h-auto opacity-90 hover:scale-[1.01] transition-transform duration-700"
-                />
-              </div>
-            </div>
-          </motion.div>
         </section>
 
         {/* Feature Grid */}
