@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { WhatsAppService } from './whatsapp.service';
+import { WhatsAppTemplateService } from './whatsapp-template.service';
 import { TwilioWhatsAppProvider } from './providers/twilio-whatsapp.provider';
 import { Dialog360Provider } from './providers/dialog360.provider';
+import { WhatsAppWebhookController } from './whatsapp-webhook.controller';
 
 @Module({
   imports: [ConfigModule],
-  providers: [TwilioWhatsAppProvider, Dialog360Provider, WhatsAppService],
-  exports: [WhatsAppService],
+  controllers: [WhatsAppWebhookController],
+  providers: [TwilioWhatsAppProvider, Dialog360Provider, WhatsAppTemplateService, WhatsAppService],
+  exports: [WhatsAppService, WhatsAppTemplateService],
 })
 export class WhatsAppModule {}

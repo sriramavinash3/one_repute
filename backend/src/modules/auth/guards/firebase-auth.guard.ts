@@ -41,15 +41,14 @@ export class FirebaseAuthGuard implements CanActivate {
       }
 
       let customerId = userData.customerId || null;
-      if (!customerId && userRole === 'outlet') {
+      if (!customerId) {
         // Fallback 1: Query customers collection where email matches
         const customerSnap = await db.collection('customers')
-          .where('email', '==', decodedToken.email)
+          .where('email', '==', userEmail)
           .limit(1)
           .get();
         if (!customerSnap.empty) {
           customerId = customerSnap.docs[0].id;
-          await db.collection('users').doc(decodedToken.uid).update({ customerId });
         } else {
           // Fallback 2: Check if there's any outlet assigned
           const outletSnap = await db.collection('outlets')
@@ -58,9 +57,23 @@ export class FirebaseAuthGuard implements CanActivate {
             .get();
           if (!outletSnap.empty && outletSnap.docs[0].data().customerId) {
             customerId = outletSnap.docs[0].data().customerId;
-            await db.collection('users').doc(decodedToken.uid).update({ customerId });
+          } else {
+            // Auto-provision customer context
+            customerId = `cust_${decodedToken.uid}`;
+            await db.collection('customers').doc(customerId).set({
+              email: userEmail,
+              name: userData.name || userEmail.split('@')[0],
+              plan: 'plan_starter',
+              billingCycle: 'monthly',
+              subscriptionStatus: 'inactive',
+              billingCountry: 'IN',
+              currency: 'INR',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }, { merge: true });
           }
         }
+        await db.collection('users').doc(decodedToken.uid).set({ customerId }, { merge: true });
       }
 
       const authUser: AuthUser = {

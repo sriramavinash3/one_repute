@@ -12,6 +12,7 @@ export interface WhatsAppTemplatePayload {
   templateName: string;
   languageCode?: string;
   components?: any[];
+  parameters?: Record<string, string>;
 }
 
 export interface WhatsAppSendResult {

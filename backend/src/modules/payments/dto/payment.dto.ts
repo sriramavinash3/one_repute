@@ -7,7 +7,7 @@ export class CreateSubscriptionDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['monthly', 'annual'])
+  @IsIn(['monthly', 'quarterly', 'annual'])
   billingCycle?: string = 'monthly';
 
   @IsString()
@@ -44,6 +44,6 @@ export class ChangePlanDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['monthly', 'annual'])
+  @IsIn(['monthly', 'quarterly', 'annual'])
   billingCycle?: string = 'monthly';
 }

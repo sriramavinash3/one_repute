@@ -69,6 +69,29 @@ export interface SendWeeklyReportDto {
   analyticsUrl?: string;
 }
 
+export interface SendFifteenDayReportDto {
+  recipientEmail: string;
+  businessName: string;
+  reportPeriod: string;
+  totalReviews: number;
+  averageRating: number;
+  responseRate: string;
+  positiveSentimentPct: number;
+  userId?: string;
+  analyticsUrl?: string;
+  customerName?: string;
+}
+
+export interface SendOnboardingConfirmedDto {
+  recipientEmail: string;
+  userName: string;
+  businessName: string;
+  planName: string;
+  isTrial?: boolean;
+  userId?: string;
+  dashboardUrl?: string;
+}
+
 export interface SendReviewAlertDto {
   recipientEmail: string;
   businessName: string;

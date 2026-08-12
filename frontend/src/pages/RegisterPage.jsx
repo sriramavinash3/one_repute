@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { toast } from 'sonner'
@@ -107,46 +107,136 @@ export default function OnboardingPage() {
     }))
   }, [gmbLocations])
 
+  const inFlightRef = useRef(false)
+  const pollTimerRef = useRef(null)
+  const maxTimeoutRef = useRef(null)
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current)
+      pollTimerRef.current = null
+    }
+    if (maxTimeoutRef.current) {
+      clearTimeout(maxTimeoutRef.current)
+      maxTimeoutRef.current = null
+    }
+  }, [])
+
   /**
    * Reliably loads the Google Business data collected during the OAuth flow.
-   * Used both when the popup confirms the connection AND on page load/refresh
-   * so a refresh after connecting never loses the selected outlet.
+   * Consumes explicit session status: 'loading', 'ready', 'no_data', 'error', 'completed'.
    */
   const loadOnboardingSession = useCallback(async (fallbackLocations) => {
-    if (!user?.uid) return false
-    setLocationsLoading(true)
-    setLocationsError(null)
+    if (!user?.uid || inFlightRef.current) return false
+    inFlightRef.current = true
+
     try {
       const { data } = await apiClient.get(`/api/auth/onboarding-session/${user.uid}`)
-      const locs = data.googleLocations || []
-      setGmbLocations(locs)
-      setGoogleConnected(true)
-      if (locs.length === 1) {
-        handleSelectLocation(locs[0].id, locs)
+      const status = data?.status
+      const gbp = data?.googleBusinessProfile || {}
+      const locs = gbp.locations || data?.googleLocations || []
+      const warning = gbp.warning || data?.googleLocationsWarning || ''
+      const errorMsg = gbp.error || data?.session?.error || null
+
+      if (status === 'completed') {
+        stopPolling()
+        setLocationsLoading(false)
+        navigate('/outlet-dashboard')
+        return true
       }
-      if (locs.length === 0 && data.googleLocationsWarning) {
-        setLocationsError({ type: 'warning', message: data.googleLocationsWarning })
+
+      if (status === 'ready') {
+        stopPolling()
+        setGmbLocations(locs)
+        setGoogleConnected(true)
+        setLocationsError(null)
+        setLocationsLoading(false)
+        if (locs.length === 1) {
+          handleSelectLocation(locs[0].id, locs)
+        }
+        return true
       }
-      return true
+
+      if (status === 'no_data') {
+        stopPolling()
+        setGmbLocations([])
+        setGoogleConnected(gbp.connected ?? true)
+        setLocationsError({
+          type: 'warning',
+          message: warning || 'No business locations were found for this Google account.'
+        })
+        setLocationsLoading(false)
+        return true
+      }
+
+      if (status === 'error') {
+        stopPolling()
+        setGmbLocations([])
+        setGoogleConnected(false)
+        setLocationsError({
+          type: 'error',
+          message: errorMsg || 'Google connection failed. Please try again.'
+        })
+        setLocationsLoading(false)
+        return false
+      }
+
+      // If status === 'loading'
+      setLocationsLoading(true)
+      return false
     } catch (error) {
-      // No session yet, or a transient failure — fall back to the locations
-      // the OAuth popup itself delivered so the flow still advances.
       if (Array.isArray(fallbackLocations) && fallbackLocations.length > 0) {
+        stopPolling()
         setGmbLocations(fallbackLocations)
         setGoogleConnected(true)
+        setLocationsLoading(false)
         if (fallbackLocations.length === 1) {
           handleSelectLocation(fallbackLocations[0].id, fallbackLocations)
         }
         return true
       }
-      if (error?.response?.status !== 404) {
-        setLocationsError({ type: 'error', message: 'Failed to load Google Business data. Please try again.' })
+      stopPolling()
+      setLocationsLoading(false)
+      if (error?.response?.status === 404) {
+        setLocationsError({ type: 'error', message: 'Unable to retrieve your onboarding session. Please restart onboarding.' })
+      } else {
+        setLocationsError({ type: 'error', message: error?.response?.data?.error || 'Failed to load Google Business data. Please try again.' })
       }
       return false
     } finally {
-      setLocationsLoading(false)
+      inFlightRef.current = false
     }
-  }, [user?.uid, handleSelectLocation])
+  }, [user?.uid, handleSelectLocation, navigate, stopPolling])
+
+  const startPolling = useCallback(() => {
+    stopPolling()
+    setLocationsLoading(true)
+    setLocationsError(null)
+
+    // Maximum 60s timeout
+    maxTimeoutRef.current = setTimeout(() => {
+      stopPolling()
+      setLocationsLoading(false)
+      setLocationsError({
+        type: 'error',
+        message: 'Unable to load Google Business Profile data within the timeout period. Please try reconnecting.'
+      })
+    }, 60000)
+
+    // Poll every 2.5s
+    pollTimerRef.current = setInterval(async () => {
+      const isFinished = await loadOnboardingSession(null)
+      if (isFinished) {
+        stopPolling()
+      }
+    }, 2500)
+  }, [loadOnboardingSession, stopPolling])
+
+  useEffect(() => {
+    return () => {
+      stopPolling()
+    }
+  }, [stopPolling])
 
   // Recover the Google connection + selected outlet after a page refresh.
   useEffect(() => {
@@ -186,19 +276,20 @@ export default function OnboardingPage() {
   useEffect(() => {
     const handleMessage = async (event) => {
       // Security: only accept messages from the known backend origin (OAuth popup host).
-      // In production the popup callback is served from https://api.onerepute.com while
-      // this page runs on https://onerepute.com — both must be allowed.
       const allowedOrigins = getOAuthMessageOrigins()
       if (!allowedOrigins.includes(event.origin)) {
         console.warn('[Onboarding] ignoring postMessage from unexpected origin:', event.origin)
-        return // silently ignore messages from unexpected origins
+        return
       }
 
       if (event.data?.type === 'gmb-connected') {
         toast.success('Google My Business connected successfully!')
         setShowDisclosureModal(true)
+        stopPolling()
         await loadOnboardingSession(event.data.googleLocations)
       } else if (event.data?.type === 'gmb-error') {
+        stopPolling()
+        setLocationsLoading(false)
         setLocationsError({ type: 'error', message: event.data.error || 'Google connection failed.' })
         toast.error(`Google Connection failed: ${event.data.error}`)
       }
@@ -206,7 +297,7 @@ export default function OnboardingPage() {
 
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [loadOnboardingSession])
+  }, [loadOnboardingSession, stopPolling])
 
   const handleConnectGoogle = () => {
     if (!user?.uid) {
@@ -219,11 +310,10 @@ export default function OnboardingPage() {
     const left = window.screenX + (window.outerWidth - width) / 2
     const top = window.screenY + (window.outerHeight - height) / 2
 
-    // Uses the same base-URL normalizer as startGoogleOAuth() so the popup
-    // URL can never be "/api/api/auth/google/..." or contain quote-encoded ids.
     const url = buildOAuthUrl('/api/auth/google/onboard', { uid: user.uid })
 
     window.open(url, 'Connect GMB', `width=${width},height=${height},left=${left},top=${top}`)
+    startPolling()
   }
 
   const handleNextStep = (e) => {

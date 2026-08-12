@@ -8,6 +8,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { FirebaseService } from '../firebase/firebase.service';
+import { EmailService } from '../email/services/email.service';
 
 export type NotificationChannel = 'email' | 'whatsapp' | 'slack' | 'push';
 
@@ -20,6 +21,7 @@ export type NotificationEventType =
   | 'trial_ending'
   | 'subscription_renewed'
   | 'weekly_report'
+  | 'fifteen_day_report'
   | 'ai_reply_generated';
 
 export interface NotificationPayload {
@@ -51,6 +53,7 @@ export class NotificationService {
   constructor(
     private readonly whatsappService: WhatsAppService,
     private readonly firebaseService: FirebaseService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -59,6 +62,31 @@ export class NotificationService {
   async send(payload: NotificationPayload): Promise<NotificationResult[]> {
     const channels = Array.isArray(payload.channel) ? payload.channel : [payload.channel];
     const results: NotificationResult[] = [];
+
+    // Idempotency check if idempotencyKey provided
+    if (payload.idempotencyKey) {
+      try {
+        const db = this.firebaseService.getDb();
+        const existingSnap = await db.collection('notificationLogs')
+          .where('idempotencyKey', '==', payload.idempotencyKey)
+          .where('success', '==', true)
+          .limit(1)
+          .get();
+
+        if (!existingSnap.empty) {
+          const doc = existingSnap.docs[0].data();
+          this.logger.warn(`[Notification] Idempotent send skipped — key ${payload.idempotencyKey} already dispatched.`);
+          return [{
+            success: true,
+            channel: doc.channel || channels[0],
+            provider: doc.provider || 'idempotency-cache',
+            messageId: doc.messageId || 'duplicate-skipped',
+          }];
+        }
+      } catch (err: any) {
+        this.logger.warn(`[Notification] Could not verify idempotency key ${payload.idempotencyKey}: ${err.message}`);
+      }
+    }
 
     for (const channel of channels) {
       try {
@@ -186,20 +214,58 @@ export class NotificationService {
   }
 
   private async sendEmail(payload: NotificationPayload): Promise<NotificationResult> {
-    // Delegate to email.integration bridge (compatible with existing email module)
     try {
-      const emailBridge = require('../email/email.integration');
       const { event, recipient, data } = payload;
-
-      if (event === 'negative_review') {
-        await emailBridge.queueReviewAlertEmail({ ...data, email: recipient.email });
-      } else if (event?.startsWith('escalation_level_')) {
-        await emailBridge.queueEscalationEmail({ ...data, email: recipient.email });
-      } else if (event === 'weekly_report') {
-        await emailBridge.queueWeeklyReportEmail({ ...data, email: recipient.email });
+      if (!recipient.email) {
+        return { success: false, channel: 'email', error: 'No recipient email provided' };
       }
 
-      return { success: true, channel: 'email', provider: 'resend' };
+      let res;
+      if (event === 'negative_review') {
+        res = await this.emailService.sendReviewAlert({
+          recipientEmail: recipient.email,
+          businessName: data.businessName || data.outletName || 'Your Business',
+          customerName: data.customerName || 'Customer',
+          rating: data.rating || 1,
+          reviewText: data.reviewText || '',
+        });
+      } else if (event?.startsWith('escalation_level_')) {
+        const levelNum = parseInt(event.replace('escalation_level_', ''), 10) || 1;
+        res = await this.emailService.sendEscalationEmail({
+          recipientEmail: recipient.email,
+          businessName: data.businessName || data.outletName || 'Your Business',
+          customerName: data.customerName || 'Customer',
+          rating: data.rating || 1,
+          reviewText: data.reviewText || '',
+          level: levelNum,
+          pendingSince: data.pendingSince,
+        });
+      } else if (event === 'weekly_report') {
+        res = await this.emailService.sendWeeklyReport({
+          recipientEmail: recipient.email,
+          businessName: data.businessName || data.outletName || 'Your Business',
+          reportPeriod: data.reportPeriod || 'Last 7 Days',
+          totalReviews: data.totalReviews || 0,
+          averageRating: data.averageRating || 5.0,
+          responseRate: data.responseRate || '100%',
+          positiveSentimentPct: data.positiveSentimentPct || 100,
+        });
+      } else if (event === 'fifteen_day_report') {
+        res = await this.emailService.sendFifteenDayReport({
+          recipientEmail: recipient.email,
+          businessName: data.businessName || data.outletName || 'Your Business',
+          reportPeriod: data.reportPeriod || 'Last 15 Days',
+          totalReviews: data.totalReviews || 0,
+          averageRating: data.averageRating || 5.0,
+          responseRate: data.responseRate || '100%',
+          positiveSentimentPct: data.positiveSentimentPct || 100,
+          customerName: data.customerName,
+        });
+      } else {
+        return { success: false, channel: 'email', error: `Unsupported notification email event: ${event}` };
+      }
+
+      return { success: res.success, channel: 'email', provider: 'resend', messageId: res.jobId };
     } catch (err: any) {
       this.logger.error(`[Notification] Email send failed: ${err.message}`);
       return { success: false, channel: 'email', error: err.message };
@@ -243,6 +309,7 @@ export class NotificationService {
         error: result.error || null,
         priority: payload.priority || 'medium',
         recipient: payload.recipient,
+        idempotencyKey: payload.idempotencyKey || null,
         timestamp: new Date(),
       });
     } catch (err: any) {

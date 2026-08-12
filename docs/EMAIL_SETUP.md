@@ -10,7 +10,7 @@ RESEND_API_KEY=re_your_production_key_here
 EMAIL_FROM=OneRepute <notifications@onerepute.com>
 APP_URL=https://onerepute.com
 SUPPORT_EMAIL=support@onerepute.com
-COMPANY_ADDRESS=100 Innovation Way, Suite 400, San Francisco, CA 94105
+COMPANY_ADDRESS=
 
 # Redis Infrastructure
 REDIS_HOST=127.0.0.1

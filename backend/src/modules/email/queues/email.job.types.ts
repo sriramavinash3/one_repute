@@ -12,6 +12,8 @@ export enum EmailJobType {
   TEAM_INVITE = 'send-team-invite-email',
   SUBSCRIPTION_ACTIVATED = 'send-subscription-activated-email',
   WEEKLY_REPORT = 'send-weekly-report-email',
+  FIFTEEN_DAY_REPORT = 'send-fifteen-day-report-email',
+  ONBOARDING_CONFIRMED = 'send-onboarding-confirmed-email',
   REVIEW_ALERT = 'send-review-alert-email',
   ESCALATION_ALERT = 'send-escalation-alert-email',
 }
@@ -72,6 +74,25 @@ export interface WeeklyReportJobData extends BaseEmailJobData {
   analyticsUrl?: string;
 }
 
+export interface FifteenDayReportJobData extends BaseEmailJobData {
+  businessName: string;
+  reportPeriod: string;
+  totalReviews: number;
+  averageRating: number;
+  responseRate: string;
+  positiveSentimentPct: number;
+  analyticsUrl?: string;
+  customerName?: string;
+}
+
+export interface OnboardingConfirmedJobData extends BaseEmailJobData {
+  userName: string;
+  businessName: string;
+  planName: string;
+  isTrial?: boolean;
+  dashboardUrl?: string;
+}
+
 export interface ReviewAlertJobData extends BaseEmailJobData {
   businessName: string;
   customerName: string;
@@ -100,5 +121,7 @@ export type EmailJobPayload =
   | { type: EmailJobType.TEAM_INVITE; data: TeamInviteJobData }
   | { type: EmailJobType.SUBSCRIPTION_ACTIVATED; data: SubscriptionActivatedJobData }
   | { type: EmailJobType.WEEKLY_REPORT; data: WeeklyReportJobData }
+  | { type: EmailJobType.FIFTEEN_DAY_REPORT; data: FifteenDayReportJobData }
+  | { type: EmailJobType.ONBOARDING_CONFIRMED; data: OnboardingConfirmedJobData }
   | { type: EmailJobType.REVIEW_ALERT; data: ReviewAlertJobData }
   | { type: EmailJobType.ESCALATION_ALERT; data: EscalationAlertJobData };

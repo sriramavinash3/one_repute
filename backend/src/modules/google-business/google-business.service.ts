@@ -164,6 +164,7 @@ export class GoogleBusinessService {
 
     const accountsResponse = await accountClient.accounts.list();
     const accounts = accountsResponse.data.accounts || [];
+    this.logger.log(`[Onboarding] GBP accounts found: ${accounts.length}`);
 
     const locations: any[] = [];
     const fetchErrors: string[] = [];
@@ -197,6 +198,7 @@ export class GoogleBusinessService {
       }
     }
 
+    this.logger.log(`[Onboarding] GBP locations found: ${locations.length}`);
     this.logger.log(`Accounts/locations fetch complete: ${accounts.length} account(s), ${locations.length} location(s), ${fetchErrors.length} error(s)`);
     return { accountId: primaryAccountId, locations, fetchErrors };
   }

@@ -4,7 +4,7 @@
  * NestJS Auth Controller for Signup, Forgot Password, Reset Password, & Email Verification.
  */
 
-import { Controller, Post, Get, Body, Query, Param, HttpCode, HttpStatus, Logger, Req, UseGuards, HttpException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Param, HttpCode, HttpStatus, Logger, Req, UseGuards, HttpException, Header } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { TokenService } from './token.service';
@@ -16,6 +16,7 @@ import { SignupDto } from './dto/signup.dto';
 import { FirebaseAuthGuard } from './guards/firebase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthUser } from './interfaces/auth-user.interface';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 interface OnboardBody {
   form?: {
@@ -49,6 +50,7 @@ export class AuthController {
     private readonly emailService: EmailService,
     private readonly firebaseService: FirebaseService,
     private readonly configService: ConfigService,
+    private readonly whatsappService: WhatsAppService,
   ) {
     const key = this.configService.get<string>('app.encryptionKey') || '';
     this.encryptionKey = crypto.createHash('sha256').update(key).digest();
@@ -66,6 +68,7 @@ export class AuthController {
 
     try {
       const userName = dto.email.split('@')[0];
+      const frontendUrl = this.configService.get<string>('app.frontendUrl') || this.configService.get<string>('FRONTEND_BASE_URL') || 'https://onerepute.com';
 
       // 1. Generate secure 64-char hex token with 30-minute expiration
       const tokenInfo = this.tokenService.generateSecureToken(30);
@@ -77,7 +80,7 @@ export class AuthController {
       await this.emailService.sendPasswordReset({
         recipientEmail: dto.email,
         userName,
-        resetUrl: `https://onerepute.com/reset-password?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.email)}`,
+        resetUrl: `${frontendUrl}/reset-password?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.email)}`,
         expiresInMinutes: 30,
       });
 
@@ -101,6 +104,7 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   async signup(@Body() dto: SignupDto) {
     const userName = dto.name || dto.email.split('@')[0];
+    const frontendUrl = this.configService.get<string>('app.frontendUrl') || this.configService.get<string>('FRONTEND_BASE_URL') || 'https://onerepute.com';
 
     // 1. Queue Welcome & Verification Emails via BullMQ + Resend
     await this.emailService.sendWelcomeEmail({
@@ -114,7 +118,7 @@ export class AuthController {
     await this.emailService.sendVerificationEmail({
       recipientEmail: dto.email,
       userName,
-      verificationUrl: `https://onerepute.com/verify-email?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.email)}`,
+      verificationUrl: `${frontendUrl}/verify-email?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.email)}`,
       expiresInHours: 24,
     });
 
@@ -182,27 +186,141 @@ export class AuthController {
 
   /**
    * GET /api/auth/onboarding-session/:uid
-   * Returns the Google locations collected during the onboarding OAuth flow.
-   * (Historically mounted under /auth/google by mistake — the frontend and the
-   * auth middleware whitelist both use /api/auth/onboarding-session.)
+   * Returns explicit onboarding session status, session payload, GBP info, and outlets.
    */
   @Get('onboarding-session/:uid')
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+  @Header('Pragma', 'no-cache')
   async getOnboardingSession(@Param('uid') uid: string) {
+    this.logger.log(`[Onboarding] GET session request`);
+    this.logger.log(`[Onboarding] Requested session ID: ${uid}`);
+
     const db = this.firebaseService.getDb();
 
+    // 1. Check if user setup is already completed (idempotency check)
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      if (userData?.isSetupComplete && userData?.outletId) {
+        const outletDoc = await db.collection('outlets').doc(userData.outletId).get();
+        const outletData = outletDoc.exists ? outletDoc.data() : null;
+
+        this.logger.log(`[Onboarding] Session found: true`);
+        this.logger.log(`[Onboarding] Session status: completed`);
+        this.logger.log(`[Onboarding] Google user: ${outletData?.googleAccountEmail || userData?.email || 'N/A'}`);
+        this.logger.log(`[Onboarding] GBP status: connected`);
+        this.logger.log(`[Onboarding] Session status updated: completed for uid=${uid}`);
+
+        return {
+          success: true,
+          sessionId: uid,
+          status: 'completed',
+          session: {
+            id: uid,
+            status: 'completed',
+            googleAccountEmail: outletData?.googleAccountEmail || userData?.email || '',
+            googleAccountId: outletData?.googleAccountId || '',
+            googleLocationsWarning: '',
+            googleLocationsFetchedAt: outletData?.googleConnectedAt || null,
+            error: null,
+            createdAt: outletData?.createdAt || null,
+          },
+          googleBusinessProfile: {
+            connected: true,
+            email: outletData?.googleAccountEmail || '',
+            accountId: outletData?.googleAccountId || '',
+            locations: outletData?.googleLocations || [],
+            warning: '',
+            error: null,
+          },
+          outlets: outletData ? [{ id: outletDoc.id, ...outletData }] : [],
+        };
+      }
+    }
+
+    // 2. Fetch the onboarding session document
     const sessionDoc = await db.collection('onboarding_sessions').doc(uid).get();
 
     if (!sessionDoc.exists) {
-      throw new HttpException('Onboarding session not found', HttpStatus.NOT_FOUND);
+      this.logger.log(`[Onboarding] Session found: false`);
+      this.logger.log(`[Onboarding] Session status: no_data`);
+      this.logger.log(`[Onboarding] GBP status: not_connected`);
+      this.logger.log(`[Onboarding] Session status updated: no_data (no session doc) for uid=${uid}`);
+
+      return {
+        success: true,
+        sessionId: uid,
+        status: 'no_data',
+        session: {
+          id: uid,
+          status: 'no_data',
+          googleAccountEmail: '',
+          googleAccountId: '',
+          googleLocationsWarning: '',
+          googleLocationsFetchedAt: null,
+          error: null,
+          createdAt: null,
+        },
+        googleBusinessProfile: {
+          connected: false,
+          email: '',
+          accountId: '',
+          locations: [],
+          warning: '',
+          error: null,
+        },
+        outlets: [],
+      };
     }
 
-    const data = sessionDoc.data();
+    const data = sessionDoc.data() || {};
+    const locations = data.googleLocations || [];
+    const warning = data.googleLocationsWarning || '';
+    const errorMsg = data.error || null;
+    
+    // Explicit status derivation logic:
+    let status = data.status;
+    if (!status) {
+      if (errorMsg) {
+        status = 'error';
+      } else if (locations.length > 0) {
+        status = 'ready';
+      } else if (data.googleRefreshToken || warning) {
+        status = 'no_data';
+      } else {
+        status = 'loading';
+      }
+    }
+
+    this.logger.log(`[Onboarding] Session found: true`);
+    this.logger.log(`[Onboarding] Session status: ${status}`);
+    this.logger.log(`[Onboarding] Google user: ${data.googleAccountEmail || 'N/A'}`);
+    this.logger.log(`[Onboarding] GBP status: ${data.googleRefreshToken ? 'connected' : 'not_connected'}`);
+    this.logger.log(`[Onboarding] Session status updated: ${status} for uid=${uid}`);
+
     return {
-      googleAccountEmail: data?.googleAccountEmail,
-      googleLocations: data?.googleLocations || [],
-      googleLocationsWarning: data?.googleLocationsWarning || '',
-      googleLocationsFetchedAt: data?.googleLocationsFetchedAt || null,
-      googleAccountId: data?.googleAccountId,
+      success: true,
+      sessionId: uid,
+      status,
+      session: {
+        id: uid,
+        status,
+        googleAccountEmail: data.googleAccountEmail || '',
+        googleAccountId: data.googleAccountId || '',
+        googleLocationsWarning: warning,
+        googleLocationsFetchedAt: data.googleLocationsFetchedAt || null,
+        error: errorMsg,
+        createdAt: data.createdAt || null,
+      },
+      googleBusinessProfile: {
+        connected: !!data.googleRefreshToken,
+        email: data.googleAccountEmail || '',
+        accountId: data.googleAccountId || '',
+        locations,
+        warning,
+        error: errorMsg,
+      },
+      outlets: [],
     };
   }
 
@@ -234,6 +352,16 @@ export class AuthController {
     }
 
     const db = this.firebaseService.getDb();
+
+    // 0. Idempotency check: if user already completed setup, return existing outlet
+    const existingUserDoc = await db.collection('users').doc(userUid).get();
+    if (existingUserDoc.exists) {
+      const userData = existingUserDoc.data();
+      if (userData?.isSetupComplete && userData?.outletId) {
+        this.logger.log(`Onboarding already completed for user ${userUid}, returning existing outletId ${userData.outletId}`);
+        return { success: true, outletId: userData.outletId, alreadyCompleted: true };
+      }
+    }
 
     // 1. The Google OAuth onboarding session must exist (token stored by the callback)
     const sessionDoc = await db.collection('onboarding_sessions').doc(userUid).get();
@@ -360,7 +488,64 @@ export class AuthController {
       this.logger.warn(`Failed to initialize level 1 escalation setting for outlet ${outletRef.id}: ${escErr.message}`);
     }
 
-    // 4. Clean up the temporary session
+    // 4. Dispatch Trial Started or Plan Activated WhatsApp message
+    try {
+      const appUrl = this.configService.get<string>('APP_URL') || this.configService.get<string>('FRONTEND_BASE_URL') || 'https://app.onerepute.com';
+      const recipientName = userEmail.split('@')[0] || businessName;
+
+      if (isTrial && fullWhatsAppNumber) {
+        await this.whatsappService.sendTemplateByName({
+          templateKey: 'TRIAL_STARTED',
+          toNumber: fullWhatsAppNumber,
+          variables: {
+            Name: recipientName,
+            'Outlet Name': businessName,
+            Link: `${appUrl}/outlet/settings`,
+          },
+          idempotencyKey: `trial_started_${customerRef.id}`,
+          outletId: outletRef.id,
+          customerId: customerRef.id,
+          planName: form?.planId || 'starter',
+          isTrial: true,
+        });
+      } else if (fullWhatsAppNumber) {
+        await this.whatsappService.sendTemplateByName({
+          templateKey: 'PLAN_ACTIVATED',
+          toNumber: fullWhatsAppNumber,
+          variables: {
+            Name: recipientName,
+            'Plan Name': (form?.planId || 'Growth').replace('plan_', '').toUpperCase(),
+            'Outlet Name': businessName,
+            Link: `${appUrl}/outlet/dashboard`,
+          },
+          idempotencyKey: `plan_activated_${customerRef.id}`,
+          outletId: outletRef.id,
+          customerId: customerRef.id,
+          planName: form?.planId || 'growth',
+          isPaid: true,
+        });
+      }
+    } catch (waErr: any) {
+      this.logger.warn(`Could not send onboarding WhatsApp message: ${waErr.message}`);
+    }
+
+    // 4b. Dispatch Business Onboarding & Trial Activation Email
+    try {
+      const recipientName = userEmail.split('@')[0] || businessName;
+      await this.emailService.sendOnboardingConfirmed({
+        recipientEmail: userEmail,
+        userName: recipientName,
+        businessName,
+        planName: form?.planId || 'Starter',
+        isTrial: !!isTrial,
+        userId: userUid,
+      });
+      this.logger.log(`Onboarding confirmation email queued for ${userEmail}`);
+    } catch (emailErr: any) {
+      this.logger.warn(`Could not send onboarding confirmation email for user=${userUid}: ${emailErr.message}`);
+    }
+
+    // 5. Clean up the temporary session
     await db.collection('onboarding_sessions').doc(userUid).delete();
 
     this.logger.log(`Onboarding completed: user=${userUid}, customer=${customerRef.id}, outlet=${outletRef.id}, category="${businessCategory}", primaryWhatsApp=${countryCode}${localWhatsApp}`);

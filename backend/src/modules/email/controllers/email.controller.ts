@@ -16,6 +16,8 @@ import {
   SendInvitationDto,
   SendSubscriptionActivatedDto,
   SendWeeklyReportDto,
+  SendFifteenDayReportDto,
+  SendOnboardingConfirmedDto,
   SendReviewAlertDto,
 } from '../dto/email.dto';
 
@@ -78,6 +80,18 @@ export class EmailController {
   @HttpCode(HttpStatus.ACCEPTED)
   async sendWeeklyReport(@Body() dto: SendWeeklyReportDto) {
     return this.emailService.sendWeeklyReport(dto);
+  }
+
+  @Post('fifteen-day-report')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async sendFifteenDayReport(@Body() dto: SendFifteenDayReportDto) {
+    return this.emailService.sendFifteenDayReport(dto);
+  }
+
+  @Post('onboarding-confirmed')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async sendOnboardingConfirmed(@Body() dto: SendOnboardingConfirmedDto) {
+    return this.emailService.sendOnboardingConfirmed(dto);
   }
 
   @Post('review-alert')

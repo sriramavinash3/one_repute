@@ -21,6 +21,8 @@ import PasswordChanged from '../../../emails/PasswordChanged';
 import TeamInvite from '../../../emails/TeamInvite';
 import SubscriptionActivated from '../../../emails/SubscriptionActivated';
 import WeeklyReport from '../../../emails/WeeklyReport';
+import FifteenDayReport from '../../../emails/FifteenDayReport';
+import OnboardingConfirmed from '../../../emails/OnboardingConfirmed';
 import ReviewAlert from '../../../emails/ReviewAlert';
 import EscalationAlert from '../../../emails/EscalationAlert';
 
@@ -136,6 +138,16 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
       case EmailJobType.WEEKLY_REPORT:
         subject = `Weekly Reputation Report for ${payload.data.businessName}`;
         templateComponent = React.createElement(WeeklyReport, payload.data);
+        break;
+
+      case EmailJobType.FIFTEEN_DAY_REPORT:
+        subject = `15-Day Reputation Performance Report for ${payload.data.businessName}`;
+        templateComponent = React.createElement(FifteenDayReport, payload.data);
+        break;
+
+      case EmailJobType.ONBOARDING_CONFIRMED:
+        subject = `Business Setup Complete: Welcome ${payload.data.businessName} to OneRepute`;
+        templateComponent = React.createElement(OnboardingConfirmed, payload.data);
         break;
 
       case EmailJobType.REVIEW_ALERT:

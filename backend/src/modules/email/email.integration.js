@@ -161,4 +161,42 @@ module.exports = {
       logger.error(`[EmailBridge] Failed to queue Escalation Email for ${recipientEmail}:`, err.message);
     }
   },
+
+  /**
+   * Queue 15-Day Reputation Intelligence Report Email
+   */
+  async queueFifteenDayReportEmail(recipientEmail, businessName, reportPeriod, totalReviews, averageRating, responseRate, positiveSentimentPct, customerName) {
+    try {
+      return await emailService.sendFifteenDayReport({
+        recipientEmail,
+        businessName,
+        reportPeriod,
+        totalReviews,
+        averageRating,
+        responseRate,
+        positiveSentimentPct,
+        customerName,
+      });
+    } catch (err) {
+      logger.error(`[EmailBridge] Failed to queue 15-Day Report for ${recipientEmail}:`, err.message);
+    }
+  },
+
+  /**
+   * Queue Business Onboarding Confirmation Email
+   */
+  async queueOnboardingConfirmedEmail(recipientEmail, userName, businessName, planName, isTrial, userId) {
+    try {
+      return await emailService.sendOnboardingConfirmed({
+        recipientEmail,
+        userName,
+        businessName,
+        planName,
+        isTrial,
+        userId,
+      });
+    } catch (err) {
+      logger.error(`[EmailBridge] Failed to queue Onboarding Confirmation for ${recipientEmail}:`, err.message);
+    }
+  },
 };

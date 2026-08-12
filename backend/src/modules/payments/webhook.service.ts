@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { FirebaseService } from '../firebase/firebase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentsConfigService } from './payments-config.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class WebhookService {
@@ -12,6 +13,7 @@ export class WebhookService {
     private readonly firebaseService: FirebaseService,
     private readonly prismaService: PrismaService,
     private readonly configService: PaymentsConfigService,
+    private readonly whatsappService: WhatsAppService,
   ) {}
 
   verifySignature(rawBody: string, signature: string): boolean {
@@ -91,14 +93,27 @@ export class WebhookService {
       case 'subscription.activated':
       case 'subscription.charged':
       case 'invoice.paid':
+        const now = new Date();
+        let inTrial = false;
+        if (customerData.trialEndDate) {
+          const tEnd = customerData.trialEndDate.toDate ? customerData.trialEndDate.toDate() : new Date(customerData.trialEndDate);
+          if (tEnd.getTime() > now.getTime()) {
+            inTrial = true;
+          }
+        }
+
         statusUpdate = {
           subscriptionStatus: 'active',
           paymentStatus: 'paid',
+          hasConvertedToPaid: true,
           renewalDate: new Date(renewalTime),
           updatedAt: new Date(),
         };
 
-        // Cache invalidated cleanly
+        if (customerData.scheduledPlan) {
+          statusUpdate.plan = customerData.scheduledPlan;
+        }
+
 
         if (payload.payload?.invoice?.entity) {
           const invoice = payload.payload.invoice.entity;
@@ -135,10 +150,34 @@ export class WebhookService {
           }
         }
 
+        // Trigger PLAN_ACTIVATED WhatsApp template
         try {
-          this.logger.log(`Subscription activated confirmation ready for ${customerData.email || 'customer@onerepute.com'}`);
-        } catch (err: any) {
-          this.logger.warn(`Could not trigger confirmation email: ${err.message}`);
+          const outletsSnap = await db.collection('outlets').where('customerId', '==', customerId).limit(1).get();
+          if (!outletsSnap.empty) {
+            const outletDoc = outletsSnap.docs[0];
+            const outlet = outletDoc.data();
+            const phone = outlet.whatsappNumber || outlet.primaryWhatsAppNumber || customerData.phone;
+            if (phone) {
+              const appUrl = process.env.APP_URL || 'https://app.onerepute.com';
+              await this.whatsappService.sendTemplateByName({
+                templateKey: 'PLAN_ACTIVATED',
+                toNumber: phone,
+                variables: {
+                  Name: customerData.name || outlet.name || 'Customer',
+                  'Plan Name': (customerData.plan || 'Growth').replace('plan_', '').toUpperCase(),
+                  'Outlet Name': outlet.name || 'Business',
+                  Link: `${appUrl}/outlet/dashboard`,
+                },
+                idempotencyKey: `plan_activated_${customerId}`,
+                outletId: outletDoc.id,
+                customerId,
+                planName: customerData.plan || 'growth',
+                isPaid: true,
+              });
+            }
+          }
+        } catch (waErr: any) {
+          this.logger.warn(`Could not send PLAN_ACTIVATED WhatsApp: ${waErr.message}`);
         }
         break;
 

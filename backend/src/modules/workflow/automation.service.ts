@@ -34,9 +34,7 @@ export interface EscalationCheckParams {
 
 // Plan-gating for escalation levels (mirrors legacy logic)
 const PLAN_MAX_LEVELS: Record<string, number> = {
-  enterprise: 3,
   premium: 3,
-  pro: 2,
   growth: 2,
   starter: 1,
   default: 1,
@@ -51,6 +49,8 @@ function getPlanMaxLevel(planName = ''): number {
 }
 
 import { EscalationService } from '../escalation/escalation.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { normalizePhoneNumber } from '../../common/utils/phone-number.util';
 
 @Injectable()
 export class AutomationService {
@@ -62,6 +62,7 @@ export class AutomationService {
     private readonly aiService: AIService,
     private readonly notificationService: NotificationService,
     private readonly escalationService: EscalationService,
+    private readonly whatsappService: WhatsAppService,
   ) {}
 
   /**
@@ -119,12 +120,77 @@ export class AutomationService {
         });
       }
 
-      // 4. Set escalation tracking for very negative reviews
+      // 4. Set escalation tracking & post-trial re-engagement for negative reviews
       if (rating <= 2) {
         await this.initEscalation(reviewId, outletId, event);
+        await this.checkAndSendPostTrialReengagement(outletId, rating, event);
       }
     } catch (err: any) {
       this.logger.error(`[Automation] onReviewReceived chain failed for ${reviewId}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Post-Trial Re-Engagement Trigger — Fires ONCE on first 1-2 star review after trial expiration
+   * when non-paid and GMB is still connected.
+   */
+  private async checkAndSendPostTrialReengagement(outletId: string, rating: number, event: ReviewReceivedEvent): Promise<void> {
+    try {
+      const db = this.firebaseService.getDb();
+      const outletRef = db.collection('outlets').doc(outletId);
+      const outletSnap = await outletRef.get();
+      if (!outletSnap.exists) return;
+
+      const outlet = outletSnap.data();
+
+      // Check GMB still connected
+      const isGmbConnected = Boolean(outlet.googleAccountId || outlet.googleLocationId || outlet.placeId);
+      if (!isGmbConnected) return;
+
+      // Check customer subscription status
+      const customerId = outlet.customerId;
+      if (!customerId) return;
+
+      const customerRef = db.collection('customers').doc(customerId);
+      const customerSnap = await customerRef.get();
+      if (!customerSnap.exists) return;
+
+      const customer = customerSnap.data();
+      const isPaid = customer.subscriptionStatus === 'active';
+      if (isPaid) return; // Only send to non-paid accounts
+
+      // Deduplication guard — verify message has NOT previously been sent
+      if (outlet.postTrialReengagementSent || customer.postTrialReengagementSent) {
+        return;
+      }
+
+      const phone = outlet.whatsappNumber || outlet.primaryWhatsAppNumber || customer.phone;
+      if (!phone) return;
+
+      const appUrl = this.config.get<string>('APP_URL') || this.config.get<string>('FRONTEND_BASE_URL') || 'https://app.onerepute.com';
+
+      // Atomic lock
+      await outletRef.update({ postTrialReengagementSent: true, postTrialReengagementAt: admin.firestore.FieldValue.serverTimestamp() });
+      await customerRef.update({ postTrialReengagementSent: true, postTrialReengagementAt: admin.firestore.FieldValue.serverTimestamp() });
+
+      await this.whatsappService.sendTemplateByName({
+        templateKey: 'POST_TRIAL_NEGATIVE_REVIEW_REENGAGEMENT',
+        toNumber: phone,
+        variables: {
+          Name: customer.name || outlet.name || 'Customer',
+          Rating: String(rating),
+          'Outlet Name': outlet.name || 'Business',
+          'Login Link': `${appUrl}/login`,
+        },
+        idempotencyKey: `post_trial_reengage_${customerId}`,
+        outletId,
+        customerId,
+        isPaid: false,
+      });
+
+      this.logger.log(`[Automation] Post-trial re-engagement alert sent to ${phone} for customer ${customerId}`);
+    } catch (err: any) {
+      this.logger.error(`[Automation] Failed post-trial re-engagement check: ${err.message}`);
     }
   }
 
@@ -200,7 +266,6 @@ export class AutomationService {
     const data = doc.data();
     const reviewId = doc.id;
 
-
     // 1. Stop conditions
     if (['responded', 'resolved', 'ignored'].includes(data.status)) {
       await doc.ref.update({ escalationStatus: 'completed', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -223,51 +288,88 @@ export class AutomationService {
     }
 
     const customerId = outlet?.customerId;
-    let maxLevel = 0;
+    let maxLevel = getPlanMaxLevel('starter'); // Default to 1 (Starter) if customer details not resolved
     if (customerId) {
       try {
         const customerSnap = await db.collection('customers').doc(customerId).get();
-        const customer = customerSnap.data() || {};
-        const planName = customer.planName || customer.plan || 'starter';
-        maxLevel = getPlanMaxLevel(planName);
-        // Check subscription still active
-        if (['unpaid', 'inactive', 'past_due'].includes(customer.paymentStatus)) {
-          await doc.ref.update({ escalationStatus: 'completed' });
-          return;
+        if (customerSnap.exists) {
+          const customer = customerSnap.data() || {};
+          const planName = customer.planName || customer.plan || 'starter';
+          maxLevel = getPlanMaxLevel(planName);
+          // Check subscription still active
+          if (['unpaid', 'inactive', 'past_due'].includes(customer.paymentStatus)) {
+            this.logger.warn(`[Automation] Stopping escalation for inactive customer ${customerId}`);
+            await doc.ref.update({ escalationStatus: 'completed' });
+            return;
+          }
         }
-      } catch {}
+      } catch (err: any) {
+        this.logger.warn(`[Automation] Failed to fetch customer plan for ${customerId}: ${err.message}`);
+      }
     }
 
     const currentLevelStr = (data.escalationStatus || '').replace('level_', '').replace('_pending', '');
     const currentLevel = parseInt(currentLevelStr) || 1;
 
+    // STRICT SERVER-SIDE ENTITLEMENT GATING:
+    // If current level exceeds user's max plan level, reject & complete without sending messages.
     if (currentLevel > maxLevel) {
-      await doc.ref.update({ escalationStatus: 'completed' });
+      this.logger.warn(`[Automation] Blocking Level ${currentLevel} escalation for review ${reviewId}: Plan supports up to Level ${maxLevel}`);
+      await doc.ref.update({ escalationStatus: 'completed', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       return;
     }
 
     // 3. Build escalation contacts for this level
     const escalationContacts = await this.getEscalationContactsAsync(currentLevel, data.outletId, outlet);
     if (!escalationContacts.length) {
+      this.logger.warn(`[Automation] No valid escalation contacts configured for Level ${currentLevel}, outlet ${data.outletId}`);
       await doc.ref.update({ escalationStatus: 'completed' });
       return;
     }
 
-    // 4. Send alerts
-    const pendingSince = this.formatPendingTime(data.escalationInitiatedAt || data.reviewTimestamp || data.createdAt);
-    const dashboardUrl = `${dashboardBaseUrl}/reviews/${reviewId}`;
+    // 4. Idempotency Guard — Check if message for this (reviewId, level) was already dispatched
+    const idempotencyKey = `esc_${reviewId}_lvl_${currentLevel}`;
+    const dispatchDocRef = db.collection('escalationDispatches').doc(idempotencyKey);
+    const dispatchSnap = await dispatchDocRef.get();
 
-    for (const contact of escalationContacts) {
-      await this.notificationService.sendEscalationAlert({
-        businessName: outlet.name || data.outletName || 'Business',
-        customerName: data.customerName,
-        rating: data.rating,
-        reviewText: data.text || data.reviewText,
+    if (dispatchSnap.exists) {
+      this.logger.warn(`[Automation] Escalation alert already dispatched for key ${idempotencyKey}. Skipping duplicate send.`);
+    } else {
+      // Send alerts
+      const pendingSince = this.formatPendingTime(data.escalationInitiatedAt || data.reviewTimestamp || data.createdAt);
+      const dashboardUrl = `${dashboardBaseUrl}/reviews/${reviewId}`;
+
+      for (const contact of escalationContacts) {
+        await this.notificationService.sendEscalationAlert({
+          businessName: outlet.name || data.outletName || 'Business',
+          customerName: data.customerName,
+          rating: data.rating,
+          reviewText: data.text || data.reviewText,
+          level: currentLevel,
+          pendingSince,
+          dashboardUrl,
+          contactPhone: contact.phone,
+          contactEmail: contact.email,
+        });
+      }
+
+      // Record dispatch doc atomically to prevent duplicate sends
+      await dispatchDocRef.set({
+        reviewId,
+        outletId: data.outletId,
         level: currentLevel,
-        pendingSince,
-        dashboardUrl,
-        contactPhone: contact.phone,
-        contactEmail: contact.email,
+        dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+        contactsCount: escalationContacts.length,
+      });
+
+      // Log to activityLogs
+      await db.collection('activityLogs').add({
+        type: `ESCALATION_LEVEL_${currentLevel}`,
+        reviewId,
+        outletId: data.outletId,
+        level: currentLevel,
+        contacts: escalationContacts.length,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
 
@@ -292,16 +394,6 @@ export class AutomationService {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
-
-    // 6. Log to activityLogs
-    await db.collection('activityLogs').add({
-      type: `ESCALATION_LEVEL_${currentLevel}`,
-      reviewId,
-      outletId: data.outletId,
-      level: currentLevel,
-      contacts: escalationContacts.length,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
   }
 
   private async getEscalationContactsAsync(level: number, outletId: string, outlet: any): Promise<Array<{ phone?: string; email?: string }>> {
@@ -311,7 +403,7 @@ export class AutomationService {
 
       const lvlConfig = settings.levels.find(l => l.level === level);
       if (lvlConfig && lvlConfig.enabled && lvlConfig.whatsappNumber) {
-        const fullPhone = `${lvlConfig.countryCode || '+91'}${lvlConfig.whatsappNumber}`.replace(/\s+/g, '');
+        const fullPhone = normalizePhoneNumber(lvlConfig.whatsappNumber, lvlConfig.countryCode || '+91');
         return [{ phone: fullPhone, email: lvlConfig.email }];
       }
     } catch (err: any) {
@@ -328,21 +420,20 @@ export class AutomationService {
     if (level === 1) {
       // Primary WhatsApp Number is always the 1st escalation contact
       const rawNum = outlet?.primaryWhatsAppNumber || outlet?.whatsappNumber || outlet?.managerPhone;
-      const cc = outlet?.countryCode || '';
+      const cc = outlet?.countryCode || '+91';
       if (rawNum) {
-        let phone = String(rawNum).trim();
-        if (cc && !phone.startsWith('+')) {
-          phone = `${cc}${phone}`.replace(/\s+/g, '');
-        }
+        const phone = normalizePhoneNumber(String(rawNum), cc);
         contacts.push({ phone, email: outlet.primaryEmail || outlet.managerEmail || outlet.email });
       }
     } else if (level === 2) {
       if (outlet?.regionalManagerPhone || outlet?.regionalManagerEmail) {
-        contacts.push({ phone: outlet.regionalManagerPhone, email: outlet.regionalManagerEmail });
+        const phone = outlet.regionalManagerPhone ? normalizePhoneNumber(String(outlet.regionalManagerPhone), outlet.countryCode || '+91') : undefined;
+        contacts.push({ phone, email: outlet.regionalManagerEmail });
       }
     } else if (level === 3) {
       if (outlet?.directorPhone || outlet?.directorEmail) {
-        contacts.push({ phone: outlet.directorPhone, email: outlet.directorEmail });
+        const phone = outlet.directorPhone ? normalizePhoneNumber(String(outlet.directorPhone), outlet.countryCode || '+91') : undefined;
+        contacts.push({ phone, email: outlet.directorEmail });
       }
     }
 

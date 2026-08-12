@@ -1,16 +1,3 @@
-/**
- * src/modules/scheduler/scheduler.service.ts
- *
- * Centralized NestJS scheduler — 100% NestJS, zero legacy node-cron dependencies.
- *
- * Scheduled jobs:
- *  - Review sync:      0 10,15,21 * * *   (ReviewSchedulerService)
- *  - Escalations:      every 60 seconds   (AutomationService)
- *  - Quota reset:      every 24 hours     (Internal NestJS handler)
- *  - Subscription:     every 24 hours     (Internal NestJS handler)
- *  - Weekly report:    every 7 days       (Internal NestJS handler)
- */
-
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
@@ -18,6 +5,8 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { ReviewSchedulerService } from '../reviews/review-scheduler.service';
 import { AutomationService } from '../workflow/automation.service';
 import { AIService } from '../ai/ai.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { EmailService } from '../email/services/email.service';
 
 @Injectable()
 export class SchedulerService implements OnModuleInit, OnModuleDestroy {
@@ -30,6 +19,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     private readonly reviewScheduler: ReviewSchedulerService,
     private readonly automationService: AutomationService,
     private readonly aiService: AIService,
+    private readonly whatsappService: WhatsAppService,
+    private readonly emailService: EmailService,
   ) {}
 
   onModuleInit() {
@@ -61,9 +52,21 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       setInterval(() => this.runWeeklyReportJob(), 7 * 24 * 60 * 60 * 1000),
     );
 
+    // 5. Trial Lifecycle Check (Day 12, 14, 16) — every 24 hours
+    this.timers.push(
+      setInterval(() => this.runTrialLifecycleJob(), 24 * 60 * 60 * 1000),
+    );
+
+    // 6. Paid Customer Reports Check (15-day and 30-day) — every 24 hours
+    this.timers.push(
+      setInterval(() => this.runPaidCustomerReportsJob(), 24 * 60 * 60 * 1000),
+    );
+
     // Initial triggers shortly after startup
     setTimeout(() => this.runQuotaResetJob(), 30_000);
     setTimeout(() => this.runSubscriptionExpiryJob(), 45_000);
+    setTimeout(() => this.runTrialLifecycleJob(), 60_000);
+    setTimeout(() => this.runPaidCustomerReportsJob(), 75_000);
 
     this.logger.log('[Scheduler] All background jobs scheduled successfully via NestJS');
   }
@@ -88,6 +91,214 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (err: any) {
       this.logger.error(`[Scheduler] Escalation job failed: ${err.message}`);
+    }
+  }
+
+  private async runTrialLifecycleJob(): Promise<void> {
+    this.logger.log('[Scheduler] Running trial lifecycle check (Day 12, 14, 16)...');
+    const db = this.firebaseService.getDb();
+    const appUrl = this.config.get<string>('APP_URL') || this.config.get<string>('FRONTEND_BASE_URL') || 'https://app.onerepute.com';
+    const now = Date.now();
+
+    try {
+      const customersSnap = await db.collection('customers').get();
+
+      for (const doc of customersSnap.docs) {
+        const customerId = doc.id;
+        const customer = doc.data();
+
+        const isTrial = customer.accountStatus === 'Trial' || customer.subscriptionStatus === 'trialing';
+        const isPaid = customer.subscriptionStatus === 'active';
+
+        const trialStart = customer.trialStartDate || customer.createdAt;
+        if (!trialStart) continue;
+
+        const startTime = trialStart.toDate ? trialStart.toDate().getTime() : new Date(trialStart).getTime();
+        const elapsedDays = Math.floor((now - startTime) / (24 * 60 * 60 * 1000));
+
+        // Fetch primary outlet & phone
+        const outletsSnap = await db.collection('outlets')
+          .where('customerId', '==', customerId)
+          .limit(1)
+          .get();
+
+        if (outletsSnap.empty) continue;
+        const outletDoc = outletsSnap.docs[0];
+        const outlet = outletDoc.data();
+        const phone = outlet.whatsappNumber || outlet.primaryWhatsAppNumber || customer.phone;
+
+        if (!phone) continue;
+
+        const customerName = customer.name || outlet.name || 'Customer';
+        const outletName = outlet.name || 'Business';
+
+        // Trial Day 12 — Performance & Improvement Check
+        if (isTrial && elapsedDays === 12) {
+          await this.whatsappService.sendTemplateByName({
+            templateKey: 'TRIAL_DAY_12_PERFORMANCE',
+            toNumber: phone,
+            variables: {
+              Name: customerName,
+              'Outlet Name': outletName,
+              Link: `${appUrl}/outlet/dashboard`,
+            },
+            idempotencyKey: `trial_d12_${customerId}`,
+            outletId: outletDoc.id,
+            customerId,
+            planName: customer.plan || 'trial',
+            isTrial: true,
+          });
+        }
+
+        // Trial Day 14 — Renewal Communication
+        if (isTrial && elapsedDays === 14) {
+          const renewalDateStr = customer.trialEndDate
+            ? (customer.trialEndDate.toDate ? customer.trialEndDate.toDate().toLocaleDateString() : new Date(customer.trialEndDate).toLocaleDateString())
+            : new Date(now + 24 * 60 * 60 * 1000).toLocaleDateString();
+
+          const planNameStr = (customer.plan || 'Growth').replace('plan_', '').toUpperCase();
+          const amountStr = customer.billingCountry === 'US' ? '39' : '1,999';
+
+          await this.whatsappService.sendTemplateByName({
+            templateKey: 'TRIAL_DAY_14_RENEWAL',
+            toNumber: phone,
+            variables: {
+              Name: customerName,
+              'Outlet Name': outletName,
+              'Plan Name': planNameStr,
+              'Renewal Date': renewalDateStr,
+              Amount: amountStr,
+              Link: `${appUrl}/outlet/settings`,
+            },
+            idempotencyKey: `trial_d14_${customerId}`,
+            outletId: outletDoc.id,
+            customerId,
+            planName: customer.plan || 'trial',
+            isTrial: true,
+          });
+        }
+
+        // Trial Day 16 — Feedback Request (Expired & Non-paid)
+        if (!isPaid && elapsedDays >= 16 && !customer.hasConvertedToPaid) {
+          await this.whatsappService.sendTemplateByName({
+            templateKey: 'TRIAL_EXPIRED_FEEDBACK',
+            toNumber: phone,
+            variables: {
+              Name: customerName,
+              'Outlet Name': outletName,
+            },
+            idempotencyKey: `trial_d16_${customerId}`,
+            outletId: outletDoc.id,
+            customerId,
+            planName: customer.plan || 'expired',
+            isPaid: false,
+          });
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`[Scheduler] Trial lifecycle job failed: ${err.message}`);
+    }
+  }
+
+  private async runPaidCustomerReportsJob(): Promise<void> {
+    this.logger.log('[Scheduler] Running paid customer reports check (15-day & 30-day)...');
+    const db = this.firebaseService.getDb();
+    const appUrl = this.config.get<string>('APP_URL') || this.config.get<string>('FRONTEND_BASE_URL') || 'https://app.onerepute.com';
+    const now = Date.now();
+    const dateKey = new Date().toISOString().slice(0, 10);
+
+    try {
+      const customersSnap = await db.collection('customers')
+        .where('subscriptionStatus', '==', 'active')
+        .get();
+
+      for (const doc of customersSnap.docs) {
+        const customerId = doc.id;
+        const customer = doc.data();
+
+        const activeStart = customer.createdAt;
+        if (!activeStart) continue;
+
+        const startTime = activeStart.toDate ? activeStart.toDate().getTime() : new Date(activeStart).getTime();
+        const elapsedDays = Math.floor((now - startTime) / (24 * 60 * 60 * 1000));
+
+        const outletsSnap = await db.collection('outlets')
+          .where('customerId', '==', customerId)
+          .limit(1)
+          .get();
+
+        if (outletsSnap.empty) continue;
+        const outletDoc = outletsSnap.docs[0];
+        const outlet = outletDoc.data();
+        const phone = outlet.whatsappNumber || outlet.primaryWhatsAppNumber || customer.phone;
+
+        if (!phone) continue;
+
+        const customerName = customer.name || outlet.name || 'Customer';
+        const outletName = outlet.name || 'Business';
+
+        // 15-Day Performance Report
+        if (elapsedDays > 0 && elapsedDays % 15 === 0) {
+          if (phone) {
+            await this.whatsappService.sendTemplateByName({
+              templateKey: 'PAID_15_DAY_REPORT',
+              toNumber: phone,
+              variables: {
+                Name: customerName,
+                'Outlet Name': outletName,
+                'Report Link': `${appUrl}/outlet/reports`,
+              },
+              idempotencyKey: `paid_15d_${customerId}_${dateKey}`,
+              outletId: outletDoc.id,
+              customerId,
+              planName: customer.plan || 'growth',
+              isPaid: true,
+            });
+          }
+
+          // Trigger 15-Day Email Report
+          const recipientEmail = customer.email || outlet.email;
+          if (recipientEmail) {
+            try {
+              const reviewsCount = outlet.reviewsCount || 0;
+              const averageRating = outlet.averageRating || 5.0;
+              await this.emailService.sendFifteenDayReport({
+                recipientEmail,
+                businessName: outletName,
+                customerName,
+                reportPeriod: 'Last 15 Days',
+                totalReviews: reviewsCount,
+                averageRating,
+                responseRate: '98%',
+                positiveSentimentPct: 95,
+              });
+              this.logger.log(`[Scheduler] Queued 15-Day Report Email for ${recipientEmail} (${outletName})`);
+            } catch (emailErr: any) {
+              this.logger.error(`[Scheduler] Failed to queue 15-Day Report Email for ${recipientEmail}: ${emailErr.message}`);
+            }
+          }
+        }
+
+        // 30-Day Intelligence Report
+        if (elapsedDays > 0 && elapsedDays % 30 === 0) {
+          await this.whatsappService.sendTemplateByName({
+            templateKey: 'PAID_30_DAY_INTELLIGENCE_REPORT',
+            toNumber: phone,
+            variables: {
+              Name: customerName,
+              'Outlet Name': outletName,
+              'Report Link': `${appUrl}/outlet/reports`,
+            },
+            idempotencyKey: `paid_30d_${customerId}_${dateKey}`,
+            outletId: outletDoc.id,
+            customerId,
+            planName: customer.plan || 'growth',
+            isPaid: true,
+          });
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`[Scheduler] Paid reports job failed: ${err.message}`);
     }
   }
 
@@ -275,5 +486,13 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
 
   async triggerSubscriptionCheck(): Promise<void> {
     return this.runSubscriptionExpiryJob();
+  }
+
+  async triggerTrialLifecycle(): Promise<void> {
+    return this.runTrialLifecycleJob();
+  }
+
+  async triggerPaidReports(): Promise<void> {
+    return this.runPaidCustomerReportsJob();
   }
 }

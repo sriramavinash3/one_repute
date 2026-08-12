@@ -187,6 +187,7 @@ export class AdminService {
 
     if (dto.name) updateData.name = dto.name;
     if (dto.address) updateData.address = dto.address;
+    if (dto.email !== undefined) updateData.email = dto.email;
     if (dto.whatsappNumber) updateData.whatsappNumber = dto.whatsappNumber;
     if (dto.escalationThreshold !== undefined) updateData.escalationThreshold = Number(dto.escalationThreshold);
     if (dto.settings) updateData.settings = dto.settings;
@@ -210,7 +211,7 @@ export class AdminService {
           id: doc.id,
           name: data.name || data.companyName || 'Customer',
           email: data.email || '',
-          plan: data.planName || data.plan || 'pro',
+          plan: data.planName || data.plan || 'starter',
           paymentStatus: data.paymentStatus || 'active',
           subscriptionStatus: data.subscriptionStatus || data.paymentStatus || 'active',
           accountStatus: data.accountStatus || data.status || 'Active',

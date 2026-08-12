@@ -7,28 +7,10 @@ import { usePricing } from './usePricing'
 import PricingBanner from './PricingBanner'
 import BillingToggle from './BillingToggle'
 import PricingCard from './PricingCard'
+import { PLAN_FEATURE_COMPARISON } from './pricingConfig'
 
-const comparisonData = [
-  { feature: 'Monthly Review Responses', starter: '100 reviews', growth: '250 reviews', premium: '500 reviews' },
-  { feature: 'Google Review Auto Reply', starter: true, growth: true, premium: true },
-  { feature: '≤2 Star Review – AI Response', starter: true, growth: true, premium: true },
-  { feature: 'Positive Review Replies', starter: true, growth: true, premium: true },
-  { feature: 'WhatsApp Escalation Alert', starter: '1', growth: '2', premium: '3' },
-  { feature: 'Smart QR', starter: false, growth: true, premium: true },
-  { feature: 'Sentiment Analysis', starter: 'Basic', growth: true, premium: 'Advanced' },
-  { feature: 'Review Dashboard', starter: 'Basic', growth: 'Full Dashboard', premium: 'Advanced Dashboard' },
-  { feature: 'Monthly Report', starter: 'Comprehensive Summary', growth: 'Detailed Report with Sentiment Analysis', premium: 'Strategy Report with Action Plan' },
-  { feature: 'Keyword Tracking', starter: false, growth: true, premium: true },
-  { feature: 'Competitor Tracking', starter: false, growth: 'Up to 2', premium: 'Up to 5' },
-  { feature: 'Multi User Access', starter: '2 Users', growth: '3 Users', premium: '5 Users' },
-  { feature: 'Reply Approval Mode', starter: false, growth: false, premium: true },
-  { feature: 'Escalation Matrix', starter: '1 Step', growth: '2 Step', premium: '3 Step' },
-  { feature: 'Review Trend Insights', starter: false, growth: true, premium: true },
-  { feature: 'Low Rating Pattern Detection', starter: false, growth: 'Basic', premium: 'Advanced' },
-  { feature: 'Customer Issue Categories', starter: false, growth: true, premium: true },
-  { feature: 'Monthly Strategy Call', starter: false, growth: false, premium: true },
-  { feature: 'Support Priority', starter: 'Standard', growth: 'Priority', premium: 'Premium' },
-]
+const comparisonData = PLAN_FEATURE_COMPARISON
+
 
 function renderCell(val, isHighlighted = false) {
   if (val === true) {

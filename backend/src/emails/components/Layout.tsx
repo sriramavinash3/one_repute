@@ -26,7 +26,7 @@ export const BaseLayout: React.FC<LayoutProps> = ({
   children,
   supportEmail = 'support@onerepute.com',
   appUrl = 'https://onerepute.com',
-  companyAddress = '100 Innovation Way, Suite 400, San Francisco, CA 94105',
+  companyAddress = process.env.COMPANY_ADDRESS || '',
 }) => {
   return (
     <Html lang="en">
@@ -83,7 +83,7 @@ export const BaseLayout: React.FC<LayoutProps> = ({
               </Link>
             </Text>
             <Text style={footerSubTextStyle} className="text-sub">
-              {companyAddress} • <Link href={appUrl} style={footerLinkStyle}>OneRepute Inc.</Link>
+              {companyAddress ? `${companyAddress} • ` : ''}<Link href={appUrl} style={footerLinkStyle}>OneRepute Inc.</Link>
             </Text>
             <Text style={socialLinksStyle} className="text-sub">
               <Link href={`${appUrl}/privacy`} style={footerLinkStyle}>Privacy Policy</Link> •{' '}

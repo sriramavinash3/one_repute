@@ -102,4 +102,40 @@ describe('EmailService', () => {
       }),
     );
   });
+
+  it('should enqueue sendFifteenDayReport job', async () => {
+    const result = await emailService.sendFifteenDayReport({
+      recipientEmail: 'owner@bistro.com',
+      businessName: 'Bistro One',
+      reportPeriod: 'Last 15 Days',
+      totalReviews: 24,
+      averageRating: 4.9,
+      responseRate: '98%',
+      positiveSentimentPct: 96,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockQueueService.addJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'send-fifteen-day-report-email',
+      }),
+    );
+  });
+
+  it('should enqueue sendOnboardingConfirmed job', async () => {
+    const result = await emailService.sendOnboardingConfirmed({
+      recipientEmail: 'owner@bistro.com',
+      userName: 'Alice',
+      businessName: 'Bistro One',
+      planName: 'Growth',
+      isTrial: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockQueueService.addJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'send-onboarding-confirmed-email',
+      }),
+    );
+  });
 });

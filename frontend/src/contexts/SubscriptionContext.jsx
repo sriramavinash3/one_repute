@@ -12,7 +12,7 @@ export function SubscriptionProvider({ children }) {
   const [error, setError] = useState(null)
 
   const fetchBillingInfo = async () => {
-    if (!user || !profile?.customerId) {
+    if (!user) {
       setBillingInfo(null)
       return
     }
@@ -35,7 +35,7 @@ export function SubscriptionProvider({ children }) {
 
   // Helper function to map planId to features locally if not fully loaded from API
   const getFeatureValue = (featureKey) => {
-    if (!billingInfo?.plans || !billingInfo?.subscription) return null
+    if (!billingInfo?.subscription) return null
     
     // 1. Get current plan feature list
     const currentPlanId = billingInfo.subscription.plan || 'plan_starter'
@@ -173,7 +173,7 @@ export function SubscriptionProvider({ children }) {
         billingCycle
       })
 
-      if (!subscription.razorpayKeyId || subscription.razorpayKeyId === 'rzp_test_dummy' || subscription.id.startsWith('sub_mock_')) {
+      if (!subscription.razorpayKeyId || subscription.id?.startsWith('sub_mock_')) {
         throw new Error('Unable to start payment because the selected subscription plan is not configured correctly on the server.')
       }
 
@@ -182,7 +182,7 @@ export function SubscriptionProvider({ children }) {
         const options = {
           key: subscription.razorpayKeyId,
           subscription_id: subscription.id,
-          name: 'One Repute',
+          name: 'OneRepute',
           description: `${planId.replace('plan_', '').toUpperCase()} Subscription (${billingCycle})`,
           handler: async function (response) {
             try {
@@ -191,19 +191,26 @@ export function SubscriptionProvider({ children }) {
                 razorpay_signature: response.razorpay_signature,
                 razorpay_subscription_id: response.razorpay_subscription_id
               })
-              toast.success('Subscription activated successfully!')
+              toast.success('Subscription payment verified and plan activated successfully!')
               await fetchBillingInfo()
               resolve(true)
             } catch (err) {
               console.error(err)
-              toast.error('Payment signature verification failed.')
+              toast.error(err.response?.data?.error || 'Payment signature verification failed.')
               resolve(false)
             } finally {
               setLoading(false)
             }
           },
+          modal: {
+            ondismiss: function () {
+              setLoading(false)
+              toast.info('Payment checkout cancelled.')
+              resolve(false)
+            }
+          },
           prefill: {
-            name: profile?.businessName || '',
+            name: profile?.businessName || profile?.name || '',
             email: user?.email || '',
           },
           theme: {
@@ -213,7 +220,7 @@ export function SubscriptionProvider({ children }) {
 
         const rzp = new window.Razorpay(options)
         rzp.on('payment.failed', function (response) {
-          toast.error(response.error.description || 'Payment failed')
+          toast.error(response.error?.description || 'Payment failed')
           setLoading(false)
           resolve(false)
         })

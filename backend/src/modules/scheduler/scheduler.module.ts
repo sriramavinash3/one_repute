@@ -5,9 +5,11 @@ import { ReviewsModule } from '../reviews/reviews.module';
 import { WorkflowModule } from '../workflow/workflow.module';
 import { AIModule } from '../ai/ai.module';
 import { FirebaseModule } from '../firebase/firebase.module';
+import { WhatsAppModule } from '../whatsapp/whatsapp.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [ConfigModule, FirebaseModule, ReviewsModule, WorkflowModule, AIModule],
+  imports: [ConfigModule, FirebaseModule, ReviewsModule, WorkflowModule, AIModule, WhatsAppModule, EmailModule],
   providers: [SchedulerService],
   exports: [SchedulerService],
 })

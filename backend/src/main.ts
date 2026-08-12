@@ -21,7 +21,7 @@ async function bootstrap() {
   app.use(
     helmet({
       contentSecurityPolicy: false,
-      crossOriginOpenerPolicy: { policy: 'unsafe-none' },
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     }),
   );
 

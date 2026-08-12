@@ -9,6 +9,7 @@ export interface EmailConfig {
   resendApiKey: string;
   emailFrom: string;
   appUrl: string;
+  frontendUrl: string;
   supportEmail: string;
   companyAddress: string;
   redis: {
@@ -27,11 +28,18 @@ export interface EmailConfig {
 
 export function loadEmailConfig(): EmailConfig {
   const nodeEnv = process.env.NODE_ENV || 'development';
+  const isProduction = nodeEnv === 'production';
+
   const resendApiKey = process.env.RESEND_API_KEY || 're_mock_key_for_dev_and_testing';
   const emailFrom = process.env.EMAIL_FROM || 'OneRepute <notifications@onerepute.com>';
-  const appUrl = process.env.APP_URL || 'https://onerepute.com';
+  
+  const defaultFrontendUrl = isProduction ? 'https://onerepute.com' : 'http://localhost:5173';
+  const defaultAppUrl = isProduction ? 'https://onerepute.com' : 'http://localhost:3000';
+
+  const frontendUrl = process.env.FRONTEND_BASE_URL || defaultFrontendUrl;
+  const appUrl = process.env.APP_URL || defaultAppUrl;
   const supportEmail = process.env.SUPPORT_EMAIL || 'support@onerepute.com';
-  const companyAddress = process.env.COMPANY_ADDRESS || '100 Innovation Way, Suite 400, San Francisco, CA 94105';
+  const companyAddress = process.env.COMPANY_ADDRESS || '';
 
   const redisHost = process.env.REDIS_HOST || '127.0.0.1';
   const redisPort = parseInt(process.env.REDIS_PORT || '6379', 10);
@@ -42,6 +50,7 @@ export function loadEmailConfig(): EmailConfig {
     resendApiKey,
     emailFrom,
     appUrl,
+    frontendUrl,
     supportEmail,
     companyAddress,
     redis: {

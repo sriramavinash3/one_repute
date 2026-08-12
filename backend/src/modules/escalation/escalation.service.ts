@@ -4,16 +4,14 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { SaveEscalationSettingsDto } from './dto/escalation.dto';
 import { validateActiveOutlet } from '../../common/utils/outlet-validator';
 
-const PLAN_MAX_LEVELS: Record<string, number> = {
-  enterprise: 3,
+export const PLAN_MAX_LEVELS: Record<string, number> = {
   premium: 3,
-  pro: 2,
   growth: 2,
   starter: 1,
   default: 1,
 };
 
-function getPlanMaxLevel(planName = ''): number {
+export function getPlanMaxLevel(planName = ''): number {
   const plan = (planName || '').toLowerCase();
   for (const [key, level] of Object.entries(PLAN_MAX_LEVELS)) {
     if (plan.includes(key)) return level;
@@ -64,7 +62,7 @@ export class EscalationService {
     const data = docSnap && docSnap.exists ? docSnap.data() || {} : {};
 
     // 2. Fetch customer plan & credit status if customerId provided
-    let plan = 'pro';
+    let plan = 'starter';
     let creditsExhausted = false;
 
     const resolvedCustomerId = customerId || (await this.resolveCustomerId(db, user));
@@ -73,7 +71,7 @@ export class EscalationService {
         const customerSnap = await db.collection('customers').doc(resolvedCustomerId).get();
         if (customerSnap.exists) {
           const cust = customerSnap.data() || {};
-          plan = cust.planName || cust.plan || 'pro';
+          plan = cust.planName || cust.plan || 'starter';
           creditsExhausted = cust.aiCredits ? cust.aiCredits <= 0 : false;
         }
       } catch (err: any) {
@@ -132,7 +130,7 @@ export class EscalationService {
       const maxAllowedLevel = getPlanMaxLevel(plan);
       if (dto.level > maxAllowedLevel) {
         throw new ForbiddenException(
-          `Level ${dto.level} requires ${Object.entries(PLAN_MAX_LEVELS).find(([, max]) => max === dto.level)?.[0] || 'a higher'} plan. Your current plan supports up to level ${maxAllowedLevel}.`,
+          `Level ${dto.level} requires a higher plan (current plan: ${plan}, max allowed level: ${maxAllowedLevel}). Level 1 is available on all plans, Level 2 requires Growth or Premium, and Level 3 requires Premium.`,
         );
       }
     }
@@ -257,16 +255,16 @@ export class EscalationService {
     user?: { uid?: string; email?: string; role?: string; customerId?: string },
   ): Promise<string> {
     const customerId = await this.resolveCustomerId(db, user);
-    if (!customerId) return 'pro';
+    if (!customerId) return 'starter';
     try {
       const customerSnap = await db.collection('customers').doc(customerId).get();
       if (customerSnap.exists) {
         const cust = customerSnap.data() || {};
-        return cust.planName || cust.plan || 'pro';
+        return cust.planName || cust.plan || 'starter';
       }
     } catch (err: any) {
       this.logger.warn(`Could not fetch customer plan: ${err.message}`);
     }
-    return 'pro';
+    return 'starter';
   }
 }

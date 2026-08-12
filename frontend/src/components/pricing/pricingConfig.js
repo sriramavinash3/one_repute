@@ -107,6 +107,87 @@ export const PRICING_CONFIG = {
   ],
 }
 
+export const PLAN_FEATURE_COMPARISON = [
+  { feature: 'Monthly Review Responses', starter: '100 reviews', growth: '250 reviews', premium: '500 reviews' },
+  { feature: 'Google Review Auto Reply', starter: true, growth: true, premium: true },
+  { feature: '≤2 Star Review – AI Response', starter: true, growth: true, premium: true },
+  { feature: 'Positive Review Replies', starter: true, growth: true, premium: true },
+  { feature: 'WhatsApp Escalation Alert', starter: '1 Level', growth: '2 Levels', premium: '3 Levels' },
+  { feature: 'Smart QR', starter: false, growth: true, premium: true },
+  { feature: 'Sentiment Analysis', starter: 'Basic', growth: true, premium: 'Advanced' },
+  { feature: 'Review Dashboard', starter: 'Basic', growth: 'Full Dashboard', premium: 'Advanced Dashboard' },
+  { feature: 'Monthly Report', starter: 'Comprehensive Summary', growth: 'Detailed Report with Sentiment Analysis', premium: 'Strategy Report with Action Plan' },
+  { feature: 'Keyword Tracking', starter: false, growth: true, premium: true },
+  { feature: 'Competitor Tracking', starter: false, growth: 'Up to 2', premium: 'Up to 5' },
+  { feature: 'Multi User Access', starter: '2 Users', growth: '3 Users', premium: '5 Users' },
+  { feature: 'Reply Approval Mode', starter: false, growth: false, premium: true },
+  { feature: 'Escalation Matrix', starter: '1 Step', growth: '2 Step', premium: '3 Step' },
+  { feature: 'Review Trend Insights', starter: false, growth: true, premium: true },
+  { feature: 'Low Rating Pattern Detection', starter: false, growth: 'Basic', premium: 'Advanced' },
+  { feature: 'Customer Issue Categories', starter: false, growth: true, premium: true },
+  { feature: 'Monthly Strategy Call', starter: false, growth: false, premium: true },
+  { feature: 'Support Priority', starter: 'Standard', growth: 'Priority', premium: 'Premium' },
+]
+
+export const PLAN_CARD_FEATURES = {
+  starter: {
+    features: [
+      '100 Monthly Review Responses',
+      'Google Review Auto Reply',
+      '≤2 Star Review AI Response',
+      'Positive Review Replies',
+      '1 Level WhatsApp Escalation',
+      'Basic Sentiment Analysis',
+      'Basic Dashboard & Comprehensive Report',
+      '2 Team Members Limit',
+    ],
+    disabledFeatures: [
+      'Smart QR Campaigns',
+      'Competitor Tracking',
+      'Reply Approval Mode',
+      'Low Rating Pattern Detection',
+      'Monthly Strategy Call',
+    ],
+  },
+  growth: {
+    features: [
+      '250 Monthly Review Responses',
+      'Google Review Auto Reply',
+      '≤2 Star Review AI Response',
+      'Positive Review Replies',
+      '2 Levels WhatsApp Escalation',
+      'Smart QR Campaigns',
+      'Sentiment & Review Trend Insights',
+      'Up to 2 Competitors Tracking',
+      '3 Team Members Limit',
+      'Customer Issue Categories',
+    ],
+    disabledFeatures: [
+      'Reply Approval Mode',
+      'Monthly Strategy Call',
+      'Premium Support Priority',
+    ],
+  },
+  premium: {
+    features: [
+      '500 Monthly Review Responses',
+      'Google Review Auto Reply',
+      '≤2 Star Review AI Response',
+      'Positive Review Replies',
+      '3 Levels WhatsApp Escalation',
+      'Smart QR Campaigns',
+      'Advanced Sentiment Analysis',
+      'Up to 5 Competitors Tracking',
+      '5 Team Members Limit',
+      'Reply Approval Mode',
+      'Low Rating Pattern Detection',
+      'Monthly Strategy Call',
+      'Premium Support Priority',
+    ],
+    disabledFeatures: [],
+  },
+}
+
 /**
  * Format price number based on currency and locale.
  * No decimals, locale formatting.
@@ -116,4 +197,5 @@ export function formatPrice(amount, regionConfig) {
   const formattedNumber = Math.round(amount).toLocaleString(regionConfig.locale)
   return `${regionConfig.currencySymbol}${formattedNumber}`
 }
+
 

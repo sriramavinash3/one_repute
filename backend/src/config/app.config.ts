@@ -7,6 +7,7 @@ const isProduction = nodeEnv === 'production';
 // the production domain for everything else. Explicit env vars always win.
 const defaultFrontendUrl = isProduction ? 'https://onerepute.com' : 'http://localhost:5173';
 const defaultAppUrl = isProduction ? 'https://onerepute.com' : 'http://localhost:3000';
+const defaultPublicApiUrl = isProduction ? 'https://api.onerepute.com' : undefined;
 
 export default registerAs('app', () => ({
   env: nodeEnv,
@@ -14,6 +15,8 @@ export default registerAs('app', () => ({
   logLevel: process.env.LOG_LEVEL || 'info',
   frontendUrl: process.env.FRONTEND_BASE_URL || defaultFrontendUrl,
   appUrl: process.env.APP_URL || defaultAppUrl,
+  publicApiUrl: process.env.PUBLIC_API_URL || defaultPublicApiUrl,
+  twilioStatusCallbackUrl: process.env.TWILIO_STATUS_CALLBACK_URL,
   isProduction,
   isDevelopment: nodeEnv === 'development',
   encryptionKey: process.env.ENCRYPTION_KEY || 'd9f8e7d6c5b4a39281706f5e4d3c2b1a0987654321fedcba0987654321abcdef',

@@ -95,12 +95,16 @@ function runAudit() {
     const backendPrice = backendMapping ? backendMapping[backendPriceKey] : null;
     const backendPass = backendPrice === expectedPrice;
 
-    const allPass = frontendPass && backendPass;
+    // 3. Check paise conversion
+    const expectedPaise = expectedPrice * 100;
+    const paisePass = expectedPaise > 500; // Ensures no hardcoded 500 paise (₹5) is accepted
+
+    const allPass = frontendPass && backendPass && paisePass;
     if (allPass) {
       passedTests++;
-      console.log(`✓ [PASS ${idx + 1}/18] Region: ${region} (${currency}) | Plan: ${plan.toUpperCase()} | Cycle: ${cycle.toUpperCase()} => ${expectedSymbol}${expectedPrice} (FE: ${expectedSymbol}${frontendPrice}, BE: ${expectedSymbol}${backendPrice})`);
+      console.log(`✓ [PASS ${idx + 1}/18] Region: ${region} (${currency}) | Plan: ${plan.toUpperCase()} | Cycle: ${cycle.toUpperCase()} => ${expectedSymbol}${expectedPrice} (${expectedPaise} paise) (FE: ${expectedSymbol}${frontendPrice}, BE: ${expectedSymbol}${backendPrice})`);
     } else {
-      console.error(`✗ [FAIL ${idx + 1}/18] Region: ${region} | Plan: ${plan} | Cycle: ${cycle} | Expected: ${expectedPrice} | FE: ${frontendPrice} | BE: ${backendPrice}`);
+      console.error(`✗ [FAIL ${idx + 1}/18] Region: ${region} | Plan: ${plan} | Cycle: ${cycle} | Expected: ${expectedPrice} (${expectedPaise} paise) | FE: ${frontendPrice} | BE: ${backendPrice}`);
     }
   });
 

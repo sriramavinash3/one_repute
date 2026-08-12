@@ -49,6 +49,37 @@ function FormField({ label, id, type = 'text', value, onChange, placeholder, hin
   )
 }
 
+function ReadOnlyFormField({ label, id, value, placeholder = 'Not provided in Google Profile' }) {
+  const hasValue = value && String(value).trim().length > 0
+  const displayVal = hasValue ? value : null
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label htmlFor={id} className="block text-xs font-medium text-slatey-600">
+          {label}
+        </label>
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-brand-700 bg-brand-50/80 px-2 py-0.5 rounded-md border border-brand-100/60">
+          <Lock className="h-2.5 w-2.5 text-brand-600 shrink-0" />
+          Synced from Google
+        </span>
+      </div>
+      <div className="relative">
+        <input
+          id={id}
+          type="text"
+          value={displayVal || placeholder}
+          disabled
+          readOnly
+          className={`w-full rounded-xl border border-slatey-200 bg-slatey-50/80 px-3.5 py-2.5 text-sm outline-none cursor-not-allowed select-none transition ${
+            displayVal ? 'text-slatey-800 font-medium' : 'text-slatey-400 italic'
+          }`}
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function OutletSettingsPage() {
   const { outlet, profile, user } = useAuth()
   const [activeTab, setActiveTab] = useState('general')
@@ -60,6 +91,7 @@ export default function OutletSettingsPage() {
     type: '',
     address: '',
     phone: '',
+    website: '',
     email: ''
   })
 
@@ -74,6 +106,7 @@ export default function OutletSettingsPage() {
       type: '',
       address: '',
       phone: '',
+      website: '',
       email: ''
     },
     whatsapp: {
@@ -101,12 +134,20 @@ export default function OutletSettingsPage() {
   useEffect(() => {
     if (!outlet) return
 
+    const googleName = outlet.googleLocationName || outlet.name || ''
+    const googleType = outlet.businessCategory || outlet.businessType || ''
+    const googleAddress = outlet.googleLocationAddress || outlet.address || ''
+    const googlePhone = outlet.googleLocationPhone || outlet.phone || outlet.primaryWhatsAppNumber || ''
+    const googleWebsite = outlet.googleLocationWebsite || outlet.websiteUri || outlet.website || ''
+    const contactEmail = outlet.email || ''
+
     setBusiness({
-      name: outlet.name || '',
-      type: outlet.businessType || outlet.planType || '',
-      address: outlet.address || '',
-      phone: outlet.whatsappNumber || '',
-      email: outlet.email || ''
+      name: googleName,
+      type: googleType,
+      address: googleAddress,
+      phone: googlePhone,
+      website: googleWebsite,
+      email: contactEmail
     })
 
     const loadedWhatsapp = {
@@ -117,11 +158,12 @@ export default function OutletSettingsPage() {
     setWhatsapp(loadedWhatsapp)
     setBaseline({
       business: {
-        name: outlet.name || '',
-        type: outlet.businessType || outlet.planType || '',
-        address: outlet.address || '',
-        phone: outlet.whatsappNumber || '',
-        email: outlet.email || ''
+        name: googleName,
+        type: googleType,
+        address: googleAddress,
+        phone: googlePhone,
+        website: googleWebsite,
+        email: contactEmail
       },
       whatsapp: loadedWhatsapp
     })
@@ -173,10 +215,6 @@ export default function OutletSettingsPage() {
 
   const hasChanges = useMemo(() => {
     return (
-      business.name !== baseline.business.name ||
-      business.type !== baseline.business.type ||
-      business.address !== baseline.business.address ||
-      business.phone !== baseline.business.phone ||
       business.email !== baseline.business.email ||
       whatsapp.number !== baseline.whatsapp.number ||
       whatsapp.escalationThreshold !== baseline.whatsapp.escalationThreshold
@@ -189,9 +227,7 @@ export default function OutletSettingsPage() {
     try {
       setSaving(true)
       await updateOutletSettings(outlet.id, {
-        name: business.name,
-        businessType: business.type,
-        address: business.address,
+        email: business.email,
         whatsappNumber: whatsapp.number,
         escalationThreshold: Number(whatsapp.escalationThreshold)
       })
@@ -214,7 +250,7 @@ export default function OutletSettingsPage() {
     try {
       const isLoaded = await loadRazorpayScript()
       if (!isLoaded) throw new Error('Razorpay failed to load')
-      const subscription = await createSubscription(profile.customerId, 'plan_pro')
+      const subscription = await createSubscription(profile.customerId, 'plan_growth')
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummy',
         subscription_id: subscription.id,
@@ -414,30 +450,45 @@ export default function OutletSettingsPage() {
           {/* Business Info */}
           <motion.div variants={fadeUp}>
             <Card className="p-6 space-y-5">
-              <SectionHeader icon={<Building2 className="h-4 w-4" />} title="Business Information" description="Basic details about your outlet." />
+              <SectionHeader icon={<Building2 className="h-4 w-4" />} title="Business Information" description="Business details synced from your connected Google Business Profile." />
+              
+              {/* Google Business Profile Sync Banner */}
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-brand-50/70 border border-brand-150 text-brand-800 text-xs font-medium">
+                <Sparkles className="h-4 w-4 text-brand-600 shrink-0" />
+                <span>Business information is synced from your Google Business Profile.</span>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
-                <FormField
+                <ReadOnlyFormField
                   label="Business name" id="biz-name"
-                  value={business.name} onChange={(e) => setBusiness({ ...business, name: e.target.value })}
-                  placeholder="Urban Bite"
+                  value={business.name}
                 />
-                <FormField
-                  label="Business type" id="biz-type"
-                  value={business.type} onChange={(e) => setBusiness({ ...business, type: e.target.value })}
-                  placeholder="Restaurant"
+                <ReadOnlyFormField
+                  label="Business category" id="biz-type"
+                  value={business.type}
                 />
                 <div className="md:col-span-2">
-                  <FormField
-                    label="Address" id="biz-address"
-                    value={business.address} onChange={(e) => setBusiness({ ...business, address: e.target.value })}
-                    placeholder="Street, City, State"
+                  <ReadOnlyFormField
+                    label="Business address" id="biz-address"
+                    value={business.address}
                   />
                 </div>
-                <FormField
-                  label="Contact email" id="biz-email" type="email"
-                  value={business.email} onChange={(e) => setBusiness({ ...business, email: e.target.value })}
-                  placeholder="manager@yourbiz.com"
+                <ReadOnlyFormField
+                  label="Phone number" id="biz-phone"
+                  value={business.phone}
                 />
+                <ReadOnlyFormField
+                  label="Website" id="biz-website"
+                  value={business.website}
+                />
+                <div className="md:col-span-2 pt-2 border-t border-slatey-100">
+                  <FormField
+                    label="Contact email" id="biz-email" type="email"
+                    value={business.email} onChange={(e) => setBusiness({ ...business, email: e.target.value })}
+                    placeholder="manager@yourbiz.com"
+                    hint="Editable contact email for business notifications and updates."
+                  />
+                </div>
               </div>
             </Card>
           </motion.div>
@@ -843,24 +894,47 @@ function BillingTabContent() {
               OneRepute <span className="capitalize text-brand-600">{sub.plan?.replace('plan_', '') || 'Starter'} Plan</span>
             </h3>
             <p className="text-xs text-slatey-500 leading-normal">
-              Your subscription is <span className="font-semibold text-emerald-600 capitalize">{sub.status || 'Active'}</span>. 
-              {sub.renewalDate && ` Next renewal resets on ${new Date(sub.renewalDate).toLocaleDateString()}.`}
+              Your subscription status: <span className="font-semibold text-emerald-600 capitalize">
+                {sub.status === 'trial_paid_scheduled' ? 'Trial Active (Paid Plan Scheduled)' : sub.status === 'trialing' ? 'Active Trial' : (sub.status || 'Active')}
+              </span>. 
+              {sub.renewalDate && ` Next billing cycle starts on ${new Date(sub.renewalDate).toLocaleDateString()}.`}
               {` Billing Region: ${sub.billingCountry || 'IN'} (${sub.currency || 'INR'})`}
             </p>
-            {sub.status === 'trialing' && (
-              <div className="flex flex-col gap-2 p-4 rounded-2xl bg-brand-50 border border-brand-200 text-brand-800 text-xs font-medium mt-2 max-w-xl shadow-sm">
+
+            {/* Trial Paid Scheduled Banner */}
+            {sub.status === 'trial_paid_scheduled' && (
+              <div className="flex flex-col gap-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium mt-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+                  <span className="font-bold text-sm">Paid Plan Scheduled — Trial Preserved</span>
+                </div>
+                <p className="text-xs text-emerald-800 leading-relaxed">
+                  Your paid <span className="font-bold uppercase text-emerald-950">{(sub.scheduledPlan || sub.plan).replace('plan_', '')}</span> plan starts on <span className="font-bold text-emerald-950">{sub.trialEndDate ? new Date(sub.trialEndDate).toLocaleDateString() : 'Trial End Date'}</span>. Your remaining trial period ({sub.remainingTrialDays || 0} days remaining) is preserved.
+                </p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1 text-slatey-600 font-normal text-[11px]">
+                  <div>Trial End Date: <span className="font-semibold text-slatey-950">{sub.trialEndDate ? new Date(sub.trialEndDate).toLocaleDateString() : 'N/A'}</span></div>
+                  <div>Paid Billing Start Date: <span className="font-semibold text-slatey-950">{sub.trialEndDate ? new Date(sub.trialEndDate).toLocaleDateString() : 'N/A'}</span></div>
+                  <div>Next Renewal Date: <span className="font-semibold text-slatey-950">{sub.renewalDate ? new Date(sub.renewalDate).toLocaleDateString() : 'N/A'}</span></div>
+                  <div>Payment Status: <span className="font-semibold text-emerald-700">Verified & Authorized (Razorpay)</span></div>
+                </div>
+              </div>
+            )}
+
+            {/* Active Trial Banner */}
+            {sub.status === 'trialing' && !sub.paidPlanScheduled && (
+              <div className="flex flex-col gap-2 p-4 rounded-2xl bg-brand-50 border border-brand-200 text-brand-800 text-xs font-medium mt-3 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-brand-600 shrink-0" />
                   <span className="font-bold text-sm">7-Day Free Trial Active</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mt-1 text-slatey-600 font-normal">
                   <div>Trial Ends On: <span className="font-semibold text-slatey-950">{sub.trialEndDate ? new Date(sub.trialEndDate).toLocaleDateString() : 'N/A'}</span></div>
-                  <div>Next Billing Date: <span className="font-semibold text-slatey-950">{sub.renewalDate ? new Date(sub.renewalDate).toLocaleDateString() : 'N/A'}</span></div>
-                  <div>Auto-Renew Enabled: <span className="font-semibold text-emerald-600">Yes</span></div>
-                  <div>Payment Authorized: <span className="font-semibold text-emerald-600">Yes (Secured via Razorpay)</span></div>
+                  <div>Remaining Trial Days: <span className="font-semibold text-brand-700">{sub.remainingTrialDays || 0} days</span></div>
+                  <div>Trial Start Date: <span className="font-semibold text-slatey-950">{sub.trialStartDate ? new Date(sub.trialStartDate).toLocaleDateString() : 'N/A'}</span></div>
+                  <div>Status: <span className="font-semibold text-emerald-600">Active</span></div>
                 </div>
                 <p className="text-[10px] text-slatey-400 mt-1 italic">
-                  Note: No money has been charged yet. Your payment method has been securely authorized, and billing will begin automatically when the trial expires.
+                  Tip: Upgrading to a paid plan will preserve your remaining trial period until {sub.trialEndDate ? new Date(sub.trialEndDate).toLocaleDateString() : 'trial end'}.
                 </p>
               </div>
             )}

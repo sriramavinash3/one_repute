@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Query,
   Body,
@@ -174,6 +175,50 @@ export class ReviewsController {
     } catch (err: any) {
       this.logger.error('[ReviewsController] triggerSync failed', { error: err.message });
       return res.status(500).json({ error: 'Sync failed', message: err.message });
+    }
+  }
+
+  /** GET /api/outlets */
+  @Get('outlets')
+  async getOutlets(@Req() req: Request, @Query('customerId') customerId: string, @Res() res: Response) {
+    try {
+      const data = await this.reviewsService.getOutlets((req as any).user?.uid, customerId);
+      return res.status(200).json(data);
+    } catch (err: any) {
+      this.logger.error('[ReviewsController] getOutlets failed', { error: err.message });
+      return res.status(500).json({ error: 'Failed to fetch outlets' });
+    }
+  }
+
+  /** GET /api/outlets/:id */
+  @Get('outlets/:id')
+  async getOutletById(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const data = await this.reviewsService.getOutletById(id);
+      return res.status(200).json(data);
+    } catch (err: any) {
+      this.logger.error('[ReviewsController] getOutletById failed', { error: err.message });
+      if (err.message?.includes('not found') || err.message?.includes('removed')) {
+        return res.status(404).json({ error: err.message });
+      }
+      return res.status(500).json({ error: 'Failed to fetch outlet details' });
+    }
+  }
+
+  /** POST /api/outlets/:id, POST /api/outlets/:id/settings, PATCH /api/outlets/:id/settings */
+  @Post('outlets/:id')
+  @Post('outlets/:id/settings')
+  @Patch('outlets/:id/settings')
+  async updateOutletSettings(@Param('id') id: string, @Body() body: any, @Res() res: Response) {
+    try {
+      const result = await this.reviewsService.updateCustomerOutletSettings(id, body, true);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      this.logger.error('[ReviewsController] updateOutletSettings failed', { error: err.message });
+      if (err.status === 404 || err.message?.includes('not found')) {
+        return res.status(404).json({ error: err.message });
+      }
+      return res.status(500).json({ error: 'Failed to update outlet settings' });
     }
   }
 }

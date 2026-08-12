@@ -76,11 +76,7 @@ export class PaymentsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateSubscriptionDto,
   ) {
-    const resolvedCustomerId = dto.customerId || user.customerId;
-    if (!resolvedCustomerId) {
-      return { error: 'Customer context missing' };
-    }
-
+    const resolvedCustomerId = (user.role === 'admin' && dto.customerId) ? dto.customerId : (user.customerId || `cust_${user.uid}`);
     const countryCode = dto.countryCode || 'IN';
     const result = await this.paymentService.createSubscription(
       resolvedCustomerId,
@@ -98,23 +94,20 @@ export class PaymentsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: VerifyPaymentDto,
   ) {
-    const resolvedCustomerId = dto.customerId || user.customerId;
-    await this.paymentService.verifyPayment(
+    const resolvedCustomerId = (user.role === 'admin' && dto.customerId) ? dto.customerId : (user.customerId || `cust_${user.uid}`);
+    const result = await this.paymentService.verifyPayment(
       dto.razorpay_payment_id,
       dto.razorpay_signature,
       dto.razorpay_subscription_id,
       resolvedCustomerId,
     );
-    return { success: true };
+    return result;
   }
 
   @Get('billing-info')
   @UseGuards(FirebaseAuthGuard)
   async getBillingInfo(@CurrentUser() user: AuthUser) {
-    const customerId = user.customerId;
-    if (!customerId) {
-      return { error: 'Customer context missing' };
-    }
+    const customerId = user.customerId || `cust_${user.uid}`;
     const result = await this.subscriptionService.getBillingInfo(customerId);
     return result;
   }

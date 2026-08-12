@@ -67,6 +67,9 @@ export class UpdateOutletSettingsDto {
   address?: string;
 
   @IsOptional()
+  email?: string;
+
+  @IsOptional()
   whatsappNumber?: string;
 
   @IsOptional()

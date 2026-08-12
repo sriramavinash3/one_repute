@@ -114,6 +114,187 @@ export class PlanService {
     };
   }
 
+  get CentralPlanDefinitions() {
+    return [
+      {
+        id: 'plan_starter',
+        name: 'Starter',
+        sortOrder: 1,
+        description: 'Essential AI review management for single outlets.',
+        features: [
+          '100 Monthly Review Responses',
+          'Google Review Auto Reply',
+          '≤2 Star Review AI Response',
+          'Positive Review Replies',
+          '1 Level WhatsApp Escalation',
+          'Basic Sentiment Analysis',
+          'Basic Dashboard & Comprehensive Report',
+          '2 Team Members Limit',
+        ],
+        disabledFeatures: [
+          'Smart QR Campaigns',
+          'Competitor Tracking',
+          'Reply Approval Mode',
+          'Low Rating Pattern Detection',
+          'Monthly Strategy Call',
+        ],
+        limits: {
+          monthly_review_responses: 100,
+          whatsapp_escalation_levels: 1,
+          competitor_tracking: 0,
+          multi_user_access: 2,
+          smart_qr: false,
+        }
+      },
+      {
+        id: 'plan_growth',
+        name: 'Growth',
+        sortOrder: 2,
+        popular: true,
+        description: 'Advanced automation and insights for expanding brands.',
+        features: [
+          '250 Monthly Review Responses',
+          'Google Review Auto Reply',
+          '≤2 Star Review AI Response',
+          'Positive Review Replies',
+          '2 Levels WhatsApp Escalation',
+          'Smart QR Campaigns',
+          'Sentiment & Review Trend Insights',
+          'Up to 2 Competitors Tracking',
+          '3 Team Members Limit',
+          'Customer Issue Categories',
+        ],
+        disabledFeatures: [
+          'Reply Approval Mode',
+          'Monthly Strategy Call',
+          'Premium Support Priority',
+        ],
+        limits: {
+          monthly_review_responses: 250,
+          whatsapp_escalation_levels: 2,
+          competitor_tracking: 2,
+          multi_user_access: 3,
+          smart_qr: true,
+        }
+      },
+      {
+        id: 'plan_premium',
+        name: 'Premium',
+        sortOrder: 3,
+        description: 'Enterprise-grade reputation control for multi-chain outlets.',
+        features: [
+          '500 Monthly Review Responses',
+          'Google Review Auto Reply',
+          '≤2 Star Review AI Response',
+          'Positive Review Replies',
+          '3 Levels WhatsApp Escalation',
+          'Smart QR Campaigns',
+          'Advanced Sentiment Analysis',
+          'Up to 5 Competitors Tracking',
+          '5 Team Members Limit',
+          'Reply Approval Mode',
+          'Low Rating Pattern Detection',
+          'Monthly Strategy Call',
+          'Premium Support Priority',
+        ],
+        disabledFeatures: [],
+        limits: {
+          monthly_review_responses: 500,
+          whatsapp_escalation_levels: 3,
+          competitor_tracking: 5,
+          multi_user_access: 5,
+          smart_qr: true,
+        }
+      }
+    ];
+  }
+
+
+  async getAllPlans(countryCode: string = 'IN') {
+    try {
+      const db = this.firebaseService.getDb();
+      const plansSnap = await db.collection('plans').get();
+      
+      let dbPlansMap = new Map();
+      if (!plansSnap.empty) {
+        plansSnap.docs.forEach(doc => {
+          dbPlansMap.set(doc.id, doc.data());
+        });
+      }
+
+      const central = this.CentralPlanDefinitions;
+      const result = await Promise.all(
+        central.map(async (cp) => {
+          const dbPlan = dbPlansMap.get(cp.id) || {};
+          const localized = await this.getPlanPrice(cp.id, countryCode);
+
+          return {
+            ...cp,
+            ...dbPlan,
+            id: cp.id,
+            name: dbPlan.name || cp.name,
+            sortOrder: dbPlan.sortOrder || cp.sortOrder,
+            description: dbPlan.description || cp.description,
+            features: dbPlan.features || cp.features,
+            disabledFeatures: dbPlan.disabledFeatures || cp.disabledFeatures,
+            limits: dbPlan.limits || cp.limits,
+            monthlyPrice: localized.monthlyPrice,
+            quarterlyPrice: localized.quarterlyPrice,
+            annualPrice: localized.annualPrice,
+            currency: localized.currency,
+            currencySymbol: this.getCurrencySymbol(localized.currency),
+            razorpayMonthlyPlanId: localized.razorpayMonthlyPlanId,
+            razorpayQuarterlyPlanId: localized.razorpayQuarterlyPlanId,
+            razorpayAnnualPlanId: localized.razorpayAnnualPlanId,
+          };
+        })
+      );
+
+      return result;
+    } catch (err: any) {
+      this.logger.error(`Error in getAllPlans: ${err.message}`);
+      return this.CentralPlanDefinitions;
+    }
+  }
+
+  private planCache = new Map<string, string>();
+
+  async ensureRazorpayPlan(rzp: any, planId: string, billingCycle: string, priceAmount: number, currency: string): Promise<string> {
+    try {
+      const normalizedPlan = planId.startsWith('plan_') ? planId : `plan_${planId}`;
+      const cacheKey = `${normalizedPlan}_${billingCycle}_${currency}_${priceAmount}`;
+      
+      if (this.planCache.has(cacheKey)) {
+        const cachedPlanId = this.planCache.get(cacheKey)!;
+        this.logger.log(`Using cached Razorpay Plan ID ${cachedPlanId} for ${cacheKey}`);
+        return cachedPlanId;
+      }
+
+      const period = billingCycle === 'annual' ? 'yearly' : 'monthly';
+      const interval = billingCycle === 'quarterly' ? 3 : 1;
+      const planName = `OneRepute ${normalizedPlan.replace('plan_', '').toUpperCase()} ${billingCycle.toUpperCase()} (${currency}) - ${priceAmount}`;
+      const amountInPaise = Math.round(priceAmount * 100);
+
+      const createdPlan = await rzp.plans.create({
+        period,
+        interval,
+        item: {
+          name: planName,
+          amount: amountInPaise,
+          currency,
+          description: `OneRepute Subscription ${planName}`,
+        },
+      });
+
+      this.planCache.set(cacheKey, createdPlan.id);
+      this.logger.log(`Successfully created Razorpay Plan dynamically: ${createdPlan.id} for ${normalizedPlan} (${billingCycle}) with amount ${amountInPaise} paise`);
+      return createdPlan.id;
+    } catch (err: any) {
+      this.logger.error(`Failed to create dynamic Razorpay Plan: ${err.message}`);
+      throw err;
+    }
+  }
+
   getCurrencySymbol(currency: string): string {
     if (currency === 'INR') return '₹';
     if (currency === 'USD') return '$';

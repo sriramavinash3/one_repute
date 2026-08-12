@@ -15,6 +15,8 @@ export const configValidationSchema = Joi.object({
   // (localhost for development, https://onerepute.com for production).
   FRONTEND_BASE_URL: Joi.string().uri().optional(),
   APP_URL: Joi.string().uri().optional(),
+  PUBLIC_API_URL: Joi.string().uri().optional(),
+  TWILIO_STATUS_CALLBACK_URL: Joi.string().uri().optional(),
 
   // Database
   DATABASE_URL: Joi.string().optional(),

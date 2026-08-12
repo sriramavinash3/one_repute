@@ -318,4 +318,113 @@ export class ReviewsService {
       statusCounts: counts,
     };
   }
+
+  async getOutlets(userId?: string, customerId?: string) {
+    const db = this.firebaseService.getDb();
+    let snap: any;
+    if (customerId) {
+      snap = await db.collection('outlets').where('customerId', '==', customerId).where('status', '==', 'active').get();
+    } else {
+      snap = await db.collection('outlets').where('status', '==', 'active').get();
+    }
+    return snap.docs
+      .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+      .filter((o: any) => o.isDeleted !== true && o.status !== 'removed');
+  }
+
+  async getOutletById(outletId: string) {
+    const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId);
+    const docSnap = await db.collection('outlets').doc(outletId).get();
+    if (!docSnap.exists) {
+      throw new Error(`Outlet ${outletId} not found`);
+    }
+    const data = docSnap.data();
+    if (data?.status === 'removed' || data?.isDeleted === true || data?.status === 'deleted') {
+      throw new Error(`Outlet ${outletId} has been removed`);
+    }
+    return { id: docSnap.id, ...data };
+  }
+
+  async updateCustomerOutletSettings(outletId: string, payload: any, isCustomerCall = true) {
+    const db = this.firebaseService.getDb();
+    await validateActiveOutlet(db, outletId);
+
+    // SECURITY ENFORCEMENT (Requirement 6):
+    // All fields populated from Google Business Profile MUST be read-only/non-editable.
+    // If a customer attempts to modify Google-sourced business information by manually calling the API,
+    // we strip out those fields and log a security warning.
+    const googleSourcedFields = [
+      'name',
+      'businessType',
+      'businessCategory',
+      'address',
+      'phone',
+      'website',
+      'websiteUri',
+      'googleLocationName',
+      'googleLocationAddress',
+      'googleLocationPhone',
+      'googleLocationWebsite',
+    ];
+
+    if (isCustomerCall && payload) {
+      googleSourcedFields.forEach((field) => {
+        if (field in payload) {
+          this.logger.warn(
+            `[Security] Customer API call attempted to modify read-only Google-sourced field '${field}' on outlet ${outletId}. Field modification rejected.`,
+          );
+          delete payload[field];
+        }
+      });
+    }
+
+    const updateData: any = { updatedAt: new Date() };
+
+    // Contact Email is the ONLY editable business information field exception (Requirement 3)
+    if (payload.email !== undefined) {
+      updateData.email = String(payload.email || '').trim();
+    }
+
+    // Allowed non-Google settings (WhatsApp notification parameters)
+    if (payload.whatsappNumber !== undefined) {
+      updateData.whatsappNumber = String(payload.whatsappNumber || '').trim();
+    }
+    if (payload.primaryWhatsAppNumber !== undefined) {
+      updateData.primaryWhatsAppNumber = String(payload.primaryWhatsAppNumber || '').trim();
+    }
+    if (payload.escalationThreshold !== undefined) {
+      updateData.escalationThreshold = Number(payload.escalationThreshold);
+    }
+    if (payload.settings !== undefined) {
+      updateData.settings = payload.settings;
+    }
+
+    await db.collection('outlets').doc(outletId).set(updateData, { merge: true });
+
+    // Sync Prisma Location table if DATABASE_URL is set
+    if (process.env.DATABASE_URL) {
+      try {
+        const prismaUpdate: any = {};
+        if (payload.whatsappNumber !== undefined) prismaUpdate.whatsappNumber = payload.whatsappNumber;
+        if (payload.escalationThreshold !== undefined) prismaUpdate.escalationThreshold = Number(payload.escalationThreshold);
+        if (Object.keys(prismaUpdate).length > 0) {
+          await this.prismaService.location.update({
+            where: { id: outletId },
+            data: prismaUpdate,
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(`Prisma location update warning for ${outletId}: ${err.message}`);
+      }
+    }
+
+    const updatedDoc = await db.collection('outlets').doc(outletId).get();
+    return {
+      success: true,
+      id: outletId,
+      message: 'Settings updated successfully',
+      outlet: { id: outletId, ...updatedDoc.data() },
+    };
+  }
 }

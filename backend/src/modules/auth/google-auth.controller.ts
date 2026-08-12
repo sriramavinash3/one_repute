@@ -63,7 +63,16 @@ export class GoogleAuthController {
   async onboard(@Query('uid') uid: string, @Res() res: Response) {
     const safeUid = this.sanitizeId(uid, 'uid');
 
-    this.logger.log(`Initiating Google OAuth for onboarding: uid=${safeUid}`);
+    this.logger.log(`[Onboarding] Session created: uid=${safeUid}`);
+
+    const db = this.firebaseService.getDb();
+    await db.collection('onboarding_sessions').doc(safeUid).set({
+      status: 'loading',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, { merge: true });
+
+    this.logger.log(`[Onboarding] Session status updated: loading for uid=${safeUid}`);
 
     // Encrypt uid into state so it cannot be tampered with in the OAuth redirect
     const encryptedState = this.encrypt(JSON.stringify({ uid: safeUid, ts: Date.now() }));
@@ -99,25 +108,65 @@ export class GoogleAuthController {
     this.logger.debug(`OAuth callback URL: ${redactedUrl}`);
     this.logger.debug(`OAuth callback structure: code=${code ? 'present' : 'MISSING'} state=${state ? `present(${state.length} chars)` : 'MISSING'} error=${error || 'none'} frontendUrl=${frontendUrl}`);
 
+    let onboardStateUid = '';
+    let outletIdOrUid = '';
+    let stateOutletId = '';
+
+    if (state) {
+      try {
+        const decoded = JSON.parse(this.decrypt(state));
+        outletIdOrUid = decoded.uid || decoded.outletId || '';
+        stateOutletId = decoded.outletId || '';
+        if (decoded.uid && !decoded.outletId) {
+          onboardStateUid = decoded.uid;
+        }
+        this.logger.log(`Decoded OAuth state: uid=${decoded.uid || 'none'} outletId=${stateOutletId || 'none'}`);
+      } catch {
+        if (state.includes('"') || state.includes('%22')) {
+          this.logger.warn(`Malformed OAuth state rejected: ${JSON.stringify(state)}`);
+          return res.send(this.getPopupHtml('gmb-error', { error: 'OAuth state was malformed. Please reconnect your Google Business Profile.' }, frontendUrl));
+        }
+        outletIdOrUid = state;
+      }
+    }
+
+    const db = this.firebaseService.getDb();
+
     if (error) {
-      this.logger.warn(`Google OAuth error: ${error}`);
+      this.logger.error(`[Onboarding] Error: Google OAuth error - ${error}`);
+      if (onboardStateUid) {
+        await db.collection('onboarding_sessions').doc(onboardStateUid).set({
+          status: 'error',
+          error: `Google authorization failed: ${error}`,
+          updatedAt: new Date(),
+        }, { merge: true });
+        this.logger.log(`[Onboarding] Session status updated: error for uid=${onboardStateUid}`);
+      }
       return res.send(this.getPopupHtml('gmb-error', { error: `Google authorization failed: ${error}` }, frontendUrl));
     }
 
     if (!code) {
-      this.logger.warn('Google OAuth callback missing code');
+      this.logger.error('[Onboarding] Error: Missing authorization code');
+      if (onboardStateUid) {
+        await db.collection('onboarding_sessions').doc(onboardStateUid).set({
+          status: 'error',
+          error: 'Missing authorization code',
+          updatedAt: new Date(),
+        }, { merge: true });
+        this.logger.log(`[Onboarding] Session status updated: error for uid=${onboardStateUid}`);
+      }
       return res.send(this.getPopupHtml('gmb-error', { error: 'Missing authorization code' }, frontendUrl));
     }
 
     try {
+      this.logger.log('[Onboarding] Google authentication verified');
       const { oauth2Client, tokens } = await this.googleBusinessService.exchangeCodeForTokens(code);
 
       const accountEmail = await this.googleBusinessService.fetchAccountEmail(oauth2Client);
+      
+      this.logger.log('[Onboarding] Fetching Google Business Profile');
       const { accountId, locations, fetchErrors } = await this.googleBusinessService.fetchAccountsAndLocations(oauth2Client);
 
-      // Distinguish "account has no locations" from "Google API call failed"
-      // (quota pending / scope / permission), so the user sees a real error
-      // instead of a silent success with an empty location list.
       const locationsWarning = locations.length === 0
         ? (fetchErrors.length
             ? `Google could not load your Business Profile locations: ${fetchErrors[0]}`
@@ -125,46 +174,24 @@ export class GoogleAuthController {
         : '';
 
       if (!tokens.refresh_token) {
-        this.logger.warn('No refresh token received from Google');
+        this.logger.error('[Onboarding] Error: No refresh token received from Google');
+        if (onboardStateUid) {
+          await db.collection('onboarding_sessions').doc(onboardStateUid).set({
+            status: 'error',
+            error: 'No refresh token received. Please revoke access and try again.',
+            updatedAt: new Date(),
+          }, { merge: true });
+          this.logger.log(`[Onboarding] Session status updated: error for uid=${onboardStateUid}`);
+        }
         return res.send(this.getPopupHtml('gmb-error', { error: 'No refresh token received. Please revoke access and try again.' }, frontendUrl));
       }
 
-      // Decode state — supports both encrypted onboarding state and plain outletId (legacy)
-      let outletIdOrUid = '';
-      let stateOutletId = '';
-      let onboardStateUid = '';
-      if (state) {
-        try {
-          const decoded = JSON.parse(this.decrypt(state));
-          outletIdOrUid = decoded.uid || decoded.outletId || '';
-          stateOutletId = decoded.outletId || '';
-          // State that carries a uid WITHOUT an outletId is the onboarding flow
-          // (GET /api/auth/google/onboard?uid=). The account is expected to have
-          // no outlet yet, so the token must go to onboarding_sessions, NOT fail.
-          if (decoded.uid && !decoded.outletId) {
-            onboardStateUid = decoded.uid;
-          }
-          this.logger.log(`Decoded OAuth state: uid=${decoded.uid || 'none'} outletId=${stateOutletId || 'none'}`);
-        } catch {
-          // Fallback: treat state as plain outletId (legacy /api/auth/google?outletId= flow)
-          // Guard against quote-wrapped ("%22%22") values reaching Firestore lookups.
-          if (state.includes('"') || state.includes('%22')) {
-            this.logger.warn(`Malformed OAuth state rejected: ${JSON.stringify(state)}`);
-            return res.send(this.getPopupHtml('gmb-error', { error: 'OAuth state was malformed. Please reconnect your Google Business Profile.' }, frontendUrl));
-          }
-          outletIdOrUid = state;
-        }
-      }
-
-      const db = this.firebaseService.getDb();
-
       // ─── Onboarding flow ─────────────────────────────────────────────────
-      // uid-only state => brand-new account without an outlet. Persist the
-      // (already encrypted) Google tokens in onboarding_sessions so that
-      // POST /api/auth/onboard can finalize the customer + outlet + user link.
       if (onboardStateUid) {
         const encryptedRefreshToken = this.encrypt(tokens.refresh_token);
+        const sessionStatus = locations.length > 0 ? 'ready' : (fetchErrors.length ? 'error' : 'no_data');
         const sessionPayload = {
+          status: sessionStatus,
           googleRefreshToken: encryptedRefreshToken,
           googleAccountId: accountId,
           googleAccountEmail: accountEmail,
@@ -173,12 +200,12 @@ export class GoogleAuthController {
           googleLocationsFetchedAt: new Date(),
           googleTokenScope: tokens.scope || '',
           googleTokenExpiresAt: tokens.expiry_date || null,
-          createdAt: new Date(),
+          error: fetchErrors.length ? fetchErrors[0] : null,
+          updatedAt: new Date(),
         };
         await db.collection('onboarding_sessions').doc(onboardStateUid).set(sessionPayload, { merge: true });
-        this.logger.log(
-          `Stored Google tokens in onboarding session: ${onboardStateUid} (locations=${locations.length}${locationsWarning ? `, warning: ${locationsWarning}` : ''})`
-        );
+        this.logger.log('[Onboarding] GBP data saved');
+        this.logger.log(`[Onboarding] Session status updated: ${sessionStatus} for uid=${onboardStateUid}`);
         return res.send(this.getPopupHtml('gmb-connected', {
           googleAccountEmail: accountEmail,
           googleLocations: locations,
@@ -288,7 +315,17 @@ export class GoogleAuthController {
       }, frontendUrl));
 
     } catch (err: any) {
-      this.logger.error(`Google OAuth callback failed: ${err.message}`);
+      this.logger.error(`[Onboarding] Error: Google OAuth callback failed - ${err.message}`);
+      if (onboardStateUid) {
+        try {
+          await db.collection('onboarding_sessions').doc(onboardStateUid).set({
+            status: 'error',
+            error: err.message,
+            updatedAt: new Date(),
+          }, { merge: true });
+          this.logger.log(`[Onboarding] Session status updated: error for uid=${onboardStateUid}`);
+        } catch (_) {}
+      }
       return res.send(this.getPopupHtml('gmb-error', { error: err.message }, frontendUrl));
     }
   }

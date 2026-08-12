@@ -18,6 +18,8 @@ import {
   SendInvitationDto,
   SendSubscriptionActivatedDto,
   SendWeeklyReportDto,
+  SendFifteenDayReportDto,
+  SendOnboardingConfirmedDto,
   SendReviewAlertDto,
   SendEscalationEmailDto,
 } from '../dto/email.dto';
@@ -33,6 +35,7 @@ export interface EmailDispatchResult {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly appUrl: string;
+  private readonly frontendUrl: string;
 
   constructor(
     private readonly emailQueue: EmailQueueService,
@@ -41,6 +44,7 @@ export class EmailService {
   ) {
     const config = loadEmailConfig();
     this.appUrl = config.appUrl;
+    this.frontendUrl = config.frontendUrl;
   }
 
   /**
@@ -68,7 +72,7 @@ export class EmailService {
     this.logger.log(`Queueing Welcome email for ${dto.recipientEmail}`);
     return this.dispatchJob(EmailJobType.WELCOME, {
       ...dto,
-      dashboardUrl: dto.dashboardUrl || `${this.appUrl}/dashboard`,
+      dashboardUrl: dto.dashboardUrl || `${this.frontendUrl}/dashboard`,
     });
   }
 
@@ -80,7 +84,7 @@ export class EmailService {
     if (!verificationUrl) {
       const tokenInfo = this.tokenService.generateSecureToken(expiresInHours * 60);
       await this.tokenService.storeToken(dto.recipientEmail, tokenInfo);
-      verificationUrl = `${this.appUrl}/verify-email?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.recipientEmail)}`;
+      verificationUrl = `${this.frontendUrl}/verify-email?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.recipientEmail)}`;
     }
 
     return this.dispatchJob(EmailJobType.VERIFICATION, {
@@ -98,7 +102,7 @@ export class EmailService {
     if (!resetUrl) {
       const tokenInfo = this.tokenService.generateSecureToken(expiresInMinutes);
       await this.tokenService.storeToken(dto.recipientEmail, tokenInfo);
-      resetUrl = `${this.appUrl}/reset-password?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.recipientEmail)}`;
+      resetUrl = `${this.frontendUrl}/reset-password?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.recipientEmail)}`;
     }
 
     return this.dispatchJob(EmailJobType.PASSWORD_RESET, {
@@ -113,7 +117,7 @@ export class EmailService {
     return this.dispatchJob(EmailJobType.PASSWORD_CHANGED, {
       ...dto,
       changeTimestamp: dto.changeTimestamp || new Date().toUTCString(),
-      securityUrl: dto.securityUrl || `${this.appUrl}/settings/security`,
+      securityUrl: dto.securityUrl || `${this.frontendUrl}/settings/security`,
     });
   }
 
@@ -125,7 +129,7 @@ export class EmailService {
     if (!inviteUrl) {
       const tokenInfo = this.tokenService.generateSecureToken(expiresInDays * 24 * 60);
       await this.tokenService.storeToken(dto.recipientEmail, tokenInfo);
-      inviteUrl = `${this.appUrl}/invite/accept?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.recipientEmail)}`;
+      inviteUrl = `${this.frontendUrl}/invite/accept?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.recipientEmail)}`;
     }
 
     return this.dispatchJob(EmailJobType.TEAM_INVITE, {
@@ -139,7 +143,7 @@ export class EmailService {
     this.logger.log(`Queueing Subscription Confirmation email for ${dto.recipientEmail}`);
     return this.dispatchJob(EmailJobType.SUBSCRIPTION_ACTIVATED, {
       ...dto,
-      dashboardUrl: dto.dashboardUrl || `${this.appUrl}/dashboard`,
+      dashboardUrl: dto.dashboardUrl || `${this.frontendUrl}/dashboard`,
     });
   }
 
@@ -147,7 +151,23 @@ export class EmailService {
     this.logger.log(`Queueing Weekly Reputation Report for ${dto.recipientEmail}`);
     return this.dispatchJob(EmailJobType.WEEKLY_REPORT, {
       ...dto,
-      analyticsUrl: dto.analyticsUrl || `${this.appUrl}/analytics`,
+      analyticsUrl: dto.analyticsUrl || `${this.frontendUrl}/analytics`,
+    });
+  }
+
+  async sendFifteenDayReport(dto: SendFifteenDayReportDto): Promise<EmailDispatchResult> {
+    this.logger.log(`Queueing 15-Day Reputation Intelligence Report for ${dto.recipientEmail}`);
+    return this.dispatchJob(EmailJobType.FIFTEEN_DAY_REPORT, {
+      ...dto,
+      analyticsUrl: dto.analyticsUrl || `${this.frontendUrl}/outlet/reports`,
+    });
+  }
+
+  async sendOnboardingConfirmed(dto: SendOnboardingConfirmedDto): Promise<EmailDispatchResult> {
+    this.logger.log(`Queueing Business Onboarding Confirmation email for ${dto.recipientEmail}`);
+    return this.dispatchJob(EmailJobType.ONBOARDING_CONFIRMED, {
+      ...dto,
+      dashboardUrl: dto.dashboardUrl || `${this.frontendUrl}/outlet/dashboard`,
     });
   }
 
@@ -155,8 +175,8 @@ export class EmailService {
     this.logger.log(`Queueing New Review Alert for ${dto.recipientEmail}`);
     return this.dispatchJob(EmailJobType.REVIEW_ALERT, {
       ...dto,
-      dashboardUrl: dto.dashboardUrl || `${this.appUrl}/dashboard/reviews`,
-      aiReplyUrl: dto.aiReplyUrl || `${this.appUrl}/dashboard/reviews?action=ai-reply`,
+      dashboardUrl: dto.dashboardUrl || `${this.frontendUrl}/dashboard/reviews`,
+      aiReplyUrl: dto.aiReplyUrl || `${this.frontendUrl}/dashboard/reviews?action=ai-reply`,
     });
   }
 
@@ -164,7 +184,7 @@ export class EmailService {
     this.logger.log(`Queueing Review Escalation Level ${dto.level} email for ${dto.recipientEmail}`);
     return this.dispatchJob(EmailJobType.ESCALATION_ALERT, {
       ...dto,
-      dashboardUrl: dto.dashboardUrl || `${this.appUrl}/outlet-dashboard/reviews`,
+      dashboardUrl: dto.dashboardUrl || `${this.frontendUrl}/outlet-dashboard/reviews`,
     });
   }
 }

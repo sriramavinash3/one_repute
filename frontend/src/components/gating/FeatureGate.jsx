@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Lock, Sparkles, Check, HelpCircle, X, ShieldAlert, ArrowRight } from 'lucide-react'
+import { Lock, Sparkles, Check, HelpCircle, X, ShieldAlert, ArrowRight, Clock } from 'lucide-react'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import Button from '../ui/button'
 import apiClient from '../../services/apiClient'
-import { PRICING_CONFIG } from '../pricing/pricingConfig'
+import { PRICING_CONFIG, PLAN_CARD_FEATURES, PLAN_FEATURE_COMPARISON } from '../pricing/pricingConfig'
 
 /**
  * FeatureGate wrapper component to gate access to premium features.
@@ -77,7 +77,7 @@ export function LockedPlaceholder({ title, description, onUnlock }) {
 }
 
 /**
- * UpgradeModal - Premium subscription comparator layout.
+ * UpgradeModal - Premium subscription comparator layout using Home Page PRICING_CONFIG.
  */
 export function UpgradeModal({ onClose }) {
   const { billingInfo, changePlan, checkoutSubscription } = useSubscription()
@@ -88,6 +88,7 @@ export function UpgradeModal({ onClose }) {
   const [loadingPlan, setLoadingPlan] = useState(null)
 
   const currentPlan = billingInfo?.subscription?.plan || 'plan_starter'
+  const sub = billingInfo?.subscription
 
   useEffect(() => {
     // If billing details are loaded and country is not India, flag international
@@ -113,86 +114,11 @@ export function UpgradeModal({ onClose }) {
     }
   }, [billingInfo])
 
-  const PLAN_DETAILS = [
-    {
-      id: 'plan_starter',
-      name: 'Starter',
-      description: 'Ideal for local stores and startups looking to monitor basic reviews.',
-      features: [
-        '100 Monthly Review Responses',
-        'Google Review Auto Reply',
-        'AI Reply for <=2 Star Reviews',
-        'Positive Review Replies',
-        '1 Level WhatsApp Escalation',
-        'Basic Sentiment Analysis',
-        'Basic Dashboard & Monthly Report',
-        '2 Team Members limit',
-      ],
-      disabledFeatures: [
-        'Smart QR Code Campaigns',
-        'Competitor Tracking',
-        'Approval Workflow Queue',
-        'Advanced Issue Categories',
-      ]
-    },
-    {
-      id: 'plan_growth',
-      name: 'Growth',
-      description: 'Perfect for growing brands needing automation and multi-channel matrix alerts.',
-      popular: true,
-      features: [
-        '250 Monthly Review Responses',
-        'Google Review Auto Reply',
-        'AI Reply for <=2 Star Reviews',
-        'Positive Review Replies',
-        '2 Levels WhatsApp Escalation',
-        'Smart QR Code Campaigns',
-        'Standard Sentiment & Trend Analysis',
-        '2 Competitors Tracking',
-        '3 Team Members limit',
-        'Advanced Issue Categories',
-      ],
-      disabledFeatures: [
-        'Approval Workflow Queue',
-        'Premium Support Support Priority',
-        'Monthly Strategy Strategy Call',
-      ]
-    },
-    {
-      id: 'plan_premium',
-      name: 'Premium',
-      description: 'Enterprise grade response controls, AI strategy advisory, and custom integrations.',
-      features: [
-        '500 Monthly Review Responses',
-        'Google Review Auto Reply',
-        'AI Reply for <=2 Star Reviews',
-        'Positive Review Replies',
-        '3 Levels WhatsApp Escalation',
-        'Smart QR Code Campaigns',
-        'Advanced Sentiment Analysis',
-        '5 Competitors Tracking',
-        '5 Team Members limit',
-        'Reply Approval Workflow',
-        'Low Rating Pattern Detection',
-        'Monthly Strategy Strategy Call',
-        'Premium Support Priority',
-      ],
-      disabledFeatures: []
-    }
-  ]
-
   const handleSelectPlan = async (planId) => {
-    if (planId === currentPlan) return
+    if (planId === currentPlan && billingCycle === (sub?.billingCycle || 'monthly')) return
     setLoadingPlan(planId)
     
-    const isInactive = !billingInfo?.subscription || billingInfo.subscription.status === 'inactive'
-    
-    let success = false
-    if (isInactive) {
-      success = await checkoutSubscription(planId, billingCycle)
-    } else {
-      success = await changePlan(planId, billingCycle)
-    }
+    let success = await checkoutSubscription(planId, billingCycle)
     
     setLoadingPlan(null)
     if (success) {
@@ -243,6 +169,15 @@ export function UpgradeModal({ onClose }) {
           <h2 className="text-2xl md:text-3xl font-extrabold text-slatey-900">Choose the perfect plan for your business</h2>
           <p className="text-sm text-slatey-500 mt-2">Unlock smart reviews automation, escalation matrices, and reputation analytics.</p>
           
+          {sub?.remainingTrialDays > 0 && (
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-50 border border-brand-200 text-brand-800 text-xs font-medium">
+              <Clock className="h-4 w-4 text-brand-600 shrink-0" />
+              <span>
+                Active Trial: <strong>{sub.remainingTrialDays} days remaining</strong> (ends {sub.trialEndDate ? new Date(sub.trialEndDate).toLocaleDateString() : 'soon'}). Upgrading activates paid plan features immediately while retaining your trial dates.
+              </span>
+            </div>
+          )}
+
           {/* Controls Toggles */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
             {/* Billing Cycle Selector */}
@@ -261,7 +196,7 @@ export function UpgradeModal({ onClose }) {
                   billingCycle === 'quarterly' ? 'bg-white text-slatey-950 shadow-sm' : 'text-slatey-500 hover:text-slatey-800'
                 }`}
               >
-                Quarterly
+                Quarterly (20% OFF)
               </button>
               <button
                 onClick={() => setBillingCycle('annual')}
@@ -269,7 +204,7 @@ export function UpgradeModal({ onClose }) {
                   billingCycle === 'annual' ? 'bg-white text-slatey-950 shadow-sm' : 'text-slatey-500 hover:text-slatey-800'
                 }`}
               >
-                Annual
+                Annual (20% OFF)
               </button>
             </div>
 
@@ -281,7 +216,7 @@ export function UpgradeModal({ onClose }) {
                   selectedCurrency === 'INR' ? 'bg-white text-slatey-950 shadow-sm' : 'text-slatey-500 hover:text-slatey-800'
                 }`}
               >
-                INR (₹)
+                🇮🇳 INR (₹)
               </button>
               <button
                 onClick={() => handleCurrencyChange('USD')}
@@ -289,7 +224,7 @@ export function UpgradeModal({ onClose }) {
                   selectedCurrency === 'USD' ? 'bg-white text-slatey-950 shadow-sm' : 'text-slatey-500 hover:text-slatey-800'
                 }`}
               >
-                USD ($)
+                🌐 USD ($)
               </button>
             </div>
           </div>
@@ -297,39 +232,34 @@ export function UpgradeModal({ onClose }) {
 
         {/* Plans Grid */}
         <div className="grid gap-6 md:grid-cols-3">
-          {PLAN_DETAILS.map((plan) => {
-            const isCurrent = plan.id === currentPlan
+          {PRICING_CONFIG.plansInfo.map((planInfo) => {
+            const fullPlanId = planInfo.planId || `plan_${planInfo.id}`
+            const isCurrent = fullPlanId === currentPlan || planInfo.id === currentPlan
             const regionKey = selectedCurrency === 'INR' ? 'IN' : 'INT'
             const regionConfig = PRICING_CONFIG.regions[regionKey]
-            const planPrices = regionConfig.plans[plan.id] || regionConfig.plans[plan.id.replace('plan_', '')] || {}
-            const dbPlan = billingInfo?.plans?.find(p => p.id === plan.id)
-
-            let price = planPrices[billingCycle] || 0
-            if (dbPlan) {
-              if (billingCycle === 'annual' && dbPlan.annualPrice) price = dbPlan.annualPrice
-              else if (billingCycle === 'quarterly' && dbPlan.quarterlyPrice) price = dbPlan.quarterlyPrice
-              else if (billingCycle === 'monthly' && dbPlan.monthlyPrice) price = dbPlan.monthlyPrice
-            }
-
+            const planPrices = regionConfig.plans[planInfo.id] || regionConfig.plans[fullPlanId] || {}
+            
+            const price = planPrices[billingCycle] || 0
             const period = billingCycle === 'annual' ? '/ year' : billingCycle === 'quarterly' ? '/ quarter' : '/ month'
-            const symbol = dbPlan ? dbPlan.currencySymbol : regionConfig.currencySymbol
+            const symbol = regionConfig.currencySymbol
+            const cardFeatures = PLAN_CARD_FEATURES[planInfo.id] || { features: [], disabledFeatures: [] }
 
             return (
               <div 
-                key={plan.id}
+                key={planInfo.id}
                 className={`relative flex flex-col rounded-2xl bg-white p-5 border shadow-sm transition-all duration-300 ${
-                  plan.popular ? 'border-brand-500 ring-2 ring-brand-500/20 shadow-glow' : 'border-slatey-200'
+                  planInfo.isPopular ? 'border-brand-500 ring-2 ring-brand-500/20 shadow-glow' : 'border-slatey-200'
                 }`}
               >
-                {plan.popular && (
+                {planInfo.isPopular && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-600 px-3 py-1 text-[10px] font-bold text-white uppercase tracking-wider shadow-brand">
                     Most Popular
                   </span>
                 )}
 
                 <div className="mb-5">
-                  <h3 className="text-lg font-bold text-slatey-900">{plan.name}</h3>
-                  <p className="text-xs text-slatey-400 mt-1.5 h-10 leading-normal">{plan.description}</p>
+                  <h3 className="text-lg font-bold text-slatey-900">{planInfo.name}</h3>
+                  <p className="text-xs text-slatey-400 mt-1.5 h-10 leading-normal">{planInfo.tagline}</p>
                   
                   <div className="flex items-baseline gap-1 mt-4">
                     <span className="text-3xl font-extrabold text-slatey-950">{symbol}{price.toLocaleString()}</span>
@@ -338,27 +268,27 @@ export function UpgradeModal({ onClose }) {
                 </div>
 
                 <Button
-                  variant={isCurrent ? 'outline' : plan.popular ? 'primary' : 'secondary'}
+                  variant={isCurrent ? 'outline' : planInfo.isPopular ? 'primary' : 'secondary'}
                   className={`w-full py-2.5 text-xs font-bold mb-6 ${
-                    plan.popular && !isCurrent ? 'shadow-brand' : ''
+                    planInfo.isPopular && !isCurrent ? 'shadow-brand' : ''
                   }`}
-                  onClick={() => handleSelectPlan(plan.id)}
+                  onClick={() => handleSelectPlan(fullPlanId)}
                   disabled={isCurrent || loadingPlan !== null}
                 >
-                  {loadingPlan === plan.id ? 'Processing...' : isCurrent ? 'Active Plan' : 'Select Plan'}
+                  {loadingPlan === fullPlanId ? 'Processing...' : isCurrent ? 'Active Plan' : 'Select Plan'}
                 </Button>
 
                 {/* Features List */}
                 <div className="flex-1 space-y-3">
                   <p className="text-[10px] font-bold text-slatey-400 uppercase tracking-wider mb-2">What is included</p>
-                  {plan.features.map((feat, i) => (
+                  {cardFeatures.features.map((feat, i) => (
                     <div key={i} className="flex items-start gap-2.5">
                       <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
                       <span className="text-xs text-slatey-700 font-medium leading-relaxed">{feat}</span>
                     </div>
                   ))}
 
-                  {plan.disabledFeatures.map((feat, i) => (
+                  {cardFeatures.disabledFeatures.map((feat, i) => (
                     <div key={i} className="flex items-start gap-2.5 opacity-40">
                       <Lock className="h-3 w-3 text-slatey-400 shrink-0 mt-1" />
                       <span className="text-xs text-slatey-500 font-medium line-through leading-relaxed">{feat}</span>
@@ -370,6 +300,7 @@ export function UpgradeModal({ onClose }) {
           })}
         </div>
       </motion.div>
+
 
       {/* International Billing Warning Dialog */}
       <AnimatePresence>

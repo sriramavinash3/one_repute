@@ -45,24 +45,35 @@ export class SubscriptionService {
     };
 
     const country = customer.billingCountry || 'IN';
-    const rawPlans = plansSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const plans = await this.planService.getAllPlans(country);
 
-    const plans = await Promise.all(
-      rawPlans.map(async (plan: any) => {
-        const localized = await this.planService.getPlanPrice(plan.id, country);
-        return {
-          ...plan,
-          monthlyPrice: localized.monthlyPrice,
-          quarterlyPrice: localized.quarterlyPrice,
-          annualPrice: localized.annualPrice,
-          currency: localized.currency,
-          currencySymbol: this.planService.getCurrencySymbol(localized.currency),
-          razorpayMonthlyPlanId: localized.razorpayMonthlyPlanId,
-          razorpayQuarterlyPlanId: localized.razorpayQuarterlyPlanId,
-          razorpayAnnualPlanId: localized.razorpayAnnualPlanId,
-        };
-      })
-    );
+    const now = new Date();
+    let currentPlan = customer.plan || 'plan_starter';
+    let status = customer.subscriptionStatus || 'inactive';
+    let scheduledPlan = customer.scheduledPlan || null;
+
+    let trialStartDate = customer.trialStartDate ? (customer.trialStartDate.toDate ? customer.trialStartDate.toDate() : new Date(customer.trialStartDate)) : null;
+    let trialEndDate = customer.trialEndDate ? (customer.trialEndDate.toDate ? customer.trialEndDate.toDate() : new Date(customer.trialEndDate)) : null;
+    let paidPlanStartDate = customer.paidPlanStartDate ? (customer.paidPlanStartDate.toDate ? customer.paidPlanStartDate.toDate() : new Date(customer.paidPlanStartDate)) : null;
+
+    let remainingTrialDays = 0;
+    if (trialEndDate && trialEndDate.getTime() > now.getTime()) {
+      remainingTrialDays = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Auto-transition trial_paid_scheduled to active if trial end date has passed
+    if (status === 'trial_paid_scheduled' && trialEndDate && now.getTime() >= trialEndDate.getTime()) {
+      status = 'active';
+      if (scheduledPlan) {
+        currentPlan = scheduledPlan;
+      }
+      db.collection('customers').doc(customerId).set({
+        subscriptionStatus: 'active',
+        plan: currentPlan,
+        paidPlanScheduled: false,
+        updatedAt: new Date(),
+      }, { merge: true }).catch(e => this.logger.error(`Failed auto-transition: ${e.message}`));
+    }
 
     const invoicesSnap = await db.collection('invoices')
       .where('customerId', '==', customerId)
@@ -77,16 +88,20 @@ export class SubscriptionService {
 
     return {
       subscription: {
-        plan: customer.plan || 'plan_starter',
+        plan: currentPlan,
+        scheduledPlan,
         billingCycle: customer.billingCycle || 'monthly',
-        status: customer.subscriptionStatus || 'inactive',
+        status,
+        paidPlanScheduled: customer.paidPlanScheduled || false,
         renewalDate: customer.renewalDate ? (customer.renewalDate.toDate ? customer.renewalDate.toDate() : customer.renewalDate) : null,
         cancelAtPeriodEnd: customer.cancelAtPeriodEnd || false,
         pendingPlanDowngrade: customer.pendingPlanDowngrade || null,
         billingCountry: country,
         currency: customer.currency || (country === 'IN' ? 'INR' : 'USD'),
-        trialStartDate: customer.trialStartDate ? (customer.trialStartDate.toDate ? customer.trialStartDate.toDate() : customer.trialStartDate) : null,
-        trialEndDate: customer.trialEndDate ? (customer.trialEndDate.toDate ? customer.trialEndDate.toDate() : customer.trialEndDate) : null,
+        trialStartDate,
+        trialEndDate,
+        paidPlanStartDate,
+        remainingTrialDays,
       },
       usage: {
         repliesUsed: usage.review_reply_count || 0,
