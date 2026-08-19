@@ -34,7 +34,7 @@ export class PaymentService {
     return this.razorpayInstance;
   }
 
-  async createSubscription(customerId: string, rawPlanId: string, billingCycle: string = 'monthly', countryCode: string = 'IN') {
+  async createSubscription(customerId: string, rawPlanId: string, billingCycle: string = 'monthly', countryCode: string = 'IN', discountCode?: string) {
     try {
       if (!rawPlanId) {
         throw new Error('Plan ID is required for checkout.');
@@ -71,14 +71,36 @@ export class PaymentService {
       const isNewTrialEligible = (!customerData || customerData.trialUsed !== true) && !isCurrentlyInTrial;
 
       const localizedPrice = await this.planService.getPlanPrice(planId, countryCode);
-      const priceAmount = billingCycle === 'annual' 
+      const basePriceAmount = billingCycle === 'annual' 
         ? localizedPrice.annualPrice 
         : billingCycle === 'quarterly' 
         ? localizedPrice.quarterlyPrice 
         : localizedPrice.monthlyPrice;
 
-      if (!priceAmount || priceAmount <= 0) {
+      if (!basePriceAmount || basePriceAmount <= 0) {
         throw new Error(`Invalid price configured for plan ${planId} (${billingCycle})`);
+      }
+
+      let priceAmount = basePriceAmount;
+      if (discountCode) {
+        try {
+          const discountSnap = await db.collection('discounts')
+            .where('code', '==', discountCode.toUpperCase())
+            .limit(1)
+            .get();
+          if (!discountSnap.empty) {
+            const disc = discountSnap.docs[0].data();
+            if (disc.status === 'Active' || disc.status === 'active') {
+              if (disc.type === 'percentage' || disc.type === 'Percentage') {
+                priceAmount = Math.max(1, basePriceAmount * (1 - disc.value / 100));
+              } else if (disc.type === 'flat' || disc.type === 'Flat') {
+                priceAmount = Math.max(1, basePriceAmount - disc.value);
+              }
+            }
+          }
+        } catch (e: any) {
+          this.logger.warn(`Failed to validate discount code ${discountCode}: ${e.message}`);
+        }
       }
 
       const priceAmountInPaise = Math.round(priceAmount * 100);
@@ -119,11 +141,12 @@ export class PaymentService {
       this.logger.log(`====================================================`);
       this.logger.log(`[CHECKOUT DEBUG] Selected plan ID: ${planId}`);
       this.logger.log(`[CHECKOUT DEBUG] Plan name: ${validPlan.name}`);
-      this.logger.log(`[CHECKOUT DEBUG] Database/configured plan price: ${priceAmount}`);
-      this.logger.log(`[CHECKOUT DEBUG] Calculated amount in INR: ${priceAmount}`);
+      this.logger.log(`[CHECKOUT DEBUG] Base plan price: ${basePriceAmount}`);
+      this.logger.log(`[CHECKOUT DEBUG] Effective price amount: ${priceAmount}`);
+      this.logger.log(`[CHECKOUT DEBUG] Currency: ${localizedPrice.currency || 'INR'}`);
       this.logger.log(`[CHECKOUT DEBUG] Calculated amount in paise: ${priceAmountInPaise}`);
-      this.logger.log(`[CHECKOUT DEBUG] Razorpay order ID: ${subscription.id}`);
-      this.logger.log(`[CHECKOUT DEBUG] Razorpay order amount: ${priceAmountInPaise} paise`);
+      this.logger.log(`[CHECKOUT DEBUG] Razorpay subscription ID: ${subscription.id}`);
+      this.logger.log(`[CHECKOUT DEBUG] Razorpay plan ID: ${razorpayPlanId}`);
       this.logger.log(`====================================================`);
 
       const daysToAdd = billingCycle === 'annual' ? 365 : billingCycle === 'quarterly' ? 90 : 30;

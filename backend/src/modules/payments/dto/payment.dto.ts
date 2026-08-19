@@ -17,6 +17,10 @@ export class CreateSubscriptionDto {
   @IsString()
   @IsOptional()
   countryCode?: string;
+
+  @IsString()
+  @IsOptional()
+  discountCode?: string;
 }
 
 export class VerifyPaymentDto {

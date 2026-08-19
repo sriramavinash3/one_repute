@@ -207,11 +207,13 @@ export class AdminService {
       const snap = await db.collection('customers').get();
       snap.docs.forEach((doc) => {
         const data = doc.data();
+        const isTrial = data.subscriptionStatus === 'trialing' || data.subscriptionStatus === 'trial_paid_scheduled' || Boolean(data.isTrial) || data.plan === 'trial';
+        const planName = isTrial ? 'trial' : (data.planName || data.plan || 'starter');
         customersMap.set(doc.id, {
           id: doc.id,
           name: data.name || data.companyName || 'Customer',
           email: data.email || '',
-          plan: data.planName || data.plan || 'starter',
+          plan: planName,
           paymentStatus: data.paymentStatus || 'active',
           subscriptionStatus: data.subscriptionStatus || data.paymentStatus || 'active',
           accountStatus: data.accountStatus || data.status || 'Active',
@@ -370,7 +372,7 @@ export class AdminService {
   async getBillingPrices() {
     const db = this.firebaseService.getDb();
     try {
-      const snap = await db.collection('billingPrices').get();
+      const snap = await db.collection('planPrices').get();
       if (!snap.empty) {
         return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       }
@@ -389,12 +391,13 @@ export class AdminService {
 
   async saveBillingPrice(dto: SaveBillingPriceDto) {
     const db = this.firebaseService.getDb();
-    const id = `price_${dto.planId || 'starter'}_${(dto.country || 'IN').toLowerCase()}`;
+    const cleanPlan = (dto.planId || 'plan_starter').replace('plan_', '');
+    const id = `price_${cleanPlan}_${(dto.country || 'IN').toLowerCase()}`;
 
     const data = {
-      planId: dto.planId || 'plan_starter',
-      country: dto.country || 'IN',
-      currency: dto.currency || 'INR',
+      planId: dto.planId?.startsWith('plan_') ? dto.planId : `plan_${dto.planId || 'starter'}`,
+      country: (dto.country || 'IN').toUpperCase(),
+      currency: dto.currency || ((dto.country || 'IN').toUpperCase() === 'IN' ? 'INR' : 'USD'),
       monthlyPrice: Number(dto.monthlyPrice) || 1299,
       quarterlyPrice: Number(dto.quarterlyPrice) || 3899,
       annualPrice: Number(dto.annualPrice) || 15599,
@@ -405,7 +408,7 @@ export class AdminService {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    await db.collection('billingPrices').doc(id).set(data, { merge: true });
+    await db.collection('planPrices').doc(id).set(data, { merge: true });
     return { id, ...data, success: true };
   }
 

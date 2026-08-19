@@ -6,6 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { GoogleBusinessService } from '../google-business/google-business.service';
 import { AIService } from '../ai/ai.service';
 
+import { consumeTrialResponseAllowance, releaseTrialResponseAllowance } from '../../common/utils/trial-entitlement.util';
+
 @Injectable()
 export class ReviewReplyService {
   private readonly logger = new Logger(ReviewReplyService.name);
@@ -23,15 +25,34 @@ export class ReviewReplyService {
     customerName: string;
     rating: number;
     reviewText: string;
+    customerId?: string;
   }): Promise<string> {
-    const { outletName, customerName, rating, reviewText } = params;
-    const result = await this.aiService.generateReviewReply({
-      outletName,
-      customerName,
-      rating,
-      reviewText,
-    });
-    return result.text;
+    const { outletName, customerName, rating, reviewText, customerId } = params;
+
+    let trialResult = { allowedCount: 1, isTrial: false, remaining: Infinity, used: 0 };
+    if (customerId) {
+      const db = this.firebaseService.getDb();
+      trialResult = await consumeTrialResponseAllowance(db, customerId, 1);
+      if (trialResult.isTrial && trialResult.allowedCount === 0) {
+        throw new BadRequestException('Trial limit of 30 AI review responses reached. Upgrade to a paid plan to continue generating AI responses.');
+      }
+    }
+
+    try {
+      const result = await this.aiService.generateReviewReply({
+        outletName,
+        customerName,
+        rating,
+        reviewText,
+      });
+      return result.text;
+    } catch (err: any) {
+      if (trialResult.isTrial && customerId) {
+        const db = this.firebaseService.getDb();
+        await releaseTrialResponseAllowance(db, customerId, 1);
+      }
+      throw err;
+    }
   }
 
   /**
@@ -117,29 +138,6 @@ export class ReviewReplyService {
       return { success: true, repliedAt: review.repliedAt ? new Date(review.repliedAt) : new Date() };
     }
 
-    // Trial quota enforcement check for manual postDirectReply
-    const customerId = outlet.customerId || outlet.userId || outlet.ownerId || null;
-    let isTrial = false;
-    let trialAutoReplyCount = 0;
-
-    if (customerId) {
-      const customerSnap = await db.collection('customers').doc(customerId).get();
-      const cData = customerSnap.exists ? customerSnap.data() : {};
-      const status = cData?.subscriptionStatus || '';
-      isTrial = status === 'trialing' || status === 'trial_paid_scheduled' || Boolean(cData?.isTrial);
-
-      if (isTrial) {
-        const usageSnap = await db.collection('customerUsage').doc(customerId).get();
-        const usage = usageSnap.exists ? usageSnap.data() : {};
-        trialAutoReplyCount = Number(usage?.trial_auto_reply_count || 0);
-
-        if (trialAutoReplyCount >= 10 && review.status !== 'responded') {
-          this.logger.warn(`AUTO_REPLY_LIMIT_EXCEEDED customerId=${customerId} outletId=${outletId} reviewId=${reviewId} usage=${trialAutoReplyCount}/10`);
-          throw new BadRequestException('Trial limit reached for automated review replies (10/10). Please upgrade to a paid plan to publish replies.');
-        }
-      }
-    }
-
     this.logger.log(`GOOGLE_REPLY_START reviewId=${reviewId} outletId=${outletId} resourceName=${resourceName}`);
 
     const repliedAt = new Date();
@@ -162,19 +160,6 @@ export class ReviewReplyService {
         processedAt: repliedAt,
         lastError: null,
       });
-
-      // Increment Auto Reply Quota for Trial
-      if (isTrial && customerId) {
-        try {
-          const inc = admin.firestore.FieldValue ? admin.firestore.FieldValue.increment(1) : (trialAutoReplyCount + 1);
-          await db.collection('customerUsage').doc(customerId).set(
-            { trial_auto_reply_count: inc },
-            { merge: true }
-          );
-        } catch (incErr: any) {
-          this.logger.error(`Failed to increment trial_auto_reply_count: ${incErr.message}`);
-        }
-      }
 
       this.logger.log(`GOOGLE_REPLY_SUCCESS reviewId=${reviewId} outletId=${outletId} timestamp=${repliedAt.toISOString()}`);
       return { success: true, repliedAt };
@@ -230,6 +215,15 @@ export class ReviewReplyService {
 
     let replyText = review.aiResponse || review.replySuggestion;
     if (!replyText) {
+      const customerId = outlet.customerId || outlet.userId || outlet.ownerId || null;
+      let trialResult = { allowedCount: 1, isTrial: false, remaining: Infinity, used: 0 };
+      if (customerId) {
+        trialResult = await consumeTrialResponseAllowance(db, customerId, 1);
+        if (trialResult.isTrial && trialResult.allowedCount === 0) {
+          throw new BadRequestException('Trial limit of 30 AI review responses reached. Upgrade to a paid plan to continue generating AI responses.');
+        }
+      }
+
       try {
         const aiResult = await this.aiService.generateReviewReply({
           outletName,
@@ -240,6 +234,9 @@ export class ReviewReplyService {
         replyText = aiResult.text;
         this.logger.log(`AUTO_REPLY_GENERATED reviewId=${reviewId} outletId=${outletId} generationSuccess=true responseLength=${replyText.length}`);
       } catch (aiErr: any) {
+        if (trialResult.isTrial && customerId) {
+          await releaseTrialResponseAllowance(db, customerId, 1);
+        }
         this.logger.error(`AUTO_REPLY_GENERATION_FAILED reviewId=${reviewId} outletId=${outletId} errorCode=AI_FAILED errorMessage="${aiErr.message}"`);
         await this.dualWriteReviewUpdate(reviewId, {
           status: 'failed',

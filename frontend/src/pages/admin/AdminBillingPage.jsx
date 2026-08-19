@@ -133,11 +133,9 @@ export default function AdminBillingPage() {
           const price = getCustomerPlanPrice(cust)
           potentialRev += price
           
-          if (cust.subscriptionStatus === 'active' || cust.subscriptionStatus === 'trialing') {
+          if (cust.subscriptionStatus === 'active') {
             activeCount++
-            if (cust.subscriptionStatus === 'active') {
-              currentRev += price
-            }
+            currentRev += price
           }
         })
 
@@ -167,10 +165,8 @@ export default function AdminBillingPage() {
           const idx = months.findIndex(m => m.key === key)
           if (idx !== -1) {
             months[idx].total += 1
-            if (cust.subscriptionStatus === 'active' || cust.subscriptionStatus === 'trialing') {
-              months[idx].active += 1
-            }
             if (cust.subscriptionStatus === 'active') {
+              months[idx].active += 1
               months[idx].revenue += getCustomerPlanPrice(cust)
             }
           }

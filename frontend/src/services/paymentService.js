@@ -1,11 +1,12 @@
 import apiClient from './apiClient';
 
-export async function createSubscription(planId, billingCycle = 'monthly', countryCode = 'IN', customerId) {
+export async function createSubscription(planId, billingCycle = 'monthly', countryCode = 'IN', customerId, discountCode) {
   const { data } = await apiClient.post('/api/payments/create-subscription', {
     planId,
     billingCycle,
     countryCode,
     customerId,
+    discountCode,
   });
   return data;
 }

@@ -1253,7 +1253,7 @@ function BillingTabContent() {
               Active Subscription
             </span>
             <h3 className="text-xl font-bold text-slatey-900 flex items-center gap-2">
-              OneRepute <span className="capitalize text-brand-600">{sub.plan?.replace('plan_', '') || 'Starter'} Plan</span>
+              OneRepute <span className="capitalize text-brand-600">{(sub.plan === 'trial' || sub.status === 'trialing') ? 'Trial' : (sub.plan?.replace('plan_', '') || 'Starter')} Plan</span>
             </h3>
             <p className="text-xs text-slatey-500 leading-normal">
               Your subscription status: <span className="font-semibold text-emerald-600 capitalize">
@@ -1335,29 +1335,35 @@ function BillingTabContent() {
           <div className="space-y-4">
             {/* Trial Quota Displays */}
             {(sub.status === 'trialing' || sub.status === 'trial_paid_scheduled' || usage.isTrialActive) && (
-              <>
-                <div className="space-y-1.5 p-3 rounded-xl bg-brand-50/50 border border-brand-100">
-                  <div className="flex justify-between text-xs font-semibold text-slatey-800">
-                    <span>Trial Automatic Replies</span>
-                    <span className="font-bold text-brand-700">{usage.trialAutoRepliesUsed || 0} / {usage.trialAutoReplyLimit || 10}</span>
-                  </div>
-                  <div className="w-full h-2 bg-slatey-200/80 rounded-full overflow-hidden">
-                    <div className={`h-full transition-all duration-500 ${getProgressColor(Math.min(100, ((usage.trialAutoRepliesUsed || 0) / (usage.trialAutoReplyLimit || 10)) * 100))}`} style={{ width: `${Math.min(100, ((usage.trialAutoRepliesUsed || 0) / (usage.trialAutoReplyLimit || 10)) * 100)}%` }} />
-                  </div>
-                  <p className="text-[10px] text-slatey-500">Automatic AI replies published to Google Business Profile.</p>
+              <div className="space-y-2 p-3.5 rounded-xl bg-brand-50/60 border border-brand-100">
+                <div className="flex justify-between text-xs font-semibold text-slatey-800">
+                  <span>Trial Review Responses</span>
+                  <span className="font-bold text-brand-700">
+                    {usage.trialResponsesUsed ?? usage.trialSuggestionsUsed ?? 0} / {usage.trialResponseLimit || 30} used
+                  </span>
                 </div>
-
-                <div className="space-y-1.5 p-3 rounded-xl bg-brand-50/50 border border-brand-100">
-                  <div className="flex justify-between text-xs font-semibold text-slatey-800">
-                    <span>Trial AI Reply Suggestions</span>
-                    <span className="font-bold text-brand-700">{usage.trialSuggestionsUsed || 0} / {usage.trialSuggestionLimit || 30}</span>
-                  </div>
-                  <div className="w-full h-2 bg-slatey-200/80 rounded-full overflow-hidden">
-                    <div className={`h-full transition-all duration-500 ${getProgressColor(Math.min(100, ((usage.trialSuggestionsUsed || 0) / (usage.trialSuggestionLimit || 30)) * 100))}`} style={{ width: `${Math.min(100, ((usage.trialSuggestionsUsed || 0) / (usage.trialSuggestionLimit || 30)) * 100)}%` }} />
-                  </div>
-                  <p className="text-[10px] text-slatey-500">AI review reply suggestions generated for approval.</p>
+                <div className="w-full h-2.5 bg-slatey-200/80 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ${getProgressColor(Math.min(100, (((usage.trialResponsesUsed ?? usage.trialSuggestionsUsed ?? 0) / (usage.trialResponseLimit || 30)) * 100)))}`}
+                    style={{ width: `${Math.min(100, (((usage.trialResponsesUsed ?? usage.trialSuggestionsUsed ?? 0) / (usage.trialResponseLimit || 30)) * 100))}%` }}
+                  />
                 </div>
-              </>
+                <div className="flex justify-between text-[11px] text-slatey-600">
+                  <span>Cumulative Lifetime Trial Allowance</span>
+                  <span className="font-medium text-brand-700">
+                    {Math.max(0, (usage.trialResponseLimit || 30) - (usage.trialResponsesUsed ?? usage.trialSuggestionsUsed ?? 0))} remaining
+                  </span>
+                </div>
+                {(usage.trialResponsesUsed ?? usage.trialSuggestionsUsed ?? 0) >= (usage.trialResponseLimit || 30) && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block">Trial response limit reached (30/30 used)</span>
+                      <span>No further AI review responses will be generated. All other Starter-level features remain active. Upgrade anytime to continue AI review response generation.</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Replies progress */}

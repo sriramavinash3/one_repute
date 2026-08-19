@@ -71,47 +71,85 @@ export class PlanService {
   }
 
   async getPlanPrice(planId: string, countryCode: string = 'IN') {
+    const normCountry = this.normalizeCountryCode(countryCode);
+    const normPlan = planId.startsWith('plan_') ? planId : `plan_${planId}`;
+
     try {
       const db = this.firebaseService.getDb();
-      const docId = `${planId}_${countryCode.toUpperCase()}`;
+      const docId = `price_${normPlan.replace('plan_', '')}_${normCountry.toLowerCase()}`;
       const doc = await db.collection('planPrices').doc(docId).get();
       if (doc.exists) {
-        return doc.data();
+        const data = doc.data();
+        if (data && typeof data.monthlyPrice === 'number' && data.monthlyPrice > 0) {
+          return { planId: normPlan, ...data };
+        }
       }
 
-      const fallbackId = countryCode.toUpperCase() === 'IN' ? `${planId}_IN` : `${planId}_US`;
+      const fallbackId = `price_${normPlan.replace('plan_', '')}_${normCountry === 'IN' ? 'in' : 'us'}`;
       const fallbackDoc = await db.collection('planPrices').doc(fallbackId).get();
       if (fallbackDoc.exists) {
-        return fallbackDoc.data();
+        const data = fallbackDoc.data();
+        if (data && typeof data.monthlyPrice === 'number' && data.monthlyPrice > 0) {
+          return { planId: normPlan, ...data };
+        }
       }
     } catch (err: any) {
       this.logger.warn(`Failed to read plan price from Firestore: ${err.message}. Using config fallback.`);
     }
 
     const mapping = this.configService.planMappings.find(
-      (m) => m.planId === planId && m.country === countryCode.toUpperCase()
+      (m) => m.planId === normPlan && m.country === normCountry
     );
     if (mapping) {
       return mapping;
     }
 
     const fallbackMapping = this.configService.planMappings.find(
-      (m) => m.planId === planId && m.country === (countryCode.toUpperCase() === 'IN' ? 'IN' : 'US')
+      (m) => m.planId === normPlan && m.country === (normCountry === 'IN' ? 'IN' : 'US')
     );
     if (fallbackMapping) {
       return fallbackMapping;
     }
 
-    return {
-      planId,
-      country: 'IN',
-      currency: 'INR',
-      monthlyPrice: 1299,
-      quarterlyPrice: 3899,
-      annualPrice: 15599,
-      razorpayMonthlyPlanId: 'plan_starter_in_monthly',
-      razorpayQuarterlyPlanId: 'plan_starter_in_quarterly',
-      razorpayAnnualPlanId: 'plan_starter_in_annual',
+    // Dynamic Plan-Specific Fallback
+    const isIN = normCountry === 'IN';
+    if (normPlan === 'plan_growth') {
+      return isIN ? {
+        planId: 'plan_growth', country: 'IN', currency: 'INR',
+        monthlyPrice: 1999, quarterlyPrice: 4999, annualPrice: 17999,
+        razorpayMonthlyPlanId: 'plan_growth_in_monthly', razorpayQuarterlyPlanId: 'plan_growth_in_quarterly', razorpayAnnualPlanId: 'plan_growth_in_annual',
+        status: 'active'
+      } : {
+        planId: 'plan_growth', country: 'US', currency: 'USD',
+        monthlyPrice: 39, quarterlyPrice: 109, annualPrice: 399,
+        razorpayMonthlyPlanId: 'plan_growth_us_monthly', razorpayQuarterlyPlanId: 'plan_growth_us_quarterly', razorpayAnnualPlanId: 'plan_growth_us_annual',
+        status: 'active'
+      };
+    }
+
+    if (normPlan === 'plan_premium') {
+      return isIN ? {
+        planId: 'plan_premium', country: 'IN', currency: 'INR',
+        monthlyPrice: 2999, quarterlyPrice: 7999, annualPrice: 25999,
+        razorpayMonthlyPlanId: 'plan_premium_in_monthly', razorpayQuarterlyPlanId: 'plan_premium_in_quarterly', razorpayAnnualPlanId: 'plan_premium_in_annual',
+        status: 'active'
+      } : {
+        planId: 'plan_premium', country: 'US', currency: 'USD',
+        monthlyPrice: 49, quarterlyPrice: 139, annualPrice: 499,
+        razorpayMonthlyPlanId: 'plan_premium_us_monthly', razorpayQuarterlyPlanId: 'plan_premium_us_quarterly', razorpayAnnualPlanId: 'plan_premium_us_annual',
+        status: 'active'
+      };
+    }
+
+    return isIN ? {
+      planId: 'plan_starter', country: 'IN', currency: 'INR',
+      monthlyPrice: 1299, quarterlyPrice: 3899, annualPrice: 15599,
+      razorpayMonthlyPlanId: 'plan_starter_in_monthly', razorpayQuarterlyPlanId: 'plan_starter_in_quarterly', razorpayAnnualPlanId: 'plan_starter_in_annual',
+      status: 'active'
+    } : {
+      planId: 'plan_starter', country: 'US', currency: 'USD',
+      monthlyPrice: 29, quarterlyPrice: 79, annualPrice: 339,
+      razorpayMonthlyPlanId: 'plan_starter_us_monthly', razorpayQuarterlyPlanId: 'plan_starter_us_quarterly', razorpayAnnualPlanId: 'plan_starter_us_annual',
       status: 'active'
     };
   }

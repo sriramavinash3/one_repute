@@ -18,6 +18,7 @@ import { NotificationService } from '../notifications/notification.service';
 import { EscalationService } from '../escalation/escalation.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { normalizePhoneNumber } from '../../common/utils/phone-number.util';
+import { consumeTrialResponseAllowance, releaseTrialResponseAllowance, isCustomerInTrial } from '../../common/utils/trial-entitlement.util';
 
 export interface ReviewReceivedEvent {
   reviewId: string;
@@ -41,6 +42,7 @@ const PLAN_MAX_LEVELS: Record<string, number> = {
   premium: 3,
   growth: 2,
   starter: 1,
+  trial: 1,
   default: 1,
 };
 
@@ -136,34 +138,20 @@ export class AutomationService {
     const minRatingForAutoResponse = Number(outlet?.minRatingForAutoResponse ?? outlet?.settings?.minRatingForAutoResponse ?? 4);
 
     const customerId = outlet?.customerId || outlet?.userId || outlet?.ownerId || null;
-    let isTrial = false;
-    let customerUsage: any = {};
 
+    // Atomically reserve 1 trial AI response allowance prior to calling AI service
+    let trialResult = { allowedCount: 1, isTrial: false, remaining: Infinity, used: 0 };
     if (customerId) {
-      const customerSnap = await db.collection('customers').doc(customerId).get();
-      if (customerSnap.exists) {
-        const cData = customerSnap.data();
-        const status = cData?.subscriptionStatus || '';
-        isTrial = status === 'trialing' || status === 'trial_paid_scheduled' || Boolean(cData?.isTrial);
+      trialResult = await consumeTrialResponseAllowance(db, customerId, 1);
+      if (trialResult.isTrial && trialResult.allowedCount === 0) {
+        this.logger.warn(`AI_RESPONSE_TRIAL_LIMIT_EXCEEDED customerId=${customerId} outletId=${outletId} reviewId=${reviewId} used=${trialResult.used}/30`);
+        await this.dualWriteReview(reviewId, {
+          status: 'pending',
+          lastError: 'Trial limit of 30 AI review responses reached. Upgrade to a paid plan to continue generating AI responses.',
+          aiVersion,
+        });
+        return;
       }
-
-      const usageSnap = await db.collection('customerUsage').doc(customerId).get();
-      if (usageSnap.exists) {
-        customerUsage = usageSnap.data();
-      }
-    }
-
-    const trialSuggestionCount = Number(customerUsage?.trial_ai_suggestion_count || 0);
-    const trialAutoReplyCount = Number(customerUsage?.trial_auto_reply_count || 0);
-
-    if (isTrial && trialSuggestionCount >= 30) {
-      this.logger.warn(`AI_SUGGESTION_LIMIT_EXCEEDED customerId=${customerId} outletId=${outletId} reviewId=${reviewId}`);
-      await this.dualWriteReview(reviewId, {
-        status: 'pending',
-        lastError: 'Trial limit of 30 AI reply suggestions reached. Upgrade to a paid plan for additional AI suggestions.',
-        aiVersion,
-      });
-      return;
     }
 
     // 1. Parallelize AI Reply Generation & Review Analysis
@@ -186,17 +174,12 @@ export class AutomationService {
           isSpam: false,
         })),
       ]);
-
-      if (isTrial && customerId) {
-        try {
-          const inc = admin.firestore.FieldValue ? admin.firestore.FieldValue.increment(1) : (trialSuggestionCount + 1);
-          await db.collection('customerUsage').doc(customerId).set(
-            { trial_ai_suggestion_count: inc },
-            { merge: true }
-          );
-        } catch {}
-      }
     } catch (aiErr: any) {
+      // Refund reserved allowance if AI generation failed
+      if (trialResult.isTrial && customerId) {
+        await releaseTrialResponseAllowance(db, customerId, 1);
+      }
+
       this.logger.error(`AUTO_REPLY_GENERATION_FAILED reviewId=${reviewId} outletId=${outletId}: ${aiErr.message}`);
       await this.dualWriteReview(reviewId, {
         status: 'failed',
@@ -207,10 +190,9 @@ export class AutomationService {
     }
 
     // 2. Evaluate auto-publishing
-    const isAutoReplyLimitReached = isTrial && trialAutoReplyCount >= 10;
     const targetLocationId = outlet?.googleLocationId || outlet?.googleActiveLocation || (Array.isArray(outlet?.googleLocations) && outlet?.googleLocations[0]?.id) || null;
     const hasGoogleCredentials = Boolean(outlet?.googleAccountId && targetLocationId && outlet?.googleRefreshToken);
-    const isEligibleForAutoPublish = autoResponseEnabled && rating >= minRatingForAutoResponse && hasGoogleCredentials && !isAutoReplyLimitReached;
+    const isEligibleForAutoPublish = autoResponseEnabled && rating >= minRatingForAutoResponse && hasGoogleCredentials;
 
     const baseUpdatePayload: any = {
       replySuggestion: replyResult.text,
@@ -247,16 +229,6 @@ export class AutomationService {
           processedAt: repliedAt,
           lastError: null,
         });
-
-        if (isTrial && customerId) {
-          try {
-            const inc = admin.firestore.FieldValue ? admin.firestore.FieldValue.increment(1) : (trialAutoReplyCount + 1);
-            await db.collection('customerUsage').doc(customerId).set(
-              { trial_auto_reply_count: inc },
-              { merge: true }
-            );
-          } catch {}
-        }
       } catch (googleErr: any) {
         this.logger.error(`GOOGLE_REPLY_FAILED reviewId=${reviewId} outletId=${outletId}: ${googleErr.message}`);
         await this.dualWriteReview(reviewId, {

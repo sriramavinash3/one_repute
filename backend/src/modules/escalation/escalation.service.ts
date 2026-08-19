@@ -8,6 +8,7 @@ export const PLAN_MAX_LEVELS: Record<string, number> = {
   premium: 3,
   growth: 2,
   starter: 1,
+  trial: 1,
   default: 1,
 };
 

@@ -123,12 +123,12 @@ export default function AdminCustomersPage() {
       const targetPlan = planFilter.toLowerCase().replace('plan_', '')
       const planMatch = planFilter === 'all' || customerPlan === targetPlan || customerPlan.includes(targetPlan)
 
-      const cStatus = (c.accountStatus || c.subscriptionStatus || 'Active').toLowerCase()
+      const cStatus = (c.subscriptionStatus || c.accountStatus || 'Inactive').toLowerCase()
       const statusMatch = statusFilter === 'all' ||
         cStatus === statusFilter.toLowerCase() ||
-        (statusFilter.toLowerCase() === 'active' && (cStatus === 'active' || cStatus === 'trialing' || cStatus === 'trial')) ||
-        (statusFilter.toLowerCase() === 'trial' && (cStatus === 'trial' || cStatus === 'trialing')) ||
-        (statusFilter.toLowerCase() === 'inactive' && (cStatus === 'inactive' || cStatus === 'canceled'))
+        (statusFilter.toLowerCase() === 'active' && cStatus === 'active') ||
+        (statusFilter.toLowerCase() === 'trial' && (cStatus === 'trial' || cStatus === 'trialing' || cStatus === 'trial_paid_scheduled')) ||
+        (statusFilter.toLowerCase() === 'inactive' && (cStatus === 'inactive' || cStatus === 'canceled' || cStatus === 'expired'))
 
       return searchMatch && planMatch && statusMatch
     })

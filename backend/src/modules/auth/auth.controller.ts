@@ -411,7 +411,7 @@ export class AuthController {
       name: businessName,
       email: userEmail,
       phone: fullWhatsAppNumber,
-      plan: form?.planId || null,
+      plan: isTrial ? 'trial' : (form?.planId || 'plan_starter'),
       subscriptionStatus: isTrial ? 'trialing' : 'active',
       isTrial: Boolean(isTrial),
       onboardingAt: now,

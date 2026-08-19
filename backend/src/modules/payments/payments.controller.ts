@@ -76,13 +76,14 @@ export class PaymentsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateSubscriptionDto,
   ) {
-    const resolvedCustomerId = (user.role === 'admin' && dto.customerId) ? dto.customerId : (user.customerId || `cust_${user.uid}`);
+    const resolvedCustomerId = dto.customerId || user.customerId || `cust_${user.uid}`;
     const countryCode = dto.countryCode || 'IN';
     const result = await this.paymentService.createSubscription(
       resolvedCustomerId,
       dto.planId,
       dto.billingCycle || 'monthly',
       countryCode,
+      dto.discountCode,
     );
     return result;
   }

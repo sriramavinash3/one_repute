@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PlanService } from './plan.service';
 import { PaymentsConfigService } from './payments-config.service';
 import { CacheService } from '../cache/cache.service';
+import { isCustomerInTrial, TOTAL_TRIAL_RESPONSE_LIMIT } from '../../common/utils/trial-entitlement.util';
 
 @Injectable()
 export class SubscriptionService {
@@ -104,6 +105,15 @@ export class SubscriptionService {
       }, { merge: true }).catch(e => this.logger.error(`Failed auto-transition: ${e.message}`));
     }
 
+    const isTrialActive = isCustomerInTrial({ ...customer, subscriptionStatus: status });
+    const effectivePlan = isTrialActive && (!customer.plan || customer.plan === 'plan_starter') ? 'trial' : currentPlan;
+
+    const trialResponsesUsed = Number(
+      usage.trial_review_responses_used ??
+      usage.trial_ai_suggestion_count ??
+      0
+    );
+
     const invoicesSnap = await db.collection('invoices')
       .where('customerId', '==', customerId)
       .get();
@@ -117,7 +127,7 @@ export class SubscriptionService {
 
     const result = {
       subscription: {
-        plan: currentPlan,
+        plan: effectivePlan,
         scheduledPlan,
         billingCycle: customer.billingCycle || 'monthly',
         status,
@@ -138,11 +148,15 @@ export class SubscriptionService {
         qrsUsed: usage.smart_qr_count || 0,
         competitorsUsed: usage.competitor_count || 0,
         usersUsed: usage.team_member_count || 0,
-        trialAutoRepliesUsed: usage.trial_auto_reply_count || 0,
-        trialAutoReplyLimit: 10,
-        trialSuggestionsUsed: usage.trial_ai_suggestion_count || 0,
-        trialSuggestionLimit: 30,
-        isTrialActive: status === 'trialing' || status === 'trial_paid_scheduled' || Boolean(customer.isTrial),
+        trialResponsesUsed,
+        trialResponseLimit: TOTAL_TRIAL_RESPONSE_LIMIT,
+        remainingTrialResponses: Math.max(0, TOTAL_TRIAL_RESPONSE_LIMIT - trialResponsesUsed),
+        // Deprecated backward-compatibility fallbacks
+        trialAutoRepliesUsed: trialResponsesUsed,
+        trialAutoReplyLimit: TOTAL_TRIAL_RESPONSE_LIMIT,
+        trialSuggestionsUsed: trialResponsesUsed,
+        trialSuggestionLimit: TOTAL_TRIAL_RESPONSE_LIMIT,
+        isTrialActive,
       },
       plans,
       invoices,

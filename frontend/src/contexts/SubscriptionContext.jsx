@@ -39,9 +39,11 @@ export function SubscriptionProvider({ children }) {
     
     // 1. Get current plan feature list
     const currentPlanId = billingInfo.subscription.plan || 'plan_starter'
-    // Starter fallback features
+    const isTrial = billingInfo.subscription.status === 'trialing' || currentPlanId === 'trial' || billingInfo.usage?.isTrialActive
+
+    // Starter fallback features (Trial users get Starter-level feature access)
     const STARTER_FEATURES = {
-      monthly_review_responses: 100,
+      monthly_review_responses: isTrial ? 30 : 100,
       google_auto_reply: true,
       ai_low_rating_reply: true,
       positive_review_reply: true,
@@ -132,8 +134,12 @@ export function SubscriptionProvider({ children }) {
     let used = 0
     if (!billingInfo?.usage) return limit
 
+    const isTrial = billingInfo.subscription?.status === 'trialing' || billingInfo.subscription?.plan === 'trial' || billingInfo.usage?.isTrialActive
+
     if (featureKey === 'monthly_review_responses') {
-      used = billingInfo.usage.repliesUsed || 0
+      used = isTrial
+        ? (billingInfo.usage.trialResponsesUsed ?? billingInfo.usage.trialSuggestionsUsed ?? 0)
+        : (billingInfo.usage.repliesUsed || 0)
     } else if (featureKey === 'competitor_tracking') {
       used = billingInfo.usage.competitorsUsed || 0
     } else if (featureKey === 'multi_user_access') {

@@ -58,7 +58,7 @@ export default function OutletSubscriptionModal({ isOpen, location, user, onClos
           throw new Error('Razorpay SDK failed to load. Please check your internet connection.')
         }
 
-        const subscription = await createSubscription(selectedPlanId, 'monthly', 'IN')
+        const subscription = await createSubscription(selectedPlanId, 'monthly', 'IN', user?.customerId)
 
         if (!subscription.razorpayKeyId || subscription.razorpayKeyId === 'rzp_test_dummy' || subscription.id.startsWith('sub_mock_')) {
           throw new Error('Selected plan is not configured correctly for payment.')

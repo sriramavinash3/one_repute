@@ -380,7 +380,7 @@ export default function OnboardingPage() {
       const tempCustomerId = 'cust_' + Date.now()
       
       // Call backend to create Razorpay Subscription
-      const subscription = await createSubscription(tempCustomerId, form.planId, discountData?.code)
+      const subscription = await createSubscription(form.planId, 'monthly', 'IN', tempCustomerId, discountData?.code)
 
       if (!subscription.razorpayKeyId || subscription.razorpayKeyId === 'rzp_test_dummy' || subscription.id.startsWith('sub_mock_')) {
         throw new Error('Unable to start payment because the selected subscription plan is not configured correctly on the server.')
