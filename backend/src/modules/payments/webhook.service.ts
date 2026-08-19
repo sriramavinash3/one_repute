@@ -4,6 +4,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentsConfigService } from './payments-config.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { EmailService } from '../email/services/email.service';
 
 @Injectable()
 export class WebhookService {
@@ -14,6 +15,7 @@ export class WebhookService {
     private readonly prismaService: PrismaService,
     private readonly configService: PaymentsConfigService,
     private readonly whatsappService: WhatsAppService,
+    private readonly emailService: EmailService,
   ) {}
 
   verifySignature(rawBody: string, signature: string): boolean {
@@ -178,6 +180,26 @@ export class WebhookService {
           }
         } catch (waErr: any) {
           this.logger.warn(`Could not send PLAN_ACTIVATED WhatsApp: ${waErr.message}`);
+        }
+
+        // Trigger Subscription Confirmation Email
+        try {
+          const recipientEmail = customerData.email || customerData.userEmail;
+          if (recipientEmail) {
+            const formattedPlanName = (customerData.plan || 'growth').replace('plan_', '').toUpperCase();
+            const formattedRenewalDate = new Date(renewalTime).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            await this.emailService.sendSubscriptionActivated({
+              recipientEmail,
+              userName: customerData.name || recipientEmail.split('@')[0],
+              planName: formattedPlanName,
+              amountPaid: `${customerData.currency || 'INR'} ${entity.amount ? Math.round(entity.amount / 100) : ''} / ${customerData.billingCycle || 'monthly'}`,
+              renewalDate: formattedRenewalDate,
+              idempotencyKey: `sub_act_${subscriptionId}`,
+            });
+          }
+        } catch (emailErr: any) {
+          this.logger.warn(`Could not send Subscription Confirmation email via webhook: ${emailErr.message}`);
         }
         break;
 

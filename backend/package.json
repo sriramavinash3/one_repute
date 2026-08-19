@@ -8,7 +8,8 @@
     "test": "jest tests/",
     "test:email": "jest tests/email.service.spec.ts tests/email.worker.spec.ts tests/token.service.spec.ts",
     "prisma:generate": "prisma generate",
-    "db:fresh-start": "ts-node scripts/freshStartReset.ts"
+    "db:fresh-start": "ts-node scripts/freshStartReset.ts",
+    "db:purge": "ts-node scripts/purgeUserData.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

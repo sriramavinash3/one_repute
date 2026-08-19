@@ -36,18 +36,6 @@ export function buildOAuthUrl(path, queryParams = {}) {
   return url
 }
 
-/**
- * Origins that may legitimately deliver OAuth popup postMessage events.
- *
- * The OAuth *popup opens* on the app origin, but Google redirects the callback
- * to the backend host (redirect_uri), so the popup page that posts the
- * `gmb-connected` / `gmb-error` message is served from the BACKEND origin:
- *  - local dev:    http://localhost:3000 (VITE_LOCAL_API_URL)
- *  - production:   https://api.onerepute.com  (app itself runs on onerepute.com)
- *
- * The opener page must accept messages from that backend origin or the
- * connection result is silently dropped and the UI never advances.
- */
 export function getOAuthMessageOrigins() {
   const origins = new Set()
   if (typeof window === 'undefined') {
@@ -56,7 +44,6 @@ export function getOAuthMessageOrigins() {
 
   const host = window.location.hostname
 
-  // Dev: the backend runs on the local API URL (VITE_LOCAL_API_URL or localhost:3000)
   const localApi = import.meta.env.VITE_LOCAL_API_URL
   if (localApi && localApi.startsWith('http')) {
     try { origins.add(new URL(localApi).origin) } catch (_) {}
@@ -65,10 +52,8 @@ export function getOAuthMessageOrigins() {
     origins.add('http://localhost:3000')
   }
 
-  // The popup may open on the app origin itself (callback host = app host)
   origins.add(window.location.origin)
 
-  // Production: the app origin and the backend (callback) host differ
   if (host === 'onerepute.com' || host.endsWith('.onerepute.com')) {
     origins.add('https://api.onerepute.com')
   }
@@ -124,6 +109,14 @@ export async function syncBusinessData(outletId, forceRefresh = false) {
   clearCachedReviewCount(outletId)
   console.debug('[GoogleOAuth] API call structure:', { method: 'POST', path: '/api/reviews/sync', params: ['outletId', 'forceRefresh'] })
   const { data } = await apiClient.post('/api/reviews/sync', { outletId, forceRefresh })
+  return data
+}
+
+export async function fetchSyncStatus(jobId, outletId) {
+  const params = {}
+  if (jobId) params.jobId = jobId
+  if (outletId) params.outletId = outletId
+  const { data } = await apiClient.get('/api/reviews/sync/status', { params })
   return data
 }
 

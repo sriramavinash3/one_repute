@@ -33,6 +33,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
 import { EscalationModule } from './modules/escalation/escalation.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AccountModule } from './modules/account/account.module';
+import { PurgeModule } from './modules/purge/purge.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { AccountModule } from './modules/account/account.module';
     SchedulerModule,
     EscalationModule,
     AdminModule,
+    PurgeModule,
   ],
 })
 export class AppModule implements NestModule {

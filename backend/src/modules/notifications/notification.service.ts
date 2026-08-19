@@ -228,6 +228,7 @@ export class NotificationService {
           customerName: data.customerName || 'Customer',
           rating: data.rating || 1,
           reviewText: data.reviewText || '',
+          idempotencyKey: data.reviewId ? `review_alert_${data.reviewId}` : undefined,
         });
       } else if (event?.startsWith('escalation_level_')) {
         const levelNum = parseInt(event.replace('escalation_level_', ''), 10) || 1;
@@ -239,6 +240,7 @@ export class NotificationService {
           reviewText: data.reviewText || '',
           level: levelNum,
           pendingSince: data.pendingSince,
+          idempotencyKey: data.reviewId ? `esc_${event}_${data.reviewId}` : undefined,
         });
       } else if (event === 'weekly_report') {
         res = await this.emailService.sendWeeklyReport({
@@ -249,6 +251,7 @@ export class NotificationService {
           averageRating: data.averageRating || 5.0,
           responseRate: data.responseRate || '100%',
           positiveSentimentPct: data.positiveSentimentPct || 100,
+          idempotencyKey: `weekly_rep_${recipient.email}_${data.reportPeriod || Date.now()}`,
         });
       } else if (event === 'fifteen_day_report') {
         res = await this.emailService.sendFifteenDayReport({
@@ -260,6 +263,7 @@ export class NotificationService {
           responseRate: data.responseRate || '100%',
           positiveSentimentPct: data.positiveSentimentPct || 100,
           customerName: data.customerName,
+          idempotencyKey: `15day_rep_${recipient.email}_${data.reportPeriod || Date.now()}`,
         });
       } else {
         return { success: false, channel: 'email', error: `Unsupported notification email event: ${event}` };

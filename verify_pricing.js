@@ -2,24 +2,34 @@
  * verify_pricing.js
  *
  * Comprehensive E2E Verification for OneRepute Pricing:
- * Tests ALL 18 combinations across Frontend, Backend Config, and Checkout Plan Mappings.
- *
- * Combination matrix:
- * India (INR):
- *   Starter:   1,299 / 3,899 / 15,599
- *   Growth:    1,999 / 4,999 / 17,999
- *   Premium:   2,999 / 7,999 / 25,999
- *
- * International / USD:
- *   Starter:   29 / 79 / 339
- *   Growth:    39 / 109 / 399
- *   Premium:   49 / 139 / 499
+ * Tests ALL 18 combinations across Frontend PRICING_CONFIG, Backend Config, and Razorpay Plan Mappings.
  */
 
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const { PRICING_CONFIG } = require('./frontend/src/components/pricing/pricingConfig.js');
+
+// Read and parse backend payments-config.service.ts dynamically
+const backendConfigPath = path.join(__dirname, 'backend', 'src', 'modules', 'payments', 'payments-config.service.ts');
+const backendConfigContent = fs.readFileSync(backendConfigPath, 'utf8');
+
+// Parse planMappings from backend file text
+function parseBackendMappings(content) {
+  const blockMatch = content.match(/get planMappings\(\)\s*\{[\s\S]*?return\s*(\[[\s\S]*?\]);/);
+  if (blockMatch && blockMatch[1]) {
+    try {
+      const fn = new Function(`return ${blockMatch[1]};`);
+      return fn();
+    } catch (e) {
+      console.warn('Could not parse backend config directly:', e.message);
+    }
+  }
+  return [];
+}
+
+const backendMappings = parseBackendMappings(backendConfigContent);
 
 // Expected pricing truth matrix
 const EXPECTED_MATRIX = [
@@ -78,24 +88,14 @@ function runAudit() {
     const frontendPrice = frontendPlan[cycle];
     const frontendPass = frontendPrice === expectedPrice;
 
-    // 2. Check Backend Plan Mappings structure in PaymentsConfigService
-    // Simulate lookup from payments-config.service logic
-    const backendMappings = [
-      { planId: 'plan_starter', country: 'IN', currency: 'INR', monthlyPrice: 1299, quarterlyPrice: 3899, annualPrice: 15599 },
-      { planId: 'plan_growth', country: 'IN', currency: 'INR', monthlyPrice: 1999, quarterlyPrice: 4999, annualPrice: 17999 },
-      { planId: 'plan_premium', country: 'IN', currency: 'INR', monthlyPrice: 2999, quarterlyPrice: 7999, annualPrice: 25999 },
-      { planId: 'plan_starter', country: 'US', currency: 'USD', monthlyPrice: 29, quarterlyPrice: 79, annualPrice: 339 },
-      { planId: 'plan_growth', country: 'US', currency: 'USD', monthlyPrice: 39, quarterlyPrice: 109, annualPrice: 399 },
-      { planId: 'plan_premium', country: 'US', currency: 'USD', monthlyPrice: 49, quarterlyPrice: 139, annualPrice: 499 },
-    ];
-
+    // 2. Check Backend Plan Mappings parsed from payments-config.service.ts
     const targetCountry = region === 'IN' ? 'IN' : 'US';
     const backendMapping = backendMappings.find(m => m.planId === planId && m.country === targetCountry);
     const backendPriceKey = cycle === 'monthly' ? 'monthlyPrice' : cycle === 'quarterly' ? 'quarterlyPrice' : 'annualPrice';
     const backendPrice = backendMapping ? backendMapping[backendPriceKey] : null;
     const backendPass = backendPrice === expectedPrice;
 
-    // 3. Check paise conversion
+    // 3. Check paise conversion calculation
     const expectedPaise = expectedPrice * 100;
     const paisePass = expectedPaise > 500; // Ensures no hardcoded 500 paise (₹5) is accepted
 

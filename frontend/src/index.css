@@ -63,7 +63,7 @@
   }
 
   .dashboard-shell {
-    @apply min-h-screen;
+    @apply h-screen w-full overflow-hidden flex;
     background-color: var(--bg-main);
   }
 

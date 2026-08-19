@@ -8,6 +8,8 @@ export interface EmailConfig {
   nodeEnv: string;
   resendApiKey: string;
   emailFrom: string;
+  fallbackEmailFrom: string;
+  timeoutMs: number;
   appUrl: string;
   frontendUrl: string;
   supportEmail: string;
@@ -33,6 +35,8 @@ export function loadEmailConfig(): EmailConfig {
 
   const resendApiKey = process.env.RESEND_API_KEY || 're_mock_key_for_dev_and_testing';
   const emailFrom = process.env.EMAIL_FROM || 'OneRepute <notifications@onerepute.com>';
+  const fallbackEmailFrom = process.env.FALLBACK_EMAIL_FROM || 'OneRepute <onboarding@resend.dev>';
+  const timeoutMs = parseInt(process.env.EMAIL_TIMEOUT_MS || '10000', 10);
   
   const defaultFrontendUrl = isProduction ? 'https://onerepute.com' : 'http://localhost:5173';
   const defaultAppUrl = isProduction ? 'https://onerepute.com' : 'http://localhost:3000';
@@ -51,6 +55,8 @@ export function loadEmailConfig(): EmailConfig {
     nodeEnv,
     resendApiKey,
     emailFrom,
+    fallbackEmailFrom,
+    timeoutMs,
     appUrl,
     frontendUrl,
     supportEmail,

@@ -62,17 +62,6 @@ export default function OutletLayout() {
   const headerContent = (
     <div className="flex flex-col w-full gap-2 mb-4">
       <Logo subtitle="Outlet Workspace" to="/outlet-dashboard" size="sm" />
-      {outlets && outlets.length > 1 && (
-        <select
-          value={outlet?.id || ''}
-          onChange={(e) => switchOutlet(e.target.value)}
-          className="w-full text-xs font-medium h-9 bg-slatey-50 border border-slatey-200 rounded-md px-2 outline-none focus:border-brand-500 text-slatey-700"
-        >
-          {outlets.map(o => (
-            <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </select>
-      )}
     </div>
   )
 
@@ -84,11 +73,11 @@ export default function OutletLayout() {
         path="/outlet-dashboard"
         noindex
       />
-      <div className="flex">
+      <div className="flex h-full w-full overflow-hidden">
         <Sidebar header={headerContent} items={items} footer={footer} className="hidden lg:flex" onLockedClick={handleLockedClick} />
 
-        <div className="flex min-h-screen flex-1 flex-col">
-          <div className="flex items-center gap-3 border-b border-slatey-200 bg-white px-6 py-3 lg:hidden">
+        <div className="flex h-full flex-1 flex-col min-w-0 overflow-hidden">
+          <div className="flex items-center gap-3 border-b border-slatey-200 bg-white px-6 py-3 lg:hidden shrink-0">
             <Button variant="ghost" size="sm" onClick={() => setMobileOpen(true)}>
               <Menu className="h-4 w-4" />
             </Button>
@@ -98,7 +87,7 @@ export default function OutletLayout() {
           </div>
 
           <Topbar title="Outlet Performance" user={profile} onLogout={handleLogout} />
-          <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 overflow-x-hidden">
+          <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 overflow-x-hidden overflow-y-auto">
             <Outlet />
           </main>
         </div>

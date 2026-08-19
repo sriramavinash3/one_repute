@@ -116,6 +116,13 @@ export class PlanService {
     };
   }
 
+  get TrialLimits() {
+    return {
+      autoReplyLimit: 10,
+      aiSuggestionLimit: 30,
+    };
+  }
+
   get CentralPlanDefinitions() {
     return [
       {
@@ -282,10 +289,21 @@ export class PlanService {
       return result;
     } catch (err: any) {
       this.logger.error(`Error in getAllPlans: ${err.message}. Returning static definitions.`);
+      const targetCountry = countryCode.toUpperCase() === 'IN' ? 'IN' : 'US';
       const staticResult = this.CentralPlanDefinitions.map((cp) => {
-        const fallbackPrice = countryCode.toUpperCase() === 'IN' 
+        const mapping = this.configService.planMappings.find(m => m.planId === cp.id && m.country === targetCountry);
+        const fallbackPrice = mapping ? {
+          monthlyPrice: mapping.monthlyPrice,
+          quarterlyPrice: mapping.quarterlyPrice,
+          annualPrice: mapping.annualPrice,
+          currency: mapping.currency,
+          currencySymbol: this.getCurrencySymbol(mapping.currency),
+          razorpayMonthlyPlanId: mapping.razorpayMonthlyPlanId,
+          razorpayQuarterlyPlanId: mapping.razorpayQuarterlyPlanId,
+          razorpayAnnualPlanId: mapping.razorpayAnnualPlanId,
+        } : (targetCountry === 'IN'
           ? { monthlyPrice: 1299, quarterlyPrice: 3899, annualPrice: 15599, currency: 'INR', currencySymbol: '₹' }
-          : { monthlyPrice: 29, quarterlyPrice: 79, annualPrice: 299, currency: 'USD', currencySymbol: '$' };
+          : { monthlyPrice: 29, quarterlyPrice: 79, annualPrice: 339, currency: 'USD', currencySymbol: '$' });
         return { ...cp, ...fallbackPrice };
       });
       return staticResult;

@@ -61,17 +61,18 @@ export class GoogleBusinessService {
     return oauth2Client;
   }
 
-  getConsentUrl(outletId?: string): string {
+  getConsentUrl(outletId?: string, forceSelectAccount: boolean = false): string {
     const oauth2Client = this.createOAuthClient();
     // Pass the raw value — generateAuthUrl applies proper query encoding exactly once.
     const state = outletId || undefined;
 
     const consentUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
-      prompt: 'consent',
+      prompt: forceSelectAccount ? 'consent select_account' : 'consent',
       scope: SCOPES,
       state,
     });
+
 
     // Safe logging of generated OAuth request parameters without sensitive secrets or tokens
     try {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Star, Sparkles, Filter, ClipboardCopy, Check, X, Clock, CheckCircle, Mail, Phone, CalendarDays, RotateCcw } from 'lucide-react'
+import { Search, Star, Sparkles, Filter, ClipboardCopy, Check, X, Clock, CheckCircle, Mail, Phone, CalendarDays, RotateCcw, Send, RefreshCw, AlertCircle, Loader2 } from 'lucide-react'
 import StatusBadge from '../../components/feedback/StatusBadge'
 import EmptyState from '../../components/feedback/EmptyState'
 import Skeleton from '../../components/feedback/Skeleton'
@@ -12,7 +12,7 @@ import Button from '../../components/ui/button'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
 import { fetchReviewEscalationStatus } from '../../services/escalationService'
-import { fetchReviews, getCachedReviewCount, setCachedReviewCount } from '../../services/reviewService'
+import { fetchReviews, getCachedReviewCount, setCachedReviewCount, postReviewReply, reprocessReview } from '../../services/reviewService'
 import { DATE_PRESETS, computeDateRange, formatRangeLabel } from '../../utils/dateRange'
 import { EMPTY_COUNTS, computeStatusCounts, filterReviews } from '../../utils/reviewFilters'
 
@@ -184,12 +184,21 @@ function ReviewCard({ review, onSelect }) {
   )
 }
 
-function ReviewDetailsDrawer({ review, onClose }) {
+function ReviewDetailsDrawer({ review: initialReview, onClose, onUpdateReview }) {
+  const [review, setReview] = useState(initialReview)
   const [timeline, setTimeline] = useState([])
   const [loadingTimeline, setLoadingTimeline] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [publishSuccess, setPublishSuccess] = useState(false)
+  const [publishError, setPublishError] = useState(null)
+  const [reprocessing, setReprocessing] = useState(false)
 
   const aiResponse = review.aiResponse || review.replySuggestion || ''
+
+  useEffect(() => {
+    setReview(initialReview)
+  }, [initialReview])
 
   useEffect(() => {
     if (!review.id) return
@@ -215,6 +224,40 @@ function ReviewDetailsDrawer({ review, onClose }) {
       window.setTimeout(() => setCopied(false), 1500)
     } catch {
       setCopied(false)
+    }
+  }
+
+  const handlePublish = async () => {
+    if (!aiResponse) return
+    setPublishing(true)
+    setPublishError(null)
+    try {
+      const res = await postReviewReply(review.id, review.outletId, aiResponse)
+      setPublishSuccess(true)
+      const updated = { ...review, status: 'responded', repliedAt: res.repliedAt || new Date().toISOString() }
+      setReview(updated)
+      if (onUpdateReview) onUpdateReview(updated)
+    } catch (err) {
+      setPublishError(err?.response?.data?.error || err.message || 'Failed to publish reply to Google Business Profile')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const handleReprocess = async () => {
+    setReprocessing(true)
+    setPublishError(null)
+    try {
+      const res = await reprocessReview(review.id)
+      if (res?.data?.review) {
+        const updated = res.data.review
+        setReview(updated)
+        if (onUpdateReview) onUpdateReview(updated)
+      }
+    } catch (err) {
+      setPublishError(err?.response?.data?.error || err.message || 'Failed to reprocess review')
+    } finally {
+      setReprocessing(false)
     }
   }
 
@@ -271,7 +314,7 @@ function ReviewDetailsDrawer({ review, onClose }) {
         {aiResponse && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-slatey-500 uppercase tracking-wider">AI suggested Reply</h4>
+              <h4 className="text-xs font-bold text-slatey-500 uppercase tracking-wider">AI Suggested Reply</h4>
               <button
                 onClick={handleCopy}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg transition hover:bg-brand-100"
@@ -283,6 +326,50 @@ function ReviewDetailsDrawer({ review, onClose }) {
             <p className="text-sm leading-relaxed text-slatey-600 bg-brand-50/30 p-4 rounded-2xl border border-brand-100">
               {aiResponse}
             </p>
+
+            {/* Status Feedback & Action Buttons */}
+            {review.status !== 'responded' && (
+              <div className="space-y-2 pt-2">
+                {publishError && (
+                  <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Failed to publish reply</p>
+                      <p className="mt-0.5 text-[11px]">{publishError}</p>
+                    </div>
+                  </div>
+                )}
+                {publishSuccess && (
+                  <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700">
+                    <CheckCircle className="h-4 w-4" /> Reply successfully published to Google Business Profile!
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handlePublish}
+                    disabled={publishing || reprocessing}
+                    className="flex-1 shadow-brand text-xs py-2 flex items-center justify-center gap-2"
+                  >
+                    {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    {publishing ? 'Publishing to Google…' : 'Publish Reply to Google'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleReprocess}
+                    disabled={publishing || reprocessing}
+                    className="text-xs py-2 flex items-center justify-center gap-1.5"
+                  >
+                    {reprocessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    Reprocess
+                  </Button>
+                </div>
+              </div>
+            )}
+            {review.status === 'responded' && (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700">
+                <CheckCircle className="h-4 w-4" /> Published to Google Business Profile {review.repliedAt ? `on ${formatTimestamp(review.repliedAt)}` : ''}
+              </div>
+            )}
           </div>
         )}
 

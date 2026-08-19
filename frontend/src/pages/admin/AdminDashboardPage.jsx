@@ -15,6 +15,7 @@ import apiClient from '../../services/apiClient'
 import { buildDailyTrend, buildRatingDistribution, computeRatingStats, computeStatusCounts, groupReviewsByOutlet } from '../../utils/analytics'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_CUSTOMERS, MOCK_DASHBOARD_STATS, MOCK_OUTLETS, MOCK_REVIEWS, MOCK_TICKETS } from '../../config/mockData'
+import { PRICING_CONFIG } from '../../components/pricing/pricingConfig'
 const stagger = {
   hidden: { opacity: 0 },
   show: {
@@ -208,16 +209,21 @@ export default function AdminDashboardPage() {
   const churnOutlets = customers.filter(c => c.accountStatus === 'Inactive').reduce((acc, c) => acc + outlets.filter(o => o.customerId === c.id).length, 0)
   const openTickets = tickets.filter(t => t.status === 'Open').length
 
-  const getMonthlyFee = (planId) => {
-    if (planId === 'plan_starter') return 29;
-    if (planId === 'plan_growth') return 39;
-    if (planId === 'plan_premium') return 49;
-    return 0;
+  const getMonthlyFee = (cust) => {
+    if (!cust) return 0;
+    const planId = cust.plan || 'plan_starter';
+    const planKey = planId.replace('plan_', '');
+    const region = (cust.billingCountry === 'IN' || cust.country === 'IN') ? 'IN' : 'INT';
+    const cycle = cust.billingCycle || 'monthly';
+    const regionPlans = PRICING_CONFIG.regions[region]?.plans || PRICING_CONFIG.regions.INT.plans;
+    const planPrices = regionPlans[planKey] || regionPlans[`plan_${planKey}`];
+    if (!planPrices) return 0;
+    return planPrices[cycle] || planPrices.monthly || 0;
   };
 
   const monthlyRevenue = customers
     .filter(c => c.subscriptionStatus !== 'trialing' && c.accountStatus !== 'Inactive')
-    .reduce((acc, c) => acc + getMonthlyFee(c.plan) + (parseFloat(c.monthlyFee) || 0), 0)
+    .reduce((acc, c) => acc + getMonthlyFee(c) + (parseFloat(c.monthlyFee) || 0), 0)
 
   const estimatedBurn = (usageInsights?.global?.aiCostEstimate || 0) + (usageInsights?.global?.whatsappCostEstimate || 0)
   const totalAiResponses = usageInsights?.global?.aiResponsesGenerated || (statusCounts.responded + statusCounts.suggested)

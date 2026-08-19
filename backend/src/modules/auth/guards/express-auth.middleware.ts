@@ -20,6 +20,8 @@ const PUBLIC_PATHS = [
   '/api/auth/verify-user',
   '/api/payments/detect-location',
   '/api/payments/webhook',
+  '/api/whatsapp/twilio/callback',
+  '/api/whatsapp/webhook',
   '/api/escalation',
   '/api/admin',
   '/api/discounts',

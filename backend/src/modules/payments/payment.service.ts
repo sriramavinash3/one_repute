@@ -3,6 +3,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanService } from './plan.service';
 import { PaymentsConfigService } from './payments-config.service';
+import { EmailService } from '../email/services/email.service';
 
 @Injectable()
 export class PaymentService {
@@ -14,6 +15,7 @@ export class PaymentService {
     private readonly prismaService: PrismaService,
     private readonly planService: PlanService,
     private readonly configService: PaymentsConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   private getRazorpay() {
@@ -357,6 +359,25 @@ export class PaymentService {
             this.logger.error(`Prisma verifyPayment sync failed: ${err.message}`);
           }
         }
+
+        // Dispatch Subscription Confirmation Email safely
+        const recipientEmail = custData.email || custData.userEmail;
+        if (recipientEmail) {
+          const formattedPlanName = (targetPlan || 'growth').replace('plan_', '').toUpperCase();
+          const amountPaidStr = `${localizedPrice.currency || 'INR'} ${calculatedAmount} / ${billingCycle}`;
+          const formattedRenewalDate = renewalDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+          this.emailService.sendSubscriptionActivated({
+            recipientEmail,
+            userName: custData.name || recipientEmail.split('@')[0],
+            planName: formattedPlanName,
+            amountPaid: amountPaidStr,
+            renewalDate: formattedRenewalDate,
+            idempotencyKey: `sub_act_${subscriptionId}`,
+          }).catch((emailErr) => {
+            this.logger.warn(`Could not dispatch Subscription Confirmation email for ${recipientEmail}: ${emailErr.message}`);
+          });
+        }
       }
 
       return { success: true };
@@ -365,4 +386,141 @@ export class PaymentService {
       throw error;
     }
   }
+
+  async verifyAndProvisionOutlet(
+    userUid: string,
+    userEmail: string,
+    dto: {
+      razorpay_payment_id?: string;
+      razorpay_signature?: string;
+      razorpay_subscription_id?: string;
+      planId: string;
+      location: any;
+      isTrial?: boolean;
+    }
+  ) {
+    const { razorpay_payment_id, razorpay_signature, razorpay_subscription_id, planId, location, isTrial } = dto;
+    if (!userUid || !userEmail) {
+      throw new Error('User context is required');
+    }
+    if (!location || (!location.id && !location.placeId)) {
+      throw new Error('Valid location data is required');
+    }
+
+    const db = this.firebaseService.getDb();
+    const locationId = String(location.id || location.placeId || '').trim();
+
+    // 1. If paid (not trial), verify Razorpay payment server-side
+    if (!isTrial) {
+      if (!razorpay_payment_id || !razorpay_signature || !razorpay_subscription_id) {
+        throw new Error('Missing payment verification parameters');
+      }
+      const secret = this.configService.razorpayKeySecret;
+      if (secret) {
+        const crypto = require('crypto');
+        const generatedSignature = crypto.createHmac('sha256', secret)
+          .update(razorpay_payment_id + '|' + razorpay_subscription_id)
+          .digest('hex');
+
+        if (generatedSignature !== razorpay_signature) {
+          this.logger.error(`[PROVISION OUTLET FAILED] Invalid payment signature for ${locationId}`);
+          throw new Error('Server-side payment verification failed: Invalid signature');
+        }
+      }
+    }
+
+    // 2. Check server-side uniqueness to prevent duplicate outlet creation
+    const existingSnap = await db.collection('outlets')
+      .where('googleLocationId', '==', locationId)
+      .limit(1)
+      .get();
+
+    let targetOutletId: string;
+    let alreadyExisted = false;
+
+    if (!existingSnap.empty) {
+      const existingDoc = existingSnap.docs[0];
+      targetOutletId = existingDoc.id;
+      alreadyExisted = true;
+      
+      await db.collection('outlets').doc(targetOutletId).set({
+        status: 'active',
+        isActive: true,
+        planId: planId || 'plan_starter',
+        updatedAt: new Date(),
+      }, { merge: true });
+
+      this.logger.log(`[PROVISION OUTLET] Outlet ${targetOutletId} already existed for locationId ${locationId}. Updated subscription status.`);
+    } else {
+      // 3. Find or create customer document for user
+      const userDoc = await db.collection('users').doc(userUid).get();
+      const userData = userDoc.exists ? userDoc.data() : {};
+      let customerId = userData?.customerId;
+
+      if (!customerId) {
+        const customerRef = db.collection('customers').doc();
+        customerId = customerRef.id;
+        await customerRef.set({
+          name: location.name || userEmail,
+          email: userEmail,
+          plan: planId || 'plan_starter',
+          subscriptionStatus: isTrial ? 'trialing' : 'active',
+          createdAt: new Date(),
+        });
+      }
+
+      const newOutletRef = db.collection('outlets').doc();
+      targetOutletId = newOutletRef.id;
+
+      const now = new Date();
+      const businessName = location.name || 'Business Outlet';
+      const businessCategory = location.category || location.primaryCategory?.displayName || 'General Business';
+      const address = location.address || (location.addressLines ? location.addressLines.join(', ') : '');
+
+      await newOutletRef.set({
+        name: businessName,
+        businessType: businessCategory,
+        businessCategory: businessCategory,
+        address: address,
+        placeId: location.placeId || locationId,
+        providerType: 'GBP',
+        googleLocationId: locationId,
+        googleLocationName: businessName,
+        googleLocationAddress: address,
+        googleAccountId: location.accountId || userData?.googleAccountId || '',
+        googleRefreshToken: userData?.googleRefreshToken || null,
+        googleAccountEmail: userData?.googleAccountEmail || userEmail,
+        googleLocations: [location],
+        googleConnectedAt: now,
+        ownerId: userUid,
+        customerId: customerId,
+        email: userEmail,
+        isActive: true,
+        status: 'active',
+        planId: planId || 'plan_starter',
+        reviewsCount: 0,
+        averageRating: 5.0,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Update user document
+      await db.collection('users').doc(userUid).set({
+        outletId: targetOutletId,
+        customerId: customerId,
+        isSetupComplete: true,
+        role: 'outlet',
+        updatedAt: now,
+      }, { merge: true });
+
+      this.logger.log(`[PROVISION OUTLET] Provisioned new outlet ${targetOutletId} for locationId ${locationId}`);
+    }
+
+    return {
+      success: true,
+      outletId: targetOutletId,
+      alreadyExisted,
+    };
+  }
 }
+

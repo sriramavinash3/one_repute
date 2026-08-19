@@ -64,3 +64,13 @@ export async function fetchAnalyticsSummary(params = {}) {
   const { data } = await apiClient.get('/api/analytics/summary', { params })
   return data
 }
+
+export async function postReviewReply(reviewId, outletId, replyText) {
+  const { data } = await apiClient.post(`/api/reviews/${reviewId}/reply`, { outletId, replyText })
+  return data
+}
+
+export async function reprocessReview(reviewId) {
+  const { data } = await apiClient.post(`/api/reviews/${reviewId}/reprocess`)
+  return data
+}

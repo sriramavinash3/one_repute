@@ -6,7 +6,7 @@ export default function Sidebar({ items, header, footer, className, onItemClick,
   return (
     <aside
       className={cn(
-        'h-screen w-64 flex-col justify-between overflow-y-auto border-r border-slatey-200 bg-white/80 px-5 py-6 lg:flex dark:border-slatey-800 dark:bg-slatey-900/80',
+        'h-screen w-64 shrink-0 flex-col justify-between overflow-y-auto border-r border-slatey-200 bg-white/80 px-5 py-6 lg:flex dark:border-slatey-800 dark:bg-slatey-900/80',
         className
       )}
     >

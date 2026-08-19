@@ -5,6 +5,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../../firebase/firebase'
 import apiClient from '../../services/apiClient'
 import { fetchAdminCustomers, normalizeCustomers } from '../../services/adminService'
+import { PRICING_CONFIG } from '../../components/pricing/pricingConfig'
 import { CheckCircle2, XCircle, ShieldCheck, Key, Globe, Database, Activity, RefreshCw } from 'lucide-react'
 
 const stagger = {
@@ -45,10 +46,16 @@ export default function AdminBillingPage() {
     status: 'active'
   })
 
-  const PLAN_PRICES = {
-    plan_starter: 29,
-    plan_growth: 39,
-    plan_premium: 49
+  function getCustomerPlanPrice(cust) {
+    if (!cust) return 0
+    const rawPlan = cust.plan || 'plan_starter'
+    const planKey = rawPlan.replace('plan_', '')
+    const region = (cust.billingCountry === 'IN' || cust.country === 'IN') ? 'IN' : 'INT'
+    const cycle = cust.billingCycle || 'monthly'
+    const regionPlans = PRICING_CONFIG.regions[region]?.plans || PRICING_CONFIG.regions.INT.plans
+    const planPrices = regionPlans[planKey] || regionPlans[`plan_${planKey}`]
+    if (!planPrices) return 0
+    return planPrices[cycle] || planPrices.monthly || 0
   }
 
   const fetchDiagnostics = async () => {
@@ -123,7 +130,7 @@ export default function AdminBillingPage() {
         let potentialRev = 0
 
         allCustomers.forEach(cust => {
-          const price = PLAN_PRICES[cust.plan] || 0
+          const price = getCustomerPlanPrice(cust)
           potentialRev += price
           
           if (cust.subscriptionStatus === 'active' || cust.subscriptionStatus === 'trialing') {
@@ -164,7 +171,7 @@ export default function AdminBillingPage() {
               months[idx].active += 1
             }
             if (cust.subscriptionStatus === 'active') {
-              months[idx].revenue += (PLAN_PRICES[cust.plan] || 0)
+              months[idx].revenue += getCustomerPlanPrice(cust)
             }
           }
         })

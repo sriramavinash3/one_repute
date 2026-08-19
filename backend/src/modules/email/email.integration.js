@@ -19,6 +19,7 @@ const { EmailService } = loadModule('./email/services/email.service');
 const { EmailQueueService } = loadModule('./email/queues/email.queue');
 const { EmailWorkerService } = loadModule('./email/workers/email.worker');
 const { EmailMetricsService } = loadModule('./email/metrics/email.metrics.service');
+const { EmailAuditService } = loadModule('./email/services/email.audit.service');
 const { ResendService } = loadModule('./email/resend/resend.service');
 const { TokenService } = loadModule('./auth/token.service');
 const logger = console;

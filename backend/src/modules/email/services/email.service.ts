@@ -4,9 +4,10 @@
  * Main Email Service API for dispatching transactional email jobs.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { EmailQueueService } from '../queues/email.queue';
 import { EmailWorkerService } from '../workers/email.worker';
+import { EmailAuditService } from './email.audit.service';
 import { TokenService } from '../../auth/token.service';
 import { loadEmailConfig } from '../../../config/email.config';
 import { EmailJobType } from '../queues/email.job.types';
@@ -30,6 +31,7 @@ export interface EmailDispatchResult {
   jobId: string;
   queuedAt: string;
   recipient: string;
+  skippedDuplicate?: boolean;
 }
 
 @Injectable()
@@ -42,6 +44,7 @@ export class EmailService {
     private readonly emailQueue: EmailQueueService,
     private readonly emailWorker: EmailWorkerService,
     private readonly tokenService: TokenService,
+    @Optional() private readonly auditService?: EmailAuditService,
   ) {
     const config = loadEmailConfig();
     this.appUrl = config.appUrl;
@@ -49,15 +52,51 @@ export class EmailService {
   }
 
   /**
-   * Helper to dispatch job to queue, with immediate local processing fallback
+   * Helper to dispatch job to queue, with immediate local processing fallback & idempotency check
    */
   private async dispatchJob(type: EmailJobType, data: any): Promise<EmailDispatchResult> {
+    const idempotencyKey = data.idempotencyKey || `${type}_${data.recipientEmail}_${Date.now()}`;
+
+    // 1. Idempotency Check
+    if (this.auditService && data.idempotencyKey) {
+      const allowed = await this.auditService.checkAndLockIdempotencyKey(data.idempotencyKey);
+      if (!allowed) {
+        this.logger.log(`[EMAIL DISPATCH] Idempotency lock active. Suppressed duplicate ${type} email for ${data.recipientEmail}`);
+        return {
+          success: true,
+          jobId: `skipped_duplicate_${data.idempotencyKey}`,
+          queuedAt: new Date().toISOString(),
+          recipient: data.recipientEmail,
+          skippedDuplicate: true,
+        };
+      }
+    }
+
+    // 2. Add job to Queue
     const jobId = await this.emailQueue.addJob({ type: type as any, data });
+
+    // 3. Log initial audit status as QUEUED
+    if (this.auditService) {
+      await this.auditService.recordEmailAttempt({
+        id: jobId.startsWith('inline_') ? jobId : `audit_${jobId}`,
+        userId: data.userId,
+        recipientEmail: data.recipientEmail,
+        template: type,
+        provider: 'resend',
+        status: 'QUEUED',
+        queueId: jobId,
+        idempotencyKey: data.idempotencyKey,
+      }).catch((err) => this.logger.warn(`Failed writing initial audit log: ${err.message}`));
+    }
     
-    // If job was dispatched in inline fallback mode (no active Redis worker), execute immediately
+    // 4. If job was dispatched in inline fallback mode (no active Redis worker), execute asynchronously
     if (jobId.startsWith('inline_')) {
-      this.emailWorker.processJob({ id: jobId, name: type, data: { type: type as any, data } as any }).catch((err) => {
-        this.logger.error(`Inline email execution failed for ${data.recipientEmail}: ${err.message}`);
+      Promise.resolve().then(async () => {
+        try {
+          await this.emailWorker.processJob({ id: jobId, name: type, data: { type: type as any, data } as any });
+        } catch (err: any) {
+          this.logger.error(`Inline email execution failed for ${data.recipientEmail}: ${err.message}`);
+        }
       });
     }
 

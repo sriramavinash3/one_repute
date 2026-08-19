@@ -121,14 +121,9 @@ export default function LandingPage() {
             </motion.p>
             <motion.div variants={fadeIn} className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
               <Link to="/login" className="w-full sm:w-auto">
-                <Button size="lg" className="h-12 sm:h-14 w-full sm:w-auto px-8 text-base sm:text-lg shadow-brand">
-                  Access Portal
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link to="/login" className="w-full sm:w-auto">
-                <Button variant="outline" size="lg" className="h-12 sm:h-14 w-full sm:w-auto px-8 text-base sm:text-lg bg-white">
-                  Dashboard Preview
+                <Button size="lg" className="h-12 sm:h-14 w-full sm:w-auto px-8 text-base sm:text-lg shadow-brand font-semibold flex items-center justify-center gap-2">
+                  Continue with Google
+                  <ArrowRight className="ml-1 h-5 w-5" />
                 </Button>
               </Link>
             </motion.div>

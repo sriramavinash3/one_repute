@@ -1,19 +1,23 @@
 /**
  * src/modules/workflow/automation.service.ts
  *
- * Pre-built automation chains — hardcoded business workflows.
- * These are the production-grade equivalents of the legacy escalationCron.js logic.
- *
- * Chain: Review received → Generate AI reply → Notify manager → Escalate after threshold → Manager escalation → Close
+ * Pre-built automation chains & AI enrichment handlers.
+ * Evaluates automation settings, triggers AI generation asynchronously,
+ * posts automatic replies to Google Business Profile, dual-writes state updates to Firestore & PostgreSQL,
+ * and handles escalation workflows with historical replay protection.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
 import { FirebaseService } from '../firebase/firebase.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { GoogleBusinessService } from '../google-business/google-business.service';
 import { AIService } from '../ai/ai.service';
 import { NotificationService } from '../notifications/notification.service';
-import axios from 'axios';
+import { EscalationService } from '../escalation/escalation.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { normalizePhoneNumber } from '../../common/utils/phone-number.util';
 
 export interface ReviewReceivedEvent {
   reviewId: string;
@@ -25,6 +29,7 @@ export interface ReviewReceivedEvent {
   managerPhone?: string;
   managerEmail?: string;
   businessName?: string;
+  isImported?: boolean;
 }
 
 export interface EscalationCheckParams {
@@ -32,7 +37,6 @@ export interface EscalationCheckParams {
   dashboardBaseUrl?: string;
 }
 
-// Plan-gating for escalation levels (mirrors legacy logic)
 const PLAN_MAX_LEVELS: Record<string, number> = {
   premium: 3,
   growth: 2,
@@ -48,10 +52,6 @@ function getPlanMaxLevel(planName = ''): number {
   return PLAN_MAX_LEVELS.default;
 }
 
-import { EscalationService } from '../escalation/escalation.service';
-import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { normalizePhoneNumber } from '../../common/utils/phone-number.util';
-
 @Injectable()
 export class AutomationService {
   private readonly logger = new Logger(AutomationService.name);
@@ -63,78 +63,287 @@ export class AutomationService {
     private readonly notificationService: NotificationService,
     private readonly escalationService: EscalationService,
     private readonly whatsappService: WhatsAppService,
+    @Optional() private readonly prismaService?: PrismaService,
+    @Optional() private readonly googleBusinessService?: GoogleBusinessService,
   ) {}
 
   /**
-   * Execute the full review automation chain for a newly received review.
-   * Called by ReviewSyncService after a new review is written.
+   * Dual-write review state updates to Firestore and PostgreSQL (Prisma).
    */
-  async onReviewReceived(event: ReviewReceivedEvent): Promise<void> {
-    const { reviewId, outletId, rating, reviewText, customerName, outletName } = event;
+  public async dualWriteReview(reviewId: string, updateData: any): Promise<void> {
+    const db = this.firebaseService.getDb();
 
-    this.logger.log(`[Automation] onReviewReceived: reviewId=${reviewId}, rating=${rating}`);
-
-    // 1. Generate AI reply for all reviews
+    // 1. Firestore Primary
     try {
-      const replyResult = await this.aiService.generateReviewReply({
-        outletName,
-        customerName,
-        rating,
-        reviewText,
-      });
-
-      // Persist suggestion
-      const db = this.firebaseService.getDb();
-
       await db.collection('reviews').doc(reviewId).update({
-        replySuggestion: replyResult.text,
-        aiResponse: replyResult.text,
-        status: 'suggested',
-        aiProvider: replyResult.provider,
-        aiModel: replyResult.model,
+        ...updateData,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-
-      this.logger.debug(`[Automation] AI reply generated for ${reviewId}`);
-
-      // 2. Analyze review
-      const analysis = await this.aiService.analyzeReview(rating, reviewText);
-      await db.collection('reviews').doc(reviewId).update({
-        issueCategory: analysis.issueCategory,
-        emotion: analysis.emotion,
-        sentiment: analysis.sentiment,
-        priority: analysis.priority,
-        isSpam: analysis.isSpam,
-      });
-
-      // 3. Notify manager of negative review
-      if (rating <= 3 && (event.managerPhone || event.managerEmail)) {
-        await this.notificationService.sendNegativeReviewAlert({
-          outletName,
-          customerName,
-          rating,
-          reviewText,
-          managerPhone: event.managerPhone,
-          managerEmail: event.managerEmail,
-          aiSuggestedResponse: replyResult.text,
-        });
-      }
-
-      // 4. Set escalation tracking & post-trial re-engagement for negative reviews
-      if (rating <= 2) {
-        await this.initEscalation(reviewId, outletId, event);
-        await this.checkAndSendPostTrialReengagement(outletId, rating, event);
-      }
     } catch (err: any) {
-      this.logger.error(`[Automation] onReviewReceived chain failed for ${reviewId}: ${err.message}`);
+      this.logger.error(`[DualWrite] Firestore update failed for review ${reviewId}: ${err.message}`);
+    }
+
+    // 2. PostgreSQL Prisma Secondary
+    if (process.env.DATABASE_URL && this.prismaService) {
+      try {
+        const prismaData: any = {};
+        if (updateData.status !== undefined) prismaData.status = updateData.status;
+        if (updateData.aiResponse !== undefined) prismaData.aiResponse = updateData.aiResponse;
+        if (updateData.replySuggestion !== undefined) prismaData.replySuggestion = updateData.replySuggestion;
+        if (updateData.repliedAt !== undefined) prismaData.repliedAt = updateData.repliedAt;
+
+        if (Object.keys(prismaData).length > 0) {
+          try {
+            await this.prismaService.review.update({
+              where: { reviewId },
+              data: prismaData,
+            });
+          } catch {
+            await this.prismaService.review.update({
+              where: { id: reviewId },
+              data: prismaData,
+            });
+          }
+        }
+      } catch (prismaErr: any) {
+        this.logger.warn(`[DualWrite] Prisma update skipped for review ${reviewId}: ${prismaErr.message}`);
+      }
     }
   }
 
   /**
-   * Post-Trial Re-Engagement Trigger — Fires ONCE on first 1-2 star review after trial expiration
-   * when non-paid and GMB is still connected.
+   * Async AI Enrichment Handler (Runs in AI Queue Worker)
    */
-  private async checkAndSendPostTrialReengagement(outletId: string, rating: number, event: ReviewReceivedEvent): Promise<void> {
+  async enrichReviewWithAI(params: {
+    reviewId: string;
+    outletId: string;
+    outletName: string;
+    rating: number;
+    reviewText: string;
+    customerName: string;
+    aiVersion?: string;
+    isFirstOnboardingSync?: boolean;
+  }): Promise<void> {
+    const { reviewId, outletId, outletName, rating, reviewText, customerName, aiVersion = 'v1.0' } = params;
+
+    this.logger.log(`[AI-Enrichment] Processing reviewId=${reviewId}, rating=${rating}`);
+
+    const db = this.firebaseService.getDb();
+    const outletSnap = await db.collection('outlets').doc(outletId).get();
+    const outlet = outletSnap.exists ? outletSnap.data() : {};
+
+    const autoResponseEnabled = outlet?.autoResponseEnabled ?? outlet?.settings?.autoResponseEnabled ?? false;
+    const minRatingForAutoResponse = Number(outlet?.minRatingForAutoResponse ?? outlet?.settings?.minRatingForAutoResponse ?? 4);
+
+    const customerId = outlet?.customerId || outlet?.userId || outlet?.ownerId || null;
+    let isTrial = false;
+    let customerUsage: any = {};
+
+    if (customerId) {
+      const customerSnap = await db.collection('customers').doc(customerId).get();
+      if (customerSnap.exists) {
+        const cData = customerSnap.data();
+        const status = cData?.subscriptionStatus || '';
+        isTrial = status === 'trialing' || status === 'trial_paid_scheduled' || Boolean(cData?.isTrial);
+      }
+
+      const usageSnap = await db.collection('customerUsage').doc(customerId).get();
+      if (usageSnap.exists) {
+        customerUsage = usageSnap.data();
+      }
+    }
+
+    const trialSuggestionCount = Number(customerUsage?.trial_ai_suggestion_count || 0);
+    const trialAutoReplyCount = Number(customerUsage?.trial_auto_reply_count || 0);
+
+    if (isTrial && trialSuggestionCount >= 30) {
+      this.logger.warn(`AI_SUGGESTION_LIMIT_EXCEEDED customerId=${customerId} outletId=${outletId} reviewId=${reviewId}`);
+      await this.dualWriteReview(reviewId, {
+        status: 'pending',
+        lastError: 'Trial limit of 30 AI reply suggestions reached. Upgrade to a paid plan for additional AI suggestions.',
+        aiVersion,
+      });
+      return;
+    }
+
+    // 1. Parallelize AI Reply Generation & Review Analysis
+    let replyResult: any = null;
+    let analysisResult: any = null;
+
+    try {
+      [replyResult, analysisResult] = await Promise.all([
+        this.aiService.generateReviewReply({
+          outletName,
+          customerName,
+          rating,
+          reviewText,
+        }),
+        this.aiService.analyzeReview(rating, reviewText).catch(() => ({
+          issueCategory: 'General',
+          emotion: rating >= 4 ? 'Joy' : rating <= 2 ? 'Disappointment' : 'Neutral',
+          sentiment: rating >= 4 ? 'positive' : rating <= 2 ? 'negative' : 'neutral',
+          priority: rating <= 2 ? 'high' : 'medium',
+          isSpam: false,
+        })),
+      ]);
+
+      if (isTrial && customerId) {
+        try {
+          const inc = admin.firestore.FieldValue ? admin.firestore.FieldValue.increment(1) : (trialSuggestionCount + 1);
+          await db.collection('customerUsage').doc(customerId).set(
+            { trial_ai_suggestion_count: inc },
+            { merge: true }
+          );
+        } catch {}
+      }
+    } catch (aiErr: any) {
+      this.logger.error(`AUTO_REPLY_GENERATION_FAILED reviewId=${reviewId} outletId=${outletId}: ${aiErr.message}`);
+      await this.dualWriteReview(reviewId, {
+        status: 'failed',
+        lastError: `AI reply generation failed: ${aiErr.message}`,
+        aiVersion,
+      });
+      return;
+    }
+
+    // 2. Evaluate auto-publishing
+    const isAutoReplyLimitReached = isTrial && trialAutoReplyCount >= 10;
+    const targetLocationId = outlet?.googleLocationId || outlet?.googleActiveLocation || (Array.isArray(outlet?.googleLocations) && outlet?.googleLocations[0]?.id) || null;
+    const hasGoogleCredentials = Boolean(outlet?.googleAccountId && targetLocationId && outlet?.googleRefreshToken);
+    const isEligibleForAutoPublish = autoResponseEnabled && rating >= minRatingForAutoResponse && hasGoogleCredentials && !isAutoReplyLimitReached;
+
+    const baseUpdatePayload: any = {
+      replySuggestion: replyResult.text,
+      aiResponse: replyResult.text,
+      aiProvider: replyResult.provider,
+      aiModel: replyResult.model,
+      aiVersion,
+      issueCategory: analysisResult?.issueCategory,
+      emotion: analysisResult?.emotion,
+      sentiment: analysisResult?.sentiment,
+      priority: analysisResult?.priority,
+      isSpam: analysisResult?.isSpam,
+    };
+
+    if (isEligibleForAutoPublish && this.googleBusinessService) {
+      const reviewSnap = await db.collection('reviews').doc(reviewId).get();
+      const reviewData = reviewSnap.exists ? reviewSnap.data() : {};
+      const resourceName = reviewData?.rawName || reviewData?.providerReviewId || reviewId;
+
+      try {
+        await this.googleBusinessService.postReply(
+          outlet.googleAccountId,
+          targetLocationId,
+          outlet.googleRefreshToken,
+          resourceName,
+          replyResult.text,
+        );
+
+        const repliedAt = new Date();
+        await this.dualWriteReview(reviewId, {
+          ...baseUpdatePayload,
+          status: 'responded',
+          repliedAt,
+          processedAt: repliedAt,
+          lastError: null,
+        });
+
+        if (isTrial && customerId) {
+          try {
+            const inc = admin.firestore.FieldValue ? admin.firestore.FieldValue.increment(1) : (trialAutoReplyCount + 1);
+            await db.collection('customerUsage').doc(customerId).set(
+              { trial_auto_reply_count: inc },
+              { merge: true }
+            );
+          } catch {}
+        }
+      } catch (googleErr: any) {
+        this.logger.error(`GOOGLE_REPLY_FAILED reviewId=${reviewId} outletId=${outletId}: ${googleErr.message}`);
+        await this.dualWriteReview(reviewId, {
+          ...baseUpdatePayload,
+          status: 'failed',
+          lastError: googleErr.message,
+        });
+      }
+    } else {
+      await this.dualWriteReview(reviewId, {
+        ...baseUpdatePayload,
+        status: 'suggested',
+      });
+    }
+  }
+
+  /**
+   * Async Automation Handler with Historical Replay Protection
+   */
+  async runReviewAutomations(params: {
+    reviewId: string;
+    outletId: string;
+    outletName: string;
+    rating: number;
+    reviewText: string;
+    customerName: string;
+    managerPhone?: string;
+    managerEmail?: string;
+    isImported?: boolean;
+  }): Promise<void> {
+    const { reviewId, outletId, rating, reviewText, customerName, outletName, isImported } = params;
+
+    // Historical Replay Guard: Importing historical dataset must NOT trigger customer alerts!
+    if (isImported) {
+      this.logger.debug(`[Automation] Skipping alerts for historical review ${reviewId}`);
+      return;
+    }
+
+    if (rating <= 3 && (params.managerPhone || params.managerEmail)) {
+      const db = this.firebaseService.getDb();
+      const reviewSnap = await db.collection('reviews').doc(reviewId).get();
+      const aiSuggestedResponse = reviewSnap.data()?.replySuggestion || undefined;
+
+      await this.notificationService.sendNegativeReviewAlert({
+        outletName,
+        customerName,
+        rating,
+        reviewText,
+        managerPhone: params.managerPhone,
+        managerEmail: params.managerEmail,
+        aiSuggestedResponse,
+      });
+    }
+
+    if (rating <= 2) {
+      await this.initEscalation(reviewId, outletId, { reviewId, outletId, outletName, rating, reviewText, customerName });
+      await this.checkAndSendPostTrialReengagement(outletId, rating, { reviewId, outletId, outletName, rating, reviewText, customerName });
+    }
+  }
+
+  /**
+   * Legacy / Orchestrated Entry point (executes enrichment & automation)
+   */
+  async onReviewReceived(event: ReviewReceivedEvent): Promise<void> {
+    await this.enrichReviewWithAI({
+      reviewId: event.reviewId,
+      outletId: event.outletId,
+      outletName: event.outletName,
+      rating: event.rating,
+      reviewText: event.reviewText,
+      customerName: event.customerName,
+    });
+
+    await this.runReviewAutomations({
+      reviewId: event.reviewId,
+      outletId: event.outletId,
+      outletName: event.outletName,
+      rating: event.rating,
+      reviewText: event.reviewText,
+      customerName: event.customerName,
+      managerPhone: event.managerPhone,
+      managerEmail: event.managerEmail,
+      isImported: event.isImported,
+    });
+  }
+
+  private async checkAndSendPostTrialReengagement(outletId: string, rating: number, event: any): Promise<void> {
     try {
       const db = this.firebaseService.getDb();
       const outletRef = db.collection('outlets').doc(outletId);
@@ -142,12 +351,9 @@ export class AutomationService {
       if (!outletSnap.exists) return;
 
       const outlet = outletSnap.data();
-
-      // Check GMB still connected
       const isGmbConnected = Boolean(outlet.googleAccountId || outlet.googleLocationId || outlet.placeId);
       if (!isGmbConnected) return;
 
-      // Check customer subscription status
       const customerId = outlet.customerId;
       if (!customerId) return;
 
@@ -157,9 +363,8 @@ export class AutomationService {
 
       const customer = customerSnap.data();
       const isPaid = customer.subscriptionStatus === 'active';
-      if (isPaid) return; // Only send to non-paid accounts
+      if (isPaid) return;
 
-      // Deduplication guard — verify message has NOT previously been sent
       if (outlet.postTrialReengagementSent || customer.postTrialReengagementSent) {
         return;
       }
@@ -169,7 +374,6 @@ export class AutomationService {
 
       const appUrl = this.config.get<string>('APP_URL') || this.config.get<string>('FRONTEND_BASE_URL') || 'https://app.onerepute.com';
 
-      // Atomic lock
       await outletRef.update({ postTrialReengagementSent: true, postTrialReengagementAt: admin.firestore.FieldValue.serverTimestamp() });
       await customerRef.update({ postTrialReengagementSent: true, postTrialReengagementAt: admin.firestore.FieldValue.serverTimestamp() });
 
@@ -194,33 +398,21 @@ export class AutomationService {
     }
   }
 
-  /**
-   * Initialize escalation tracking for a negative review.
-   */
-  private async initEscalation(reviewId: string, outletId: string, event: ReviewReceivedEvent): Promise<void> {
+  private async initEscalation(reviewId: string, outletId: string, event: any): Promise<void> {
     const db = this.firebaseService.getDb();
-
-
-    const firstEscalationMs = 30 * 60 * 1000; // 30 minutes
+    const firstEscalationMs = 30 * 60 * 1000;
     const nextEscalationTime = new Date(Date.now() + firstEscalationMs);
 
-    await db.collection('reviews').doc(reviewId).update({
+    await this.dualWriteReview(reviewId, {
       escalationStatus: 'level_1_pending',
       escalationLevel: 0,
       nextEscalationTime: admin.firestore.Timestamp.fromDate(nextEscalationTime),
       escalationInitiatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-
-    this.logger.debug(`[Automation] Escalation initiated for review ${reviewId}`);
   }
 
-  /**
-   * Process pending escalations — called by the scheduler every minute.
-   * Replicates the full logic of legacy escalationCron.js.
-   */
   async processEscalations(params: EscalationCheckParams = {}): Promise<{ processed: number; errors: number; isQuotaExhausted?: boolean }> {
     const { dashboardBaseUrl = process.env.APP_URL || 'https://app.onerepute.com' } = params;
-
     const db = this.firebaseService.getDb();
     const now = new Date();
 
@@ -258,10 +450,6 @@ export class AutomationService {
       }
     }
 
-    if (processed > 0 || errors > 0) {
-      this.logger.log(`[Automation] Escalation cycle: processed=${processed}, errors=${errors}`);
-    }
-
     return { processed, errors };
   }
 
@@ -274,13 +462,11 @@ export class AutomationService {
     const data = doc.data();
     const reviewId = doc.id;
 
-    // 1. Stop conditions
     if (['responded', 'resolved', 'ignored'].includes(data.status)) {
       await doc.ref.update({ escalationStatus: 'completed', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       return;
     }
 
-    // 2. Load outlet + customer plan with in-memory cycle cache
     let outlet = caches?.outletCache?.get(data.outletId);
     if (!outlet) {
       const outletSnap = await db.collection('outlets').doc(data.outletId).get();
@@ -292,15 +478,13 @@ export class AutomationService {
       if (caches?.outletCache) caches.outletCache.set(data.outletId, outlet);
     }
 
-    // Guard: stop escalation processing for removed or deleted outlets
     if (outlet?.status === 'removed' || outlet?.isDeleted === true || outlet?.status === 'deleted') {
-      this.logger.warn(`[Automation] Stopping escalation for removed outlet ${data.outletId}, review ${doc.id}`);
       await doc.ref.update({ escalationStatus: 'completed', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       return;
     }
 
     const customerId = outlet?.customerId;
-    let maxLevel = getPlanMaxLevel('starter'); // Default to 1 (Starter) if customer details not resolved
+    let maxLevel = getPlanMaxLevel('starter');
     if (customerId) {
       try {
         let customer = caches?.customerCache?.get(customerId);
@@ -314,46 +498,33 @@ export class AutomationService {
         if (customer) {
           const planName = customer.planName || customer.plan || 'starter';
           maxLevel = getPlanMaxLevel(planName);
-          // Check subscription still active
           if (['unpaid', 'inactive', 'past_due'].includes(customer.paymentStatus)) {
-            this.logger.warn(`[Automation] Stopping escalation for inactive customer ${customerId}`);
             await doc.ref.update({ escalationStatus: 'completed' });
             return;
           }
         }
-      } catch (err: any) {
-        this.logger.warn(`[Automation] Failed to fetch customer plan for ${customerId}: ${err.message}`);
-      }
+      } catch (err: any) {}
     }
 
     const currentLevelStr = (data.escalationStatus || '').replace('level_', '').replace('_pending', '');
     const currentLevel = parseInt(currentLevelStr) || 1;
 
-    // STRICT SERVER-SIDE ENTITLEMENT GATING:
-    // If current level exceeds user's max plan level, reject & complete without sending messages.
     if (currentLevel > maxLevel) {
-      this.logger.warn(`[Automation] Blocking Level ${currentLevel} escalation for review ${reviewId}: Plan supports up to Level ${maxLevel}`);
       await doc.ref.update({ escalationStatus: 'completed', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       return;
     }
 
-    // 3. Build escalation contacts for this level
     const escalationContacts = await this.getEscalationContactsAsync(currentLevel, data.outletId, outlet, caches?.settingsCache);
     if (!escalationContacts.length) {
-      this.logger.warn(`[Automation] No valid escalation contacts configured for Level ${currentLevel}, outlet ${data.outletId}`);
       await doc.ref.update({ escalationStatus: 'completed' });
       return;
     }
 
-    // 4. Idempotency Guard — Check if message for this (reviewId, level) was already dispatched
     const idempotencyKey = `esc_${reviewId}_lvl_${currentLevel}`;
     const dispatchDocRef = db.collection('escalationDispatches').doc(idempotencyKey);
     const dispatchSnap = await dispatchDocRef.get();
 
-    if (dispatchSnap.exists) {
-      this.logger.warn(`[Automation] Escalation alert already dispatched for key ${idempotencyKey}. Skipping duplicate send.`);
-    } else {
-      // Send alerts
+    if (!dispatchSnap.exists) {
       const pendingSince = this.formatPendingTime(data.escalationInitiatedAt || data.reviewTimestamp || data.createdAt);
       const dashboardUrl = `${dashboardBaseUrl}/reviews/${reviewId}`;
 
@@ -371,7 +542,6 @@ export class AutomationService {
         });
       }
 
-      // Record dispatch doc atomically to prevent duplicate sends
       await dispatchDocRef.set({
         reviewId,
         outletId: data.outletId,
@@ -380,7 +550,6 @@ export class AutomationService {
         contactsCount: escalationContacts.length,
       });
 
-      // Log to activityLogs
       await db.collection('activityLogs').add({
         type: `ESCALATION_LEVEL_${currentLevel}`,
         reviewId,
@@ -391,7 +560,6 @@ export class AutomationService {
       });
     }
 
-    // 5. Advance escalation level
     const nextLevel = currentLevel + 1;
     const intervalMs = await this.getEscalationIntervalAsync(nextLevel, data.outletId, caches?.settingsCache);
     const nextEscalationTime = new Date(Date.now() + intervalMs);
@@ -428,11 +596,8 @@ export class AutomationService {
         const fullPhone = normalizePhoneNumber(lvlConfig.whatsappNumber, lvlConfig.countryCode || '+91');
         return [{ phone: fullPhone, email: lvlConfig.email }];
       }
-    } catch (err: any) {
-      this.logger.warn(`Could not load escalation settings for level ${level}: ${err.message}`);
-    }
+    } catch {}
 
-    // Fallback to legacy outlet properties
     return this.getEscalationContacts(level, outlet, null);
   }
 
@@ -440,7 +605,6 @@ export class AutomationService {
     const contacts: Array<{ phone?: string; email?: string }> = [];
 
     if (level === 1) {
-      // Primary WhatsApp Number is always the 1st escalation contact
       const rawNum = outlet?.primaryWhatsAppNumber || outlet?.whatsappNumber || outlet?.managerPhone;
       const cc = outlet?.countryCode || '+91';
       if (rawNum) {
@@ -480,9 +644,9 @@ export class AutomationService {
 
   private getEscalationInterval(level: number): number {
     const intervals: Record<number, number> = {
-      1: 30 * 60 * 1000,  // 30 min
-      2: 60 * 60 * 1000,  // 1 hour
-      3: 120 * 60 * 1000, // 2 hours
+      1: 30 * 60 * 1000,
+      2: 60 * 60 * 1000,
+      3: 120 * 60 * 1000,
     };
     return intervals[level] || 60 * 60 * 1000;
   }

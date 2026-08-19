@@ -158,7 +158,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         const isTrial = customer.accountStatus === 'Trial' || customer.subscriptionStatus === 'trialing';
         const isPaid = customer.subscriptionStatus === 'active';
 
-        const trialStart = customer.trialStartDate || customer.createdAt;
+        const trialStart = customer.trialStartDate || customer.onboardingAt || customer.createdAt;
         if (!trialStart) continue;
 
         const startTime = trialStart.toDate ? trialStart.toDate().getTime() : new Date(trialStart).getTime();
@@ -180,8 +180,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         const customerName = customer.name || outlet.name || 'Customer';
         const outletName = outlet.name || 'Business';
 
-        // Trial Day 12 — Performance & Improvement Check
-        if (isTrial && elapsedDays === 12) {
+        // Trial Day 13 — Performance & Improvement Check (2 days before 15-day expiry)
+        if (isTrial && elapsedDays === 13) {
           await this.whatsappService.sendTemplateByName({
             templateKey: 'TRIAL_DAY_12_PERFORMANCE',
             toNumber: phone,
@@ -190,7 +190,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
               'Outlet Name': outletName,
               Link: `${appUrl}/outlet/dashboard`,
             },
-            idempotencyKey: `trial_d12_${customerId}`,
+            idempotencyKey: `trial_d13_${customerId}`,
             outletId: outletDoc.id,
             customerId,
             planName: customer.plan || 'trial',
@@ -198,7 +198,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           });
         }
 
-        // Trial Day 14 — Renewal Communication
+        // Trial Day 14 — Renewal Communication (1 day before 15-day expiry)
         if (isTrial && elapsedDays === 14) {
           const renewalDateStr = customer.trialEndDate
             ? (customer.trialEndDate.toDate ? customer.trialEndDate.toDate().toLocaleDateString() : new Date(customer.trialEndDate).toLocaleDateString())
@@ -226,7 +226,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           });
         }
 
-        // Trial Day 16 — Feedback Request (Expired & Non-paid)
+        // Trial Day 16 — Feedback Request (Expired & Non-paid after 15 days)
         if (!isPaid && elapsedDays >= 16 && !customer.hasConvertedToPaid) {
           await this.whatsappService.sendTemplateByName({
             templateKey: 'TRIAL_EXPIRED_FEEDBACK',

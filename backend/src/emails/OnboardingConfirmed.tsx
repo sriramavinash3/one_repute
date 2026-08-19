@@ -18,7 +18,7 @@ export const OnboardingConfirmed: React.FC<OnboardingConfirmedProps> = ({
   dashboardUrl = 'https://onerepute.com/outlet/dashboard',
 }) => {
   return (
-    <BaseLayout previewText={`Setup Complete for ${businessName}! ${isTrial ? '14-Day Free Trial Activated' : 'Subscription Active'}.`}>
+    <BaseLayout previewText={`Setup Complete for ${businessName}! ${isTrial ? '15-Day Free Trial Activated' : 'Subscription Active'}.`}>
       <Heading style={headingStyle}>Business Onboarding Complete 🎉</Heading>
 
       <Text style={paragraphStyle}>Hi {userName},</Text>
@@ -33,7 +33,7 @@ export const OnboardingConfirmed: React.FC<OnboardingConfirmedProps> = ({
           • <strong>Business:</strong> {businessName}
         </Text>
         <Text style={cardDetailStyle}>
-          • <strong>Status:</strong> {isTrial ? '14-Day Free Trial Activated' : 'Active Plan'} ({planName})
+          • <strong>Status:</strong> {isTrial ? '15-Day Free Trial Activated' : 'Active Plan'} ({planName})
         </Text>
         <Text style={cardDetailStyle}>
           • <strong>Google My Business:</strong> Connected & Syncing Reviews

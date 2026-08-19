@@ -1,7 +1,7 @@
 /**
  * src/modules/email/queues/email.queue.ts
  * 
- * BullMQ Email Queue Manager with Redis connection handling & fallback options.
+ * Production BullMQ Email Queue Manager with Redis connection handling & fallback options.
  */
 
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
@@ -77,11 +77,22 @@ export class EmailQueueService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     if (this.queue) {
-      await this.queue.close();
+      await this.queue.close().catch(() => {});
     }
     if (this.redisClient) {
-      await this.redisClient.quit();
+      try {
+        await this.redisClient.quit();
+      } catch {
+        this.redisClient.disconnect();
+      }
     }
+  }
+
+  /**
+   * Helper to determine if BullMQ queue is active and healthy
+   */
+  isQueueActive(): boolean {
+    return !!(this.queue && this.isConnected);
   }
 
   /**
@@ -92,8 +103,12 @@ export class EmailQueueService implements OnModuleInit, OnModuleDestroy {
     const jobData = payload.data;
 
     if (this.queue && this.isConnected) {
+      const customJobId = (jobData as any).idempotencyKey 
+        ? `job_${(jobData as any).idempotencyKey}` 
+        : `${jobName}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
       const job = await this.queue.add(jobName, payload, {
-        jobId: `${jobName}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        jobId: customJobId,
       });
       this.logger.log(`Enqueued BullMQ Email Job [${jobName}] (ID: ${job.id}) for ${jobData.recipientEmail}`);
       return String(job.id);

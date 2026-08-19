@@ -7,7 +7,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/interfaces/auth-user.interface';
-import { CreateSubscriptionDto, VerifyPaymentDto, ChangePlanDto } from './dto/payment.dto';
+import { CreateSubscriptionDto, VerifyPaymentDto, ChangePlanDto, VerifyAndProvisionOutletDto } from './dto/payment.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -104,6 +104,21 @@ export class PaymentsController {
     return result;
   }
 
+  @Post('verify-and-provision-outlet')
+  @UseGuards(FirebaseAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async verifyAndProvisionOutlet(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: VerifyAndProvisionOutletDto,
+  ) {
+    const result = await this.paymentService.verifyAndProvisionOutlet(
+      user.uid,
+      user.email,
+      dto,
+    );
+    return result;
+  }
+
   @Get('billing-info')
   @UseGuards(FirebaseAuthGuard)
   async getBillingInfo(@CurrentUser() user: AuthUser) {
@@ -155,3 +170,4 @@ export class PaymentsController {
     return result;
   }
 }
+

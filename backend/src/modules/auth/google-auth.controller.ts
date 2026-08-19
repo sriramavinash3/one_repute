@@ -60,7 +60,11 @@ export class GoogleAuthController {
   }
 
   @Get('onboard')
-  async onboard(@Query('uid') uid: string, @Res() res: Response) {
+  async onboard(
+    @Query('uid') uid: string,
+    @Query('selectAccount') selectAccount: string,
+    @Res() res: Response
+  ) {
     const safeUid = this.sanitizeId(uid, 'uid');
 
     this.logger.log(`[Onboarding] Session created: uid=${safeUid}`);
@@ -76,25 +80,28 @@ export class GoogleAuthController {
 
     // Encrypt uid into state so it cannot be tampered with in the OAuth redirect
     const encryptedState = this.encrypt(JSON.stringify({ uid: safeUid, ts: Date.now() }));
-    const consentUrl = this.googleBusinessService.getConsentUrl(encryptedState);
+    const consentUrl = this.googleBusinessService.getConsentUrl(encryptedState, selectAccount === 'true');
 
     return res.redirect(consentUrl);
   }
 
   @Get()
-  async initiate(@Query('outletId') outletId: string, @Query('uid') uid: string, @Res() res: Response) {
-    const safeOutletId = this.sanitizeId(outletId, 'outletId');
+  async initiate(
+    @Query('outletId') outletId: string,
+    @Query('uid') uid: string,
+    @Query('selectAccount') selectAccount: string,
+    @Res() res: Response
+  ) {
+    const safeOutletId = outletId ? this.sanitizeId(outletId, 'outletId') : 'default';
     const safeUid = uid ? this.sanitizeId(uid, 'uid') : undefined;
 
     this.logger.log(`Initiating Google OAuth for outlet: outletId=${safeOutletId}${safeUid ? `, uid=${safeUid}` : ''}`);
 
-    // Include both uid and outletId in state so callback has a fallback
-    // if the user profile is missing outletId.
     const statePayload = safeUid
       ? { uid: safeUid, outletId: safeOutletId, ts: Date.now() }
       : { outletId: safeOutletId, ts: Date.now() };
     const encryptedState = this.encrypt(JSON.stringify(statePayload));
-    const consentUrl = this.googleBusinessService.getConsentUrl(encryptedState);
+    const consentUrl = this.googleBusinessService.getConsentUrl(encryptedState, selectAccount === 'true');
 
     return res.redirect(consentUrl);
   }
@@ -167,10 +174,11 @@ export class GoogleAuthController {
       this.logger.log('[Onboarding] Fetching Google Business Profile');
       const { accountId, locations, fetchErrors } = await this.googleBusinessService.fetchAccountsAndLocations(oauth2Client);
 
+      const noGmbFound = locations.length === 0 && fetchErrors.length === 0;
       const locationsWarning = locations.length === 0
         ? (fetchErrors.length
             ? `Google could not load your Business Profile locations: ${fetchErrors[0]}`
-            : 'No business locations were found for this Google account.')
+            : 'No, a Google My Business profile was not found with this Gmail account. Please use your Google My Business-linked Gmail account.')
         : '';
 
       if (!tokens.refresh_token) {
@@ -189,7 +197,7 @@ export class GoogleAuthController {
       // ─── Onboarding flow ─────────────────────────────────────────────────
       if (onboardStateUid) {
         const encryptedRefreshToken = this.encrypt(tokens.refresh_token);
-        const sessionStatus = locations.length > 0 ? 'ready' : (fetchErrors.length ? 'error' : 'no_data');
+        const sessionStatus = locations.length > 0 ? 'ready' : (fetchErrors.length ? 'error' : 'no_gmb_found');
         const sessionPayload = {
           status: sessionStatus,
           googleRefreshToken: encryptedRefreshToken,
@@ -209,9 +217,11 @@ export class GoogleAuthController {
         return res.send(this.getPopupHtml('gmb-connected', {
           googleAccountEmail: accountEmail,
           googleLocations: locations,
+          noGmbFound,
           googleLocationsWarning: locationsWarning,
         }, frontendUrl));
       }
+
 
       // ─── Existing-outlet connect flow ────────────────────────────────────
       if (outletIdOrUid) {

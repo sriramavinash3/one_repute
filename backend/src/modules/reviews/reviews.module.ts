@@ -7,6 +7,8 @@ import { ReviewReplyService } from './review-reply.service';
 import { ReviewAnalyticsService } from './review-analytics.service';
 import { ReputationService } from './reputation.service';
 import { ReviewSchedulerService } from './review-scheduler.service';
+import { ReviewQueueService } from './queues/review-queue.service';
+import { ReviewWorkerService } from './queues/review-worker.service';
 import { GoogleBusinessModule } from '../google-business/google-business.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { FirebaseModule } from '../firebase/firebase.module';
@@ -32,7 +34,9 @@ import { WorkflowModule } from '../workflow/workflow.module';
     ReviewAnalyticsService,
     ReputationService,
     ReviewSchedulerService,
+    ReviewQueueService,
+    ReviewWorkerService,
   ],
-  exports: [ReviewsService, ReviewSyncService, ReviewSchedulerService],
+  exports: [ReviewsService, ReviewSyncService, ReviewSchedulerService, ReviewQueueService],
 })
 export class ReviewsModule {}

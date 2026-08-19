@@ -75,7 +75,7 @@ export default function AdminLayout() {
         path="/admin-dashboard"
         noindex
       />
-      <div className="flex">
+      <div className="flex h-full w-full overflow-hidden">
         <Sidebar
           header={adminHeader}
           items={items}
@@ -83,8 +83,8 @@ export default function AdminLayout() {
           className="hidden lg:flex"
         />
 
-        <div className="flex min-h-screen flex-1 flex-col">
-          <div className="flex items-center gap-3 border-b border-slatey-200 bg-white px-6 py-3 lg:hidden">
+        <div className="flex h-full flex-1 flex-col min-w-0 overflow-hidden">
+          <div className="flex items-center gap-3 border-b border-slatey-200 bg-white px-6 py-3 lg:hidden shrink-0">
             <Button variant="ghost" size="sm" onClick={() => setMobileOpen(true)}>
               <Menu className="h-4 w-4" />
             </Button>
@@ -92,7 +92,7 @@ export default function AdminLayout() {
           </div>
 
           <Topbar title="Admin Command Center" user={profile} onLogout={handleLogout} />
-          <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 overflow-x-hidden">
+          <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 overflow-x-hidden overflow-y-auto">
             <Outlet />
           </main>
         </div>

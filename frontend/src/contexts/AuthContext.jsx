@@ -92,6 +92,54 @@ export function AuthProvider({ children }) {
     return () => unsubscribe()
   }, [])
 
+  const [accessibleGbpLocations, setAccessibleGbpLocations] = useState([])
+  const [noGmbFound, setNoGmbFound] = useState(false)
+
+  const refreshUserAndOutlets = async () => {
+    if (!profile?.customerId && !profile?.outletId) return
+    try {
+      const { collection, query, where, getDocs } = await import('firebase/firestore')
+      let q
+      if (profile.customerId) {
+        q = query(
+          collection(db, 'outlets'),
+          where('customerId', '==', profile.customerId),
+          where('status', '==', 'active')
+        )
+      } else {
+        q = query(
+          collection(db, 'outlets'),
+          where('ownerId', '==', user.uid),
+          where('status', '==', 'active')
+        )
+      }
+      const querySnapshot = await getDocs(q)
+      if (!querySnapshot.empty) {
+        const fetchedOutlets = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        setOutlets(fetchedOutlets)
+        
+        // Accumulate accessible GMB locations across outlets
+        const gbpMap = new Map()
+        fetchedOutlets.forEach(o => {
+          if (Array.isArray(o.googleLocations)) {
+            o.googleLocations.forEach(loc => {
+              if (loc && (loc.id || loc.placeId)) {
+                gbpMap.set(loc.id || loc.placeId, loc)
+              }
+            })
+          }
+        })
+        setAccessibleGbpLocations(Array.from(gbpMap.values()))
+
+        const currentOutlet = fetchedOutlets.find(o => o.id === profile.outletId) || fetchedOutlets[0]
+        setOutlet(currentOutlet || null)
+        setOutletState(currentOutlet || null)
+      }
+    } catch (err) {
+      console.warn('[AuthContext] error refreshing outlets:', err)
+    }
+  }
+
   useEffect(() => {
     const loadOutlet = async () => {
       if (!profile?.outletId || profile.role !== 'outlet') {
@@ -104,7 +152,7 @@ export function AuthProvider({ children }) {
       setOutletLoading(true)
       try {
         if (profile.customerId) {
-          // Fetch only ACTIVE outlets for this customer: removed outlets are excluded
+          // Fetch only ACTIVE outlets for this customer
           const { collection, query, where, getDocs } = await import('firebase/firestore')
           const q = query(
             collection(db, 'outlets'),
@@ -116,9 +164,19 @@ export function AuthProvider({ children }) {
           if (!querySnapshot.empty) {
             const fetchedOutlets = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
             setOutlets(fetchedOutlets)
-            
-            // Set current outlet to the one matching profile.outletId, or the first active one.
-            // If profile.outletId was removed it won't be in fetchedOutlets, so we fall back to the first active outlet.
+
+            const gbpMap = new Map()
+            fetchedOutlets.forEach(o => {
+              if (Array.isArray(o.googleLocations)) {
+                o.googleLocations.forEach(loc => {
+                  if (loc && (loc.id || loc.placeId)) {
+                    gbpMap.set(loc.id || loc.placeId, loc)
+                  }
+                })
+              }
+            })
+            setAccessibleGbpLocations(Array.from(gbpMap.values()))
+
             const currentOutlet = fetchedOutlets.find(o => o.id === profile.outletId) || fetchedOutlets[0]
             setOutlet(currentOutlet || null)
             setOutletState(currentOutlet || null)
@@ -128,7 +186,6 @@ export function AuthProvider({ children }) {
             setOutletState(null)
           }
         } else if (profile.outletId) {
-          // Fallback for older users without customerId: also guard against removed outlets
           const outletRef = doc(db, 'outlets', profile.outletId)
           const snapshot = await getDoc(outletRef)
           const outletData = snapshot.exists() ? snapshot.data() : null
@@ -137,8 +194,11 @@ export function AuthProvider({ children }) {
             setOutlet(active)
             setOutlets([active])
             setOutletState(active)
+
+            if (Array.isArray(outletData.googleLocations)) {
+              setAccessibleGbpLocations(outletData.googleLocations)
+            }
           } else {
-            // Outlet does not exist or has been removed
             setOutlet(null)
             setOutlets([])
             setOutletState(null)
@@ -154,7 +214,24 @@ export function AuthProvider({ children }) {
     }
 
     loadOutlet()
-  }, [profile?.outletId, profile?.role])
+  }, [profile?.outletId, profile?.role, profile?.customerId])
+
+  const switchOutlet = async (newOutletId) => {
+    const newOutlet = outlets.find(o => o.id === newOutletId);
+    if (newOutlet) {
+      setOutlet(newOutlet);
+      setOutletState(newOutlet);
+      if (user?.uid) {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await setDoc(userRef, { outletId: newOutletId }, { merge: true });
+          setProfile(prev => prev ? { ...prev, outletId: newOutletId } : null);
+        } catch (err) {
+          console.warn('[AuthContext] Failed to persist switched active outlet ID', err);
+        }
+      }
+    }
+  }
 
   const value = useMemo(
     () => ({
@@ -162,27 +239,26 @@ export function AuthProvider({ children }) {
       profile,
       outlet,
       outlets,
+      accessibleGbpLocations,
+      noGmbFound,
+      setNoGmbFound,
+      setAccessibleGbpLocations,
       loading,
       outletLoading,
       authError,
-      switchOutlet: (newOutletId) => {
-        const newOutlet = outlets.find(o => o.id === newOutletId);
-        if (newOutlet) {
-          setOutlet(newOutlet);
-          setOutletState(newOutlet);
-          // Optional: we could persist this to user profile as the 'active' outlet
-        }
-      },
+      switchOutlet,
+      refreshUserAndOutlets,
       needsGoogleConnect:
         profile?.role === 'outlet' && (!profile?.outletId || !outlet?.googleRefreshToken),
       signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
       signOut: () => signOut(auth)
     }),
-    [user, profile, outlet, outlets, loading, outletLoading, authError]
+    [user, profile, outlet, outlets, accessibleGbpLocations, noGmbFound, loading, outletLoading, authError]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
+
 
 export function useAuth() {
   return useContext(AuthContext)

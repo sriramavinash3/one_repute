@@ -22,6 +22,7 @@ import { MOCK_REVIEWS } from '../../config/mockData'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import { fetchReviews, fetchReviewCount } from '../../services/reviewService'
 import HistoricalReviewSection from '../../components/dashboard/HistoricalReviewSection'
+import DataSyncModal from '../../components/feedback/DataSyncModal'
 
 const stagger = {
   hidden: {},
@@ -40,11 +41,43 @@ export default function OutletDashboardPage() {
   const setReviews = useAppStore((state) => state.setReviews)
   const outletId = outlet?.id || profile?.outletId
 
+  const [showSyncModal, setShowSyncModal] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const searchParams = new URLSearchParams(window.location.search)
+    return searchParams.get('sync') === 'true'
+  })
+
   // Authoritative Total Reviews count from the backend (DB-level COUNT),
   // independent of the paginated/Firestore-limited reviews array.
   const [totalReviews, setTotalReviews] = useState(null)
   const [isLoadingCount, setIsLoadingCount] = useState(false)
   const [countError, setCountError] = useState(null)
+
+  const handleSyncComplete = async () => {
+    if (!outletId) return
+    try {
+      const reviewData = await fetchReviews({ outletId, page: 1, limit: 50 })
+      if (reviewData?.data) {
+        setReviews(reviewData.data)
+      }
+      const countRes = await fetchReviewCount(outletId)
+      if (typeof countRes?.totalReviews === 'number') {
+        setTotalReviews(countRes.totalReviews)
+      }
+    } catch (err) {
+      console.warn('[OutletDashboardPage] error completing sync refresh:', err)
+    }
+  }
+
+  const handleSyncClose = () => {
+    setShowSyncModal(false)
+    if (typeof window !== 'undefined' && window.location.search.includes('sync=true')) {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('sync')
+      window.history.replaceState({}, document.title, url.pathname + url.search)
+    }
+  }
+
 
   // Reset total reviews state when the active outlet changes
   useEffect(() => {
@@ -498,6 +531,14 @@ export default function OutletDashboardPage() {
       {showUpgradeModal && (
         <UpgradeModal onClose={() => setShowUpgradeModal(false)} />
       )}
+
+      <DataSyncModal
+        isOpen={showSyncModal}
+        outletId={outletId}
+        onClose={handleSyncClose}
+        onSyncComplete={handleSyncComplete}
+      />
     </motion.div>
   )
 }
+

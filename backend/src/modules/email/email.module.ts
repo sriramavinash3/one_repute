@@ -7,6 +7,7 @@ import { ResendModule } from './resend/resend.module';
 import { EmailQueueService } from './queues/email.queue';
 import { EmailWorkerService } from './workers/email.worker';
 import { EmailMetricsService } from './metrics/email.metrics.service';
+import { EmailAuditService } from './services/email.audit.service';
 import { EmailService } from './services/email.service';
 import { EmailController } from './controllers/email.controller';
 import { TokenService } from '../auth/token.service';
@@ -19,10 +20,11 @@ import { loadEmailConfig } from '../../config/email.config';
     EmailQueueService,
     EmailWorkerService,
     EmailMetricsService,
+    EmailAuditService,
     EmailService,
     TokenService,
   ],
-  exports: [EmailService, TokenService, EmailMetricsService],
+  exports: [EmailService, TokenService, EmailMetricsService, EmailAuditService],
 })
 export class EmailModule implements OnModuleInit {
   private readonly logger = new Logger(EmailModule.name);

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+export const TRIAL_DURATION_DAYS = 15;
+
 @Injectable()
 export class PaymentsConfigService {
   constructor(private readonly configService: ConfigService) {}
@@ -18,7 +20,7 @@ export class PaymentsConfigService {
   }
 
   get trialDays(): number {
-    return 7;
+    return TRIAL_DURATION_DAYS;
   }
 
   get planMappings() {

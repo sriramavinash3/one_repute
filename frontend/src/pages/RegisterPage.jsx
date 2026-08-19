@@ -14,56 +14,31 @@ import { createSubscription, verifyPayment, loadRazorpayScript } from '../servic
 import { fetchPlaceSuggestions, fetchPlaceDetails } from '../services/outletService'
 import Logo from '../components/common/Logo'
 import Seo from '../components/seo/Seo'
-import { PRICING_CONFIG, formatPrice } from '../components/pricing/pricingConfig'
+import { PRICING_CONFIG, formatPrice, PLAN_CARD_FEATURES } from '../components/pricing/pricingConfig'
 
 import AutoResponseDisclosureModal from '../components/onboarding/AutoResponseDisclosureModal'
+import NoGmbModal from '../components/common/NoGmbModal'
+
 
 const PLANS = [
   {
     id: 'plan_starter',
     name: 'Starter',
     description: 'Essential reputation management for single locations.',
-    features: [
-      '100 Review Responses',
-      'Google Review Auto Reply',
-      'Positive Review Replies',
-      'WhatsApp Alerts (30 min)',
-      'Basic Sentiment & Dashboard',
-      'Monthly Summary Report',
-      '1 User Access',
-      '1-Step Escalation'
-    ]
+    features: PLAN_CARD_FEATURES.starter.features,
   },
   {
     id: 'plan_growth',
     name: 'Growth',
     description: 'For growing businesses wanting deeper insights.',
-    features: [
-      '250 Review Responses',
-      '<=2 Star AI Response',
-      'WhatsApp + Email Alerts (5 min)',
-      'Full Dashboard & Trend Insights',
-      'Low Rating Pattern Detection',
-      'Competitor Tracking (Up to 2)',
-      '2 User Access',
-      '2-Step Escalation'
-    ],
-    recommended: true
+    features: PLAN_CARD_FEATURES.growth.features,
+    recommended: true,
   },
   {
     id: 'plan_premium',
     name: 'Premium',
     description: 'Advanced analytics and premium support.',
-    features: [
-      '500 Review Responses',
-      'Priority Escalation (30 sec)',
-      'Advanced Sentiment & Dashboard',
-      'Keyword & Competitor (5) Tracking',
-      'Reply Approval Mode',
-      'Monthly Strategy Call & Premium Support',
-      '5 User Access',
-      '3-Step Escalation'
-    ]
+    features: PLAN_CARD_FEATURES.premium.features,
   }
 ]
 
@@ -89,6 +64,7 @@ export default function OnboardingPage() {
   const [locationsLoading, setLocationsLoading] = useState(false)
   const [locationsError, setLocationsError] = useState(null)
   const [showDisclosureModal, setShowDisclosureModal] = useState(false)
+  const [showNoGmbModal, setShowNoGmbModal] = useState(false)
   
   const [discountCode, setDiscountCode] = useState('')
   const [discountData, setDiscountData] = useState(null)
@@ -124,7 +100,7 @@ export default function OnboardingPage() {
 
   /**
    * Reliably loads the Google Business data collected during the OAuth flow.
-   * Consumes explicit session status: 'loading', 'ready', 'no_data', 'error', 'completed'.
+   * Consumes explicit session status: 'loading', 'ready', 'no_gmb_found', 'no_data', 'error', 'completed'.
    */
   const loadOnboardingSession = useCallback(async (fallbackLocations) => {
     if (!user?.uid || inFlightRef.current) return false
@@ -142,6 +118,15 @@ export default function OnboardingPage() {
         stopPolling()
         setLocationsLoading(false)
         navigate('/outlet-dashboard')
+        return true
+      }
+
+      if (status === 'no_gmb_found' || (status === 'no_data' && warning?.includes('not found'))) {
+        stopPolling()
+        setGmbLocations([])
+        setGoogleConnected(false)
+        setLocationsLoading(false)
+        setShowNoGmbModal(true)
         return true
       }
 
@@ -283,6 +268,13 @@ export default function OnboardingPage() {
       }
 
       if (event.data?.type === 'gmb-connected') {
+        if (event.data.noGmbFound || (Array.isArray(event.data.googleLocations) && event.data.googleLocations.length === 0)) {
+          stopPolling()
+          setLocationsLoading(false)
+          setGoogleConnected(false)
+          setShowNoGmbModal(true)
+          return
+        }
         toast.success('Google My Business connected successfully!')
         setShowDisclosureModal(true)
         stopPolling()
@@ -299,22 +291,27 @@ export default function OnboardingPage() {
     return () => window.removeEventListener('message', handleMessage)
   }, [loadOnboardingSession, stopPolling])
 
-  const handleConnectGoogle = () => {
+  const handleConnectGoogle = (selectAccount = false) => {
     if (!user?.uid) {
       toast.error('Please sign in again before connecting Google.')
       return
     }
 
+    setShowNoGmbModal(false)
     const width = 500
     const height = 600
     const left = window.screenX + (window.outerWidth - width) / 2
     const top = window.screenY + (window.outerHeight - height) / 2
 
-    const url = buildOAuthUrl('/api/auth/google/onboard', { uid: user.uid })
+    const url = buildOAuthUrl('/api/auth/google/onboard', {
+      uid: user.uid,
+      selectAccount: selectAccount ? 'true' : 'false'
+    })
 
     window.open(url, 'Connect GMB', `width=${width},height=${height},left=${left},top=${top}`)
     startPolling()
   }
+
 
   const handleNextStep = (e) => {
     e.preventDefault()
@@ -357,10 +354,9 @@ export default function OnboardingPage() {
         throw new Error('Onboarding failed on the server.')
       }
 
-      toast.success(isTrial ? '14-Day Free Trial started!' : 'Subscription activated successfully!')
-      
-      // Reload the page to refresh AuthContext completely with the new profile data
-      window.location.href = '/outlet-dashboard'
+      // Reload the page to refresh AuthContext completely with the new profile data and start sync
+      window.location.href = '/outlet-dashboard?sync=true'
+
     } catch (error) {
       toast.error('Setup failed: ' + (error.response?.data?.error || error.message))
     } finally {
@@ -456,7 +452,7 @@ export default function OnboardingPage() {
               <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${step === 2 ? 'border-white bg-brand-500 text-white' : 'border-brand-400 text-brand-200'}`}>2</div>
               <div>
                 <h3 className="font-semibold">Select Plan</h3>
-                <p className="text-xs text-brand-100 mt-1">Start your 14-day free trial</p>
+                <p className="text-xs text-brand-100 mt-1">Start your 15-day free trial</p>
               </div>
             </div>
           </div>
@@ -643,7 +639,7 @@ export default function OnboardingPage() {
               >
                 <div>
                   <h1 className="text-2xl font-bold text-slatey-900">Choose your plan</h1>
-                  <p className="mt-2 text-sm text-slatey-500">Start with a 14-day free trial. No credit card required.</p>
+                  <p className="mt-2 text-sm text-slatey-500">Start with a 15-day free trial. No credit card required.</p>
                 </div>
                 
                 <div className="mt-6 space-y-4">
@@ -729,7 +725,7 @@ export default function OnboardingPage() {
                 
                 <div className="mt-8 flex flex-col gap-3">
                   <Button size="lg" className="w-full shadow-brand text-md" onClick={startTrial} disabled={loading}>
-                    {loading ? 'Processing...' : 'Start 14-Day Free Trial'}
+                    {loading ? 'Processing...' : 'Start 15-Day Free Trial'}
                   </Button>
                   <Button variant="outline" className="w-full text-slatey-500 flex items-center justify-center gap-2" onClick={handlePayment} disabled={loading}>
                     <CreditCard className="h-4 w-4" /> Skip trial & Pay Now
@@ -749,6 +745,12 @@ export default function OnboardingPage() {
         onClose={() => setShowDisclosureModal(false)}
         onConfirm={() => setShowDisclosureModal(false)}
       />
+      <NoGmbModal
+        isOpen={showNoGmbModal}
+        onClose={() => setShowNoGmbModal(false)}
+        onTryAnotherAccount={() => handleConnectGoogle(true)}
+      />
     </div>
   )
 }
+

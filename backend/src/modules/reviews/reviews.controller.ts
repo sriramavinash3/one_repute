@@ -10,6 +10,9 @@ import {
   Res,
   UseGuards,
   Logger,
+  BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
@@ -18,6 +21,8 @@ import { ReviewSyncService } from './review-sync.service';
 import { ReviewAnalyticsService } from './review-analytics.service';
 import { ReputationService } from './reputation.service';
 import { ReviewSchedulerService } from './review-scheduler.service';
+import { ReviewReplyService } from './review-reply.service';
+import { ReviewQueueService } from './queues/review-queue.service';
 import { GetReviewsDto, UpdateCategoryRuleDto, TriggerSyncDto } from './dto/reviews.dto';
 
 @Controller()
@@ -31,6 +36,9 @@ export class ReviewsController {
     private readonly analyticsService: ReviewAnalyticsService,
     private readonly reputationService: ReputationService,
     private readonly schedulerService: ReviewSchedulerService,
+    private readonly replyService: ReviewReplyService,
+    @Inject(forwardRef(() => ReviewQueueService))
+    private readonly reviewQueueService: ReviewQueueService,
   ) {}
 
   // ─── Reviews ─────────────────────────────────────────────────────────────────
@@ -109,6 +117,59 @@ export class ReviewsController {
     }
   }
 
+  // ─── Review Reply & Reprocessing Endpoints ────────────────────────────────────
+
+  /** POST /api/reviews/:id/reply — Publish a reply to Google Business Profile */
+  @Post('reviews/:id/reply')
+  async postReply(
+    @Param('id') id: string,
+    @Body() body: { outletId?: string; replyText: string },
+    @Res() res: Response,
+  ) {
+    if (!body?.replyText?.trim()) {
+      return res.status(400).json({ error: 'replyText is required' });
+    }
+    try {
+      let outletId = body.outletId;
+      if (!outletId) {
+        const reviewData = await this.reviewsService.getReviews({ page: 1, limit: 1, search: id });
+        const review = reviewData?.data?.find((r: any) => r.id === id || r.reviewId === id);
+        if (review) outletId = review.outletId;
+      }
+      if (!outletId) {
+        return res.status(400).json({ error: 'outletId parameter or valid review object required' });
+      }
+
+      const result = await this.replyService.postDirectReply(outletId, id, body.replyText.trim());
+      return res.status(200).json({
+        success: true,
+        message: 'Reply published to Google Business Profile successfully',
+        repliedAt: result.repliedAt,
+      });
+    } catch (err: any) {
+      this.logger.error(`[ReviewsController] postReply failed for review ${id}: ${err.message}`);
+      const statusCode = err.status || (err.message?.includes('not found') ? 404 : 500);
+      return res.status(statusCode).json({ error: err.message || 'Failed to post reply to Google Business Profile' });
+    }
+  }
+
+  /** POST /api/reviews/:id/reprocess — Internal/Manual end-to-end reprocessing of an existing review */
+  @Post('reviews/:id/reprocess')
+  async reprocessReview(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.replyService.reprocessReview(id);
+      return res.status(200).json({
+        success: true,
+        message: 'Review reprocessed successfully',
+        data: result,
+      });
+    } catch (err: any) {
+      this.logger.error(`[ReviewsController] reprocessReview failed for review ${id}: ${err.message}`);
+      const statusCode = err.status || (err.message?.includes('not found') ? 404 : 500);
+      return res.status(statusCode).json({ error: err.message || 'Failed to reprocess review' });
+    }
+  }
+
   // ─── Analytics ───────────────────────────────────────────────────────────────
 
   /** GET /api/analytics/summary */
@@ -181,22 +242,66 @@ export class ReviewsController {
     }
   }
 
-  // ─── Manual Sync ──────────────────────────────────────────────────────────────
+  // ─── Async Review Synchronization Pipeline ───────────────────────────────────
 
-  /** POST /api/reviews/sync */
+  /** POST /api/reviews/sync — Initiate async review sync job with request coalescing */
   @Post('reviews/sync')
   async triggerSync(@Body() body: TriggerSyncDto, @Res() res: Response) {
     try {
       if (body.outletId) {
-        const result = await this.schedulerService.triggerImmediateSync(body.outletId);
-        return res.status(200).json(result);
+        const { status, isNew } = await this.reviewQueueService.createOrGetActiveSyncJob(
+          body.outletId,
+          true,
+          'manual',
+        );
+
+        // If in inline fallback mode, execute immediately
+        if (!this.reviewQueueService.isRedisConnected()) {
+          const syncResult = await this.syncService.executeSyncJob({
+            jobId: status.jobId,
+            outletId: body.outletId,
+            skipCooldown: true,
+          });
+          return res.status(200).json(syncResult);
+        }
+
+        return res.status(202).json({
+          message: isNew ? 'Sync job enqueued successfully' : 'Sync job already in progress',
+          jobId: status.jobId,
+          status: status.status,
+          stage: status.stage,
+          outletId: body.outletId,
+        });
       } else {
         const results = await this.schedulerService.triggerFullSync();
-        return res.status(200).json({ message: 'Full sync complete', results });
+        return res.status(200).json({ message: 'Full sync initiated', results });
       }
     } catch (err: any) {
       this.logger.error('[ReviewsController] triggerSync failed', { error: err.message });
-      return res.status(500).json({ error: 'Sync failed', message: err.message });
+      return res.status(500).json({ error: 'Sync failed to initiate', message: err.message });
+    }
+  }
+
+  /** GET /api/reviews/sync/status — Query real-time job status for frontend polling */
+  @Get('reviews/sync/status')
+  async getSyncStatus(
+    @Query('jobId') jobId: string,
+    @Query('outletId') outletId: string,
+    @Res() res: Response,
+  ) {
+    const lookupId = jobId || outletId;
+    if (!lookupId) {
+      return res.status(400).json({ error: 'Either jobId or outletId parameter is required' });
+    }
+    try {
+      const status = await this.reviewQueueService.getJobStatus(lookupId);
+      if (!status) {
+        return res.status(404).json({ error: 'Sync job status not found', jobId: lookupId });
+      }
+      return res.status(200).json(status);
+    } catch (err: any) {
+      this.logger.error('[ReviewsController] getSyncStatus failed', { error: err.message });
+      return res.status(500).json({ error: 'Failed to retrieve sync job status' });
     }
   }
 

@@ -1,5 +1,7 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { ReviewSyncService, SyncResult } from './review-sync.service';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Inject, forwardRef } from '@nestjs/common';
+import { ReviewSyncService } from './review-sync.service';
+import { ReviewQueueService } from './queues/review-queue.service';
+import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class ReviewSchedulerService implements OnModuleInit, OnModuleDestroy {
@@ -7,11 +9,16 @@ export class ReviewSchedulerService implements OnModuleInit, OnModuleDestroy {
   private hourlyTimer: NodeJS.Timeout | null = null;
   private isRunning = false;
 
-  constructor(private readonly reviewSyncService: ReviewSyncService) {}
+  constructor(
+    private readonly reviewSyncService: ReviewSyncService,
+    private readonly firebaseService: FirebaseService,
+    @Inject(forwardRef(() => ReviewQueueService))
+    private readonly reviewQueueService: ReviewQueueService,
+  ) {}
 
   onModuleInit() {
     this.startHourlySync();
-    this.logger.log('Review scheduler started (hourly sync enabled)');
+    this.logger.log('Review scheduler started (hourly queue dispatch enabled)');
   }
 
   onModuleDestroy() {
@@ -19,7 +26,6 @@ export class ReviewSchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private startHourlySync() {
-    // Run once immediately on startup, then every 60 minutes
     this.runSyncCycle();
     this.hourlyTimer = setInterval(() => {
       this.runSyncCycle();
@@ -36,34 +42,50 @@ export class ReviewSchedulerService implements OnModuleInit, OnModuleDestroy {
 
   private async runSyncCycle() {
     if (this.isRunning) {
-      this.logger.warn('[Scheduler] Previous sync cycle still running, skipping.');
+      this.logger.warn('[Scheduler] Previous sync dispatch cycle still running, skipping.');
       return;
     }
 
     this.isRunning = true;
-    this.logger.log('[Scheduler] Starting hourly review sync cycle...');
+    this.logger.log('[Scheduler] Dispatching hourly review sync jobs to queue...');
     try {
-      const results = await this.reviewSyncService.syncAllOutlets({ skipCooldown: false });
-      const succeeded = results.filter((r) => r.status === 'success').length;
-      const skipped = results.filter((r) => r.status === 'skipped').length;
-      const failed = results.filter((r) => r.status === 'error').length;
-      this.logger.log(`[Scheduler] Sync cycle complete: ${succeeded} synced, ${skipped} skipped, ${failed} failed`);
+      const db = this.firebaseService.getDb();
+      const snap = await db.collection('outlets').where('status', '==', 'active').get();
+      const outlets = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      let dispatched = 0;
+      for (const outlet of outlets as any[]) {
+        if (outlet.status === 'removed' || outlet.isDeleted === true) continue;
+        await this.reviewQueueService.createOrGetActiveSyncJob(outlet.id, false, 'scheduler');
+        dispatched++;
+      }
+      this.logger.log(`[Scheduler] Hourly sync dispatch complete: enqueued jobs for ${dispatched} active outlets`);
     } catch (err: any) {
-      this.logger.error(`[Scheduler] Sync cycle failed: ${err.message}`);
+      this.logger.error(`[Scheduler] Sync dispatch failed: ${err.message}`);
     } finally {
       this.isRunning = false;
     }
   }
 
-  /** Trigger an immediate forced sync for a specific outlet (e.g. on onboarding) */
-  async triggerImmediateSync(outletId: string): Promise<SyncResult> {
-    this.logger.log(`[Scheduler] Triggering immediate sync for outlet: ${outletId}`);
-    return this.reviewSyncService.syncSingleOutlet(outletId, { skipCooldown: true });
+  /** Trigger an immediate forced sync for a specific outlet */
+  async triggerImmediateSync(outletId: string): Promise<any> {
+    this.logger.log(`[Scheduler] Triggering immediate sync job for outlet: ${outletId}`);
+    return this.reviewQueueService.createOrGetActiveSyncJob(outletId, true, 'manual');
   }
 
-  /** Trigger a full sync cycle across all outlets (e.g. admin manual trigger) */
-  async triggerFullSync(): Promise<SyncResult[]> {
-    this.logger.log('[Scheduler] Triggering manual full sync...');
-    return this.reviewSyncService.syncAllOutlets({ skipCooldown: true });
+  /** Trigger a full sync cycle across all outlets */
+  async triggerFullSync(): Promise<any[]> {
+    this.logger.log('[Scheduler] Triggering full sync dispatch across all active outlets...');
+    const db = this.firebaseService.getDb();
+    const snap = await db.collection('outlets').where('status', '==', 'active').get();
+    const outlets = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    const results: any[] = [];
+    for (const outlet of outlets as any[]) {
+      if (outlet.status === 'removed' || outlet.isDeleted === true) continue;
+      const res = await this.reviewQueueService.createOrGetActiveSyncJob(outlet.id, true, 'manual');
+      results.push(res.status);
+    }
+    return results;
   }
 }

@@ -4,13 +4,14 @@
  * BullMQ Email Worker Processor & Job Handlers.
  */
 
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
 import * as React from 'react';
 import { loadEmailConfig } from '../../../config/email.config';
 import { ResendService, SendEmailResult } from '../resend/resend.service';
 import { EmailMetricsService } from '../metrics/email.metrics.service';
+import { EmailAuditService } from '../services/email.audit.service';
 import { EmailJobPayload, EmailJobType } from '../queues/email.job.types';
 
 // React Email Component imports
@@ -36,6 +37,7 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly resendService: ResendService,
     private readonly metricsService: EmailMetricsService,
+    @Optional() private readonly auditService?: EmailAuditService,
   ) {}
 
   async onModuleInit() {
@@ -87,10 +89,14 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     if (this.worker) {
-      await this.worker.close();
+      await this.worker.close().catch(() => {});
     }
     if (this.redisClient) {
-      await this.redisClient.quit();
+      try {
+        await this.redisClient.quit();
+      } catch {
+        this.redisClient.disconnect();
+      }
     }
   }
 
@@ -181,20 +187,39 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
     });
 
     const totalLatencyMs = Date.now() - startTime;
+    const finalStatus = result.status === 'sent' || result.status === 'mocked' ? 'DELIVERED' : 'FAILED';
 
-    // Log metrics & audit event
+    // Log metrics
     await this.metricsService.recordEmailEvent({
       userId: payload.data.userId,
       email: payload.data.recipientEmail,
       template: payload.type,
       provider: 'resend',
-      status: result.status === 'sent' || result.status === 'mocked' ? 'DELIVERED' : 'FAILED',
+      status: finalStatus,
       queueId: String(job.id),
       latencyMs: totalLatencyMs,
       failureReason: result.error,
       retries: (job as any).attemptsMade || 0,
       metadata: { subject, resultId: result.id },
     });
+
+    // Write persistent audit record to Firestore / DB if auditService available
+    if (this.auditService) {
+      await this.auditService.recordEmailAttempt({
+        userId: payload.data.userId,
+        recipientEmail: payload.data.recipientEmail,
+        template: payload.type,
+        subject,
+        provider: 'resend',
+        status: finalStatus,
+        queueId: String(job.id),
+        providerMessageId: result.id,
+        latencyMs: totalLatencyMs,
+        failureReason: result.error,
+        retries: (job as any).attemptsMade || 0,
+        idempotencyKey: (payload.data as any).idempotencyKey,
+      }).catch((err) => this.logger.warn(`Audit record save failed: ${err.message}`));
+    }
 
     if (result.status === 'failed') {
       throw new Error(`Email delivery failed: ${result.error}`);

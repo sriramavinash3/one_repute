@@ -4,9 +4,10 @@ import { WebhookController } from './webhook.controller';
 import { WebhookService } from './webhook.service';
 import { PaymentsConfigService } from './payments-config.service';
 import { WhatsAppModule } from '../whatsapp/whatsapp.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [ConfigModule, WhatsAppModule],
+  imports: [ConfigModule, WhatsAppModule, EmailModule],
   controllers: [WebhookController],
   providers: [
     WebhookService,

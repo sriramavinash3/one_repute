@@ -66,13 +66,28 @@ export class SubscriptionService {
     let status = customer.subscriptionStatus || 'inactive';
     let scheduledPlan = customer.scheduledPlan || null;
 
-    let trialStartDate = customer.trialStartDate ? (customer.trialStartDate.toDate ? customer.trialStartDate.toDate() : new Date(customer.trialStartDate)) : null;
-    let trialEndDate = customer.trialEndDate ? (customer.trialEndDate.toDate ? customer.trialEndDate.toDate() : new Date(customer.trialEndDate)) : null;
+    let onboardingTimestamp = customer.onboardingAt || customer.onboardedAt || customer.createdAt;
+    let onboardingDate = onboardingTimestamp ? (onboardingTimestamp.toDate ? onboardingTimestamp.toDate() : new Date(onboardingTimestamp)) : null;
+
+    let trialStartDate = customer.trialStartDate ? (customer.trialStartDate.toDate ? customer.trialStartDate.toDate() : new Date(customer.trialStartDate)) : onboardingDate;
+    let trialEndDate = (customer.trialEndDate || customer.trialEndsAt)
+      ? ((customer.trialEndDate?.toDate ? customer.trialEndDate.toDate() : new Date(customer.trialEndDate || customer.trialEndsAt)))
+      : (trialStartDate ? new Date(trialStartDate.getTime() + 15 * 24 * 60 * 60 * 1000) : null);
+
     let paidPlanStartDate = customer.paidPlanStartDate ? (customer.paidPlanStartDate.toDate ? customer.paidPlanStartDate.toDate() : new Date(customer.paidPlanStartDate)) : null;
 
     let remainingTrialDays = 0;
     if (trialEndDate && trialEndDate.getTime() > now.getTime()) {
       remainingTrialDays = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Auto-transition expired trial to 'expired' if not paid and trial date has passed
+    if (status === 'trialing' && trialEndDate && now.getTime() >= trialEndDate.getTime()) {
+      status = 'expired';
+      db.collection('customers').doc(customerId).set({
+        subscriptionStatus: 'expired',
+        updatedAt: new Date(),
+      }, { merge: true }).catch(e => this.logger.error(`Failed trial expiration status update: ${e.message}`));
     }
 
     // Auto-transition trial_paid_scheduled to active if trial end date has passed
@@ -114,6 +129,7 @@ export class SubscriptionService {
         currency: customer.currency || (country === 'IN' ? 'INR' : 'USD'),
         trialStartDate,
         trialEndDate,
+        trialDurationDays: 15,
         paidPlanStartDate,
         remainingTrialDays,
       },
@@ -122,6 +138,11 @@ export class SubscriptionService {
         qrsUsed: usage.smart_qr_count || 0,
         competitorsUsed: usage.competitor_count || 0,
         usersUsed: usage.team_member_count || 0,
+        trialAutoRepliesUsed: usage.trial_auto_reply_count || 0,
+        trialAutoReplyLimit: 10,
+        trialSuggestionsUsed: usage.trial_ai_suggestion_count || 0,
+        trialSuggestionLimit: 30,
+        isTrialActive: status === 'trialing' || status === 'trial_paid_scheduled' || Boolean(customer.isTrial),
       },
       plans,
       invoices,

@@ -82,6 +82,7 @@ export class AuthController {
         userName,
         resetUrl: `${frontendUrl}/reset-password?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.email)}`,
         expiresInMinutes: 30,
+        idempotencyKey: `reset_pwd_${dto.email}_${tokenInfo.rawToken.substring(0, 8)}`,
       });
 
       this.logger.log(`Password reset link dispatched via Resend for email: ${dto.email}`);
@@ -110,6 +111,7 @@ export class AuthController {
     await this.emailService.sendWelcomeEmail({
       recipientEmail: dto.email,
       userName,
+      idempotencyKey: `welcome_${dto.email}`,
     });
 
     const tokenInfo = this.tokenService.generateSecureToken(24 * 60); // 24 hours
@@ -120,6 +122,7 @@ export class AuthController {
       userName,
       verificationUrl: `${frontendUrl}/verify-email?token=${tokenInfo.rawToken}&email=${encodeURIComponent(dto.email)}`,
       expiresInHours: 24,
+      idempotencyKey: `verify_${dto.email}_${tokenInfo.rawToken.substring(0, 8)}`,
     });
 
     return {
@@ -395,7 +398,7 @@ export class AuthController {
     const fullWhatsAppNumber = `${countryCode}${localWhatsApp}`;
 
     const now = new Date();
-    const trialEndsAt = isTrial ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
+    const trialEndsAt = isTrial ? new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000) : null;
 
     // 2. Create customer + outlet and link the user in a single atomic batch.
     const customerRef = db.collection('customers').doc();
@@ -410,6 +413,10 @@ export class AuthController {
       phone: fullWhatsAppNumber,
       plan: form?.planId || null,
       subscriptionStatus: isTrial ? 'trialing' : 'active',
+      isTrial: Boolean(isTrial),
+      onboardingAt: now,
+      trialStartDate: isTrial ? now : null,
+      trialEndDate: trialEndsAt,
       trialEndsAt,
       razorpaySubscriptionId: paymentData?.razorpay_subscription_id || null,
       razorpayPaymentId: paymentData?.razorpay_payment_id || null,
@@ -539,6 +546,7 @@ export class AuthController {
         planName: form?.planId || 'Starter',
         isTrial: !!isTrial,
         userId: userUid,
+        idempotencyKey: `onboard_confirmed_${userUid}`,
       });
       this.logger.log(`Onboarding confirmation email queued for ${userEmail}`);
     } catch (emailErr: any) {

@@ -5,9 +5,10 @@ import { PaymentService } from './payment.service';
 import { SubscriptionService } from './subscription.service';
 import { PlanService } from './plan.service';
 import { PaymentsConfigService } from './payments-config.service';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, EmailModule],
   controllers: [PaymentsController],
   providers: [
     PaymentService,

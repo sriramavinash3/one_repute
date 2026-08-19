@@ -25,14 +25,16 @@ function makePrismaMock() {
 }
 
 function mockFirestoreDb(docs: Array<{ id: string; data: () => any }>) {
-  const reviewsQuery = {
-    where: () => ({ get: jest.fn().mockResolvedValue({ docs }) }),
+  const getObj = { get: jest.fn().mockResolvedValue({ docs }) };
+  const queryObj = {
+    where: () => ({ limit: () => getObj, get: jest.fn().mockResolvedValue({ docs }) }),
+    limit: () => getObj,
     get: jest.fn().mockResolvedValue({ docs }),
   };
   return {
     collection: (name: string) => {
-      if (name === 'reviews') return reviewsQuery;
-      if (name === 'outlets') return { get: jest.fn().mockResolvedValue({ docs: [] }) };
+      if (name === 'reviews') return queryObj;
+      if (name === 'outlets') return { doc: () => ({ get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ id: 'outlet_1' }) }) }) };
       return { doc: () => ({ get: jest.fn() }) };
     },
   };
@@ -375,7 +377,7 @@ describe('ReviewsService.getReviewCount', () => {
 
     await service.getReviewCount('outlet_1', authUser);
 
-    expect(validateActiveOutlet).toHaveBeenCalledWith(expect.anything(), 'outlet_1', authUser);
+    expect(validateActiveOutlet).toHaveBeenCalledWith(expect.anything(), 'outlet_1', authUser, undefined);
   });
 
   it('rejects when the outlet belongs to another customer scope', async () => {

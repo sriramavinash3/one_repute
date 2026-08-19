@@ -47,3 +47,28 @@ export class ChangePlanDto {
   @IsIn(['monthly', 'quarterly', 'annual'])
   billingCycle?: string = 'monthly';
 }
+
+export class VerifyAndProvisionOutletDto {
+  @IsString()
+  @IsOptional()
+  razorpay_payment_id?: string;
+
+  @IsString()
+  @IsOptional()
+  razorpay_signature?: string;
+
+  @IsString()
+  @IsOptional()
+  razorpay_subscription_id?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  planId: string;
+
+  @IsNotEmpty()
+  location: any;
+
+  @IsOptional()
+  isTrial?: boolean;
+}
+
