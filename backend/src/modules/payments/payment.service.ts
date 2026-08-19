@@ -34,7 +34,7 @@ export class PaymentService {
     return this.razorpayInstance;
   }
 
-  async createSubscription(customerId: string, rawPlanId: string, billingCycle: string = 'monthly', countryCode: string = 'IN', discountCode?: string) {
+  async createSubscription(customerId: string, rawPlanId: string, billingCycle: string = 'monthly', countryCode: string = 'IN', discountCode?: string, skipTrial: boolean = true) {
     try {
       if (!rawPlanId) {
         throw new Error('Plan ID is required for checkout.');
@@ -123,16 +123,19 @@ export class PaymentService {
         quantity: 1,
       };
 
-      if (isCurrentlyInTrial && trialEndDate) {
-        const startAt = Math.floor(trialEndDate.getTime() / 1000);
-        if (startAt > Math.floor(Date.now() / 1000) + 300) {
+      // Only attach future start_at if user explicitly requested deferred trial billing
+      if (!skipTrial) {
+        if (isCurrentlyInTrial && trialEndDate) {
+          const startAt = Math.floor(trialEndDate.getTime() / 1000);
+          if (startAt > Math.floor(Date.now() / 1000) + 300) {
+            subscriptionPayload.start_at = startAt;
+          }
+        } else if (isNewTrialEligible) {
+          trialStartDate = new Date();
+          trialEndDate = new Date(Date.now() + (this.configService.trialDays * 24 * 60 * 60 * 1000));
+          const startAt = Math.floor(trialEndDate.getTime() / 1000);
           subscriptionPayload.start_at = startAt;
         }
-      } else if (isNewTrialEligible) {
-        trialStartDate = new Date();
-        trialEndDate = new Date(Date.now() + (this.configService.trialDays * 24 * 60 * 60 * 1000));
-        const startAt = Math.floor(trialEndDate.getTime() / 1000);
-        subscriptionPayload.start_at = startAt;
       }
 
       const subscription = await rzp.subscriptions.create(subscriptionPayload);

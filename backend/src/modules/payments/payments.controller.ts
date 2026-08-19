@@ -78,12 +78,14 @@ export class PaymentsController {
   ) {
     const resolvedCustomerId = dto.customerId || user.customerId || `cust_${user.uid}`;
     const countryCode = dto.countryCode || 'IN';
+    const skipTrial = dto.skipTrial !== undefined ? dto.skipTrial : true;
     const result = await this.paymentService.createSubscription(
       resolvedCustomerId,
       dto.planId,
       dto.billingCycle || 'monthly',
       countryCode,
       dto.discountCode,
+      skipTrial,
     );
     return result;
   }

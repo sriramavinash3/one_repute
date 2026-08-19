@@ -176,7 +176,10 @@ export function SubscriptionProvider({ children }) {
       // Create subscription on the backend
       const { data: subscription } = await apiClient.post('/api/payments/create-subscription', {
         planId,
-        billingCycle
+        billingCycle,
+        countryCode: billingInfo?.subscription?.billingCountry || 'IN',
+        customerId: profile?.customerId,
+        skipTrial: true,
       })
 
       if (!subscription.razorpayKeyId || subscription.id?.startsWith('sub_mock_')) {

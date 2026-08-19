@@ -21,6 +21,9 @@ export class CreateSubscriptionDto {
   @IsString()
   @IsOptional()
   discountCode?: string;
+
+  @IsOptional()
+  skipTrial?: boolean;
 }
 
 export class VerifyPaymentDto {
