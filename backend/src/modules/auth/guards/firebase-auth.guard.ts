@@ -1,8 +1,23 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { FirebaseService } from '../../firebase/firebase.service';
 import { AuthUser } from '../interfaces/auth-user.interface';
 
 const ADMIN_EMAIL = 'admin@onerepute.com';
+
+function isQuotaExhaustedError(err: any): boolean {
+  if (!err) return false;
+  const msg = String(err.message || '').toUpperCase();
+  const code = String(err.code || '').toUpperCase();
+  return (
+    code === 'RESOURCE_EXHAUSTED' ||
+    code === '8' ||
+    err.status === 429 ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('QUOTA EXCEEDED') ||
+    msg.includes('TOO MANY REQUESTS') ||
+    msg.includes('RATE LIMIT')
+  );
+}
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
@@ -12,6 +27,12 @@ export class FirebaseAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
+
+    // 1. Deduplication: If request.user was already populated by FirebaseAuthMiddleware, pass through instantly!
+    if (request.user && request.user.uid) {
+      return true;
+    }
+
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -20,6 +41,13 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
+
+    // 2. Token cache lookup
+    const cachedAuthUser = this.firebaseService.getCachedAuthUser(idToken);
+    if (cachedAuthUser) {
+      request.user = cachedAuthUser;
+      return true;
+    }
 
     try {
       const decodedToken = await this.firebaseService.verifyIdToken(idToken);
@@ -84,9 +112,18 @@ export class FirebaseAuthGuard implements CanActivate {
         assignedOutletIds: userData.assignedOutletIds || [],
       };
 
+      this.firebaseService.setCachedAuthUser(idToken, authUser, decodedToken);
+
       request.user = authUser;
       return true;
     } catch (err: any) {
+      if (isQuotaExhaustedError(err)) {
+        this.logger.warn(`Firebase quota exhausted during guard authentication: ${err.message}`);
+        throw new HttpException(
+          { error: 'Firebase service quota limit reached. Please try again in a few moments.', code: 'RESOURCE_EXHAUSTED' },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
       this.logger.warn(`Firebase authentication failed: ${err.message}`);
       throw new UnauthorizedException('Unauthorized: Invalid token');
     }

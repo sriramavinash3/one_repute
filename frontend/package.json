@@ -10,6 +10,7 @@
     "generate:og": "node scripts/generate-og-image.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:unit": "node --test",
     "test:e2e": "playwright test"
   },
   "dependencies": {

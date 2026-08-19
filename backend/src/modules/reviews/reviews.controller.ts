@@ -44,8 +44,11 @@ export class ReviewsController {
         status: query.status,
         rating: query.rating,
         search: query.search,
+        sort: query.sort,
+        from: query.from,
+        to: query.to,
         page: Number(query.page) || 1,
-        limit: Number(query.limit) || 10,
+        limit: Math.min(Math.max(1, Number(query.limit) || 10), 50),
       });
       return res.status(200).json(result);
     } catch (err: any) {
@@ -54,6 +57,25 @@ export class ReviewsController {
         return res.status(404).json({ error: err.message });
       }
       return res.status(500).json({ error: 'Failed to fetch reviews' });
+    }
+  }
+
+  /** GET /api/reviews/count — authoritative Total Reviews for an outlet */
+  @Get('reviews/count')
+  async getReviewCount(@Query('outletId') outletId: string, @Req() req: Request, @Res() res: Response) {
+    if (!outletId) return res.status(400).json({ error: 'outletId parameter is required' });
+    try {
+      const result = await this.reviewsService.getReviewCount(outletId, (req as any).user);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      this.logger.error('[ReviewsController] getReviewCount failed', { error: err.message });
+      if (err.status === 403 || err.message?.includes('Access denied')) {
+        return res.status(403).json({ error: err.message });
+      }
+      if (err.status === 404 || err.message?.includes('not found') || err.message?.includes('no longer available')) {
+        return res.status(404).json({ error: err.message });
+      }
+      return res.status(500).json({ error: 'Failed to fetch review count' });
     }
   }
 

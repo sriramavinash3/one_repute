@@ -16,10 +16,11 @@ export class HealthController {
 
   @Get()
   async getOverallHealth(@Res() res: Response) {
-    const [dbOk, firebaseOk, aiStatus] = await Promise.all([
+    const [dbOk, firebaseOk, aiStatus, redisOk] = await Promise.all([
       this.checkDatabase(),
       this.checkFirebase(),
       this.aiService.healthCheck(),
+      this.cacheService.isHealthy(),
     ]);
 
     const isHealthy = dbOk && firebaseOk;
@@ -32,6 +33,7 @@ export class HealthController {
       components: {
         database: dbOk ? 'up' : 'down',
         firebase: firebaseOk ? 'up' : 'down',
+        redis: redisOk ? 'HEALTHY' : 'MEMORY_FALLBACK',
         ai: aiStatus,
       },
     });
@@ -52,7 +54,7 @@ export class HealthController {
   async getRedisHealth(@Res() res: Response) {
     const ok = await this.cacheService.isHealthy();
     return res.status(HttpStatus.OK).json({
-      status: ok ? 'up' : 'memory_fallback',
+      status: ok ? 'HEALTHY' : 'MEMORY_FALLBACK',
       service: 'redis',
       timestamp: new Date().toISOString(),
     });

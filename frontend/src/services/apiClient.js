@@ -62,9 +62,23 @@ apiClient.interceptors.request.use(async (config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const errorMsg = error?.response?.data?.error || error?.response?.data?.message || ''
-    if (error?.response?.status === 404 && (errorMsg.includes('no longer available') || errorMsg.includes('has been removed'))) {
+  async (error) => {
+    const status = error?.response?.status
+    const errorMsg = String(error?.response?.data?.error || error?.response?.data?.message || error?.message || '').toLowerCase()
+    const errorCode = String(error?.response?.data?.code || '').toUpperCase()
+    const config = error?.config
+
+    const isQuotaError = status === 429 || errorCode === 'RESOURCE_EXHAUSTED' || errorMsg.includes('quota exceeded') || errorMsg.includes('resource_exhausted')
+
+    if (isQuotaError && config && (config._retryCount === undefined || config._retryCount < 2)) {
+      config._retryCount = (config._retryCount || 0) + 1
+      const backoffMs = Math.pow(2, config._retryCount) * 1000 + Math.floor(Math.random() * 300)
+      console.warn(`[apiClient] Firebase service quota limit hit. Retrying request (${config._retryCount}/2) in ${backoffMs}ms...`)
+      await new Promise((resolve) => setTimeout(resolve, backoffMs))
+      return apiClient(config)
+    }
+
+    if (status === 404 && (errorMsg.includes('no longer available') || errorMsg.includes('has been removed'))) {
       if (typeof window !== 'undefined' && window.toast) {
         window.toast.error('This outlet is no longer available.')
       }

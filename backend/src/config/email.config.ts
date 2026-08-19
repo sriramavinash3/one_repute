@@ -13,6 +13,7 @@ export interface EmailConfig {
   supportEmail: string;
   companyAddress: string;
   redis: {
+    url?: string;
     host: string;
     port: number;
     password?: string;
@@ -41,6 +42,7 @@ export function loadEmailConfig(): EmailConfig {
   const supportEmail = process.env.SUPPORT_EMAIL || 'support@onerepute.com';
   const companyAddress = process.env.COMPANY_ADDRESS || '';
 
+  const redisUrl = process.env.REDIS_URL || undefined;
   const redisHost = process.env.REDIS_HOST || '127.0.0.1';
   const redisPort = parseInt(process.env.REDIS_PORT || '6379', 10);
   const redisPassword = process.env.REDIS_PASSWORD || undefined;
@@ -54,6 +56,7 @@ export function loadEmailConfig(): EmailConfig {
     supportEmail,
     companyAddress,
     redis: {
+      url: redisUrl,
       host: redisHost,
       port: redisPort,
       password: redisPassword,

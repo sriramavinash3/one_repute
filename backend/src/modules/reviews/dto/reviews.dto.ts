@@ -5,6 +5,9 @@ export class GetReviewsDto {
   @IsOptional() @IsString() status?: string;
   @IsOptional() @IsString() rating?: string;
   @IsOptional() @IsString() search?: string;
+  @IsOptional() @IsString() sort?: string;
+  @IsOptional() @IsString() from?: string;
+  @IsOptional() @IsString() to?: string;
   @IsOptional() @IsNumberString() page?: string;
   @IsOptional() @IsNumberString() limit?: string;
 }

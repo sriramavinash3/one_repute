@@ -25,6 +25,7 @@ import FifteenDayReport from '../../../emails/FifteenDayReport';
 import OnboardingConfirmed from '../../../emails/OnboardingConfirmed';
 import ReviewAlert from '../../../emails/ReviewAlert';
 import EscalationAlert from '../../../emails/EscalationAlert';
+import AccountDeletionOtp from '../../../emails/AccountDeletionOtp';
 
 @Injectable()
 export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -158,6 +159,11 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
       case EmailJobType.ESCALATION_ALERT:
         subject = `Review Escalation - Level ${payload.data.level}`;
         templateComponent = React.createElement(EscalationAlert, payload.data);
+        break;
+
+      case EmailJobType.ACCOUNT_DELETION_OTP:
+        subject = 'OneRepute Account Deletion Verification Code';
+        templateComponent = React.createElement(AccountDeletionOtp, payload.data);
         break;
 
       default:

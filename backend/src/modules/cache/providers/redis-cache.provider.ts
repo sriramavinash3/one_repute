@@ -11,31 +11,44 @@ export class RedisCacheProvider implements ICacheProvider {
   private isConnected = false;
 
   constructor(private readonly config: ConfigService) {
-    const host = this.config.get<string>('REDIS_HOST') || 'localhost';
-    const port = parseInt(this.config.get<string>('REDIS_PORT') || '6379', 10);
-    const password = this.config.get<string>('REDIS_PASSWORD') || undefined;
+    const redisUrl = this.config.get<string>('REDIS_URL') || process.env.REDIS_URL;
+    const host = this.config.get<string>('REDIS_HOST') || process.env.REDIS_HOST || '127.0.0.1';
+    const port = parseInt(this.config.get<string>('REDIS_PORT') || process.env.REDIS_PORT || '6379', 10);
+    const password = this.config.get<string>('REDIS_PASSWORD') || process.env.REDIS_PASSWORD || undefined;
 
     try {
-      this.client = new Redis({
-        host,
-        port,
-        password,
+      const redisOptions = {
         maxRetriesPerRequest: 1,
         enableOfflineQueue: false,
-        retryStrategy(times) {
+        retryStrategy: (times: number) => {
           if (times > 3) return null; // Stop retrying after 3 attempts
-          return Math.min(times * 100, 1000);
+          return Math.min(times * 200, 1000);
         },
-      });
+      };
+
+      if (redisUrl) {
+        this.client = new Redis(redisUrl, redisOptions);
+      } else {
+        this.client = new Redis({
+          host,
+          port,
+          password,
+          ...redisOptions,
+        });
+      }
 
       this.client.on('connect', () => {
         this.isConnected = true;
-        this.logger.log(`[RedisCache] Connected to ${host}:${port}`);
+        this.logger.log(`[RedisCache] Connected to Redis (${redisUrl ? 'REDIS_URL' : `${host}:${port}`})`);
       });
 
+      let errorCount = 0;
       this.client.on('error', (err) => {
         this.isConnected = false;
-        this.logger.warn(`[RedisCache] Connection error: ${err.message}`);
+        errorCount++;
+        if (errorCount <= 3) {
+          this.logger.warn(`[RedisCache] Connection error (${errorCount}/3): ${err.message}`);
+        }
       });
     } catch (err: any) {
       this.logger.warn(`[RedisCache] Redis initialization skipped: ${err.message}`);

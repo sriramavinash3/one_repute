@@ -25,16 +25,24 @@ export class CacheService implements ICacheProvider {
 
   async get<T = any>(key: string): Promise<T | null> {
     const provider = await this.getActiveProvider();
-    return provider.get<T>(key);
+    const result = await provider.get<T>(key);
+    if (result !== null) {
+      this.logger.debug(`[CacheService] HIT key=${key} (provider=${provider.providerName})`);
+    } else {
+      this.logger.debug(`[CacheService] MISS key=${key} (provider=${provider.providerName})`);
+    }
+    return result;
   }
 
   async set<T = any>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     const provider = await this.getActiveProvider();
+    this.logger.debug(`[CacheService] SET key=${key} (ttl=${ttlSeconds ?? 'none'}s, provider=${provider.providerName})`);
     return provider.set<T>(key, value, ttlSeconds);
   }
 
   async del(key: string): Promise<void> {
     const provider = await this.getActiveProvider();
+    this.logger.debug(`[CacheService] DEL key=${key} (provider=${provider.providerName})`);
     return provider.del(key);
   }
 

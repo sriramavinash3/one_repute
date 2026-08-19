@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Save, Building2, Phone, CheckCircle2, Loader2, CreditCard, Lock, ChevronDown, ChevronUp, AlertCircle, Trash2, ArrowRight, ShieldAlert, Sparkles, Check, Download } from 'lucide-react'
+import { Save, Building2, Phone, CheckCircle2, Loader2, CreditCard, Lock, ChevronDown, ChevronUp, AlertCircle, Trash2, ArrowRight, ShieldAlert, Sparkles, Check, Download, AlertTriangle, KeyRound, X, Clock, RefreshCw } from 'lucide-react'
 import { Card } from '../../components/ui/card'
 import Button from '../../components/ui/button'
 import { toast } from 'sonner'
@@ -14,6 +14,7 @@ import {
   saveEscalationSettings,
   deleteEscalationLevel
 } from '../../services/escalationService'
+import { requestAccountDeletionOtp, verifyAccountDeletionOtp } from '../../services/accountService'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import { UpgradeModal } from '../../components/gating/FeatureGate'
 
@@ -81,9 +82,176 @@ function ReadOnlyFormField({ label, id, value, placeholder = 'Not provided in Go
 }
 
 export default function OutletSettingsPage() {
-  const { outlet, profile, user } = useAuth()
+  const { outlet, profile, user, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState('general')
   const [customer, setCustomer] = useState(null)
+
+  // Delete Account State & Modal Controls
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteStep, setDeleteStep] = useState('confirm') // 'confirm' | 'otp' | 'deleting'
+  const [confirmChecked, setConfirmChecked] = useState(false)
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', ''])
+  const [otpError, setOtpError] = useState(null)
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [requestingOtp, setRequestingOtp] = useState(false)
+  const [otpTimer, setOtpTimer] = useState(600) // 10 minutes
+  const [resendCooldown, setResendCooldown] = useState(60) // 60s
+  const [resendLoading, setResendLoading] = useState(false)
+  const otpInputRefs = useRef([])
+
+  // OTP Expiry Countdown Timer
+  useEffect(() => {
+    let interval = null
+    if (deleteModalOpen && deleteStep === 'otp' && otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1)
+      }, 1000)
+    } else if (otpTimer === 0 && deleteStep === 'otp') {
+      setOtpError('Verification code has expired. Please request a new code.')
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [deleteModalOpen, deleteStep, otpTimer])
+
+  // Resend Cooldown Countdown Timer
+  useEffect(() => {
+    let interval = null
+    if (deleteModalOpen && deleteStep === 'otp' && resendCooldown > 0) {
+      interval = setInterval(() => {
+        setResendCooldown((prev) => prev - 1)
+      }, 1000)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [deleteModalOpen, deleteStep, resendCooldown])
+
+  const handleOpenDeleteModal = () => {
+    setDeleteStep('confirm')
+    setConfirmChecked(false)
+    setOtpDigits(['', '', '', '', '', ''])
+    setOtpError(null)
+    setDeleteModalOpen(true)
+  }
+
+  const handleCloseDeleteModal = () => {
+    if (deleteStep === 'deleting') return
+    setDeleteModalOpen(false)
+    setDeleteStep('confirm')
+    setConfirmChecked(false)
+    setOtpDigits(['', '', '', '', '', ''])
+    setOtpError(null)
+  }
+
+  const handleConfirmDeleteRequest = async () => {
+    if (!confirmChecked || requestingOtp) return
+    try {
+      setRequestingOtp(true)
+      setOtpError(null)
+      await requestAccountDeletionOtp()
+      toast.success('Verification code sent to your registered email address.')
+      setDeleteStep('otp')
+      setOtpTimer(600)
+      setResendCooldown(60)
+      setTimeout(() => {
+        if (otpInputRefs.current[0]) otpInputRefs.current[0].focus()
+      }, 100)
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Unable to send verification code. Please try again later.'
+      toast.error(msg)
+      setOtpError(msg)
+    } finally {
+      setRequestingOtp(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || resendLoading) return
+    try {
+      setResendLoading(true)
+      setOtpError(null)
+      await requestAccountDeletionOtp()
+      toast.success('A new verification code has been sent to your email.')
+      setOtpTimer(600)
+      setResendCooldown(60)
+      setOtpDigits(['', '', '', '', '', ''])
+      if (otpInputRefs.current[0]) otpInputRefs.current[0].focus()
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to resend code. Please try again.'
+      setOtpError(msg)
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
+  const handleDigitChange = (index, value) => {
+    const cleanVal = value.replace(/\D/g, '').slice(-1)
+    const newDigits = [...otpDigits]
+    newDigits[index] = cleanVal
+    setOtpDigits(newDigits)
+    setOtpError(null)
+
+    if (cleanVal && index < 5 && otpInputRefs.current[index + 1]) {
+      otpInputRefs.current[index + 1].focus()
+    }
+  }
+
+  const handleDigitKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0 && otpInputRefs.current[index - 1]) {
+      otpInputRefs.current[index - 1].focus()
+    }
+  }
+
+  const handleDigitPaste = (e) => {
+    e.preventDefault()
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (!pastedData) return
+
+    const digits = pastedData.split('')
+    const newDigits = ['', '', '', '', '', '']
+    digits.forEach((d, i) => {
+      if (i < 6) newDigits[i] = d
+    })
+    setOtpDigits(newDigits)
+    setOtpError(null)
+
+    const focusIdx = Math.min(digits.length, 5)
+    if (otpInputRefs.current[focusIdx]) {
+      otpInputRefs.current[focusIdx].focus()
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    const fullOtp = otpDigits.join('')
+    if (fullOtp.length !== 6) {
+      setOtpError('Please enter all 6 digits of the verification code.')
+      return
+    }
+
+    try {
+      setOtpLoading(true)
+      setOtpError(null)
+      await verifyAccountDeletionOtp(fullOtp)
+      
+      setDeleteStep('deleting')
+      toast.success('Your account has been permanently deleted.')
+      
+      setTimeout(async () => {
+        try {
+          if (signOut) await signOut()
+        } catch (e) {}
+        localStorage.clear()
+        sessionStorage.clear()
+        window.location.href = '/login'
+      }, 1500)
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Invalid or expired verification code.'
+      setOtpError(msg)
+    } finally {
+      setOtpLoading(false)
+    }
+  }
   
   // General Tab Business Info State
   const [business, setBusiness] = useState({
@@ -546,7 +714,7 @@ export default function OutletSettingsPage() {
           )}
 
           {/* Save Button */}
-          <motion.div variants={fadeUp} className="flex items-center gap-3 pb-4">
+          <motion.div variants={fadeUp} className="flex items-center gap-3 pb-4 border-b border-slatey-100">
             <Button
               onClick={handleSave}
               disabled={!hasChanges || saving}
@@ -556,6 +724,32 @@ export default function OutletSettingsPage() {
               {saving ? 'Saving...' : saved ? 'Saved' : 'Save changes'}
             </Button>
             <p className="text-xs text-slatey-400">Changes apply to the next cron run</p>
+          </motion.div>
+
+          {/* Danger Zone Section */}
+          <motion.div variants={fadeUp}>
+            <Card className="p-6 space-y-5 border-red-200 bg-red-50/20">
+              <SectionHeader
+                icon={<ShieldAlert className="h-4 w-4 text-red-600" />}
+                title="Delete Account"
+                description="Permanently delete your account and all associated data."
+              />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-white border border-red-150 shadow-sm">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-slatey-900">Delete My Account</h4>
+                  <p className="text-xs text-slatey-500 max-w-xl">
+                    Permanently delete your account, business profile, outlets, configurations, and connected integrations. Associated customer data, outlets, and account access will be removed according to our data model.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleOpenDeleteModal}
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl border border-red-700 shadow-sm transition-colors shrink-0 flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete My Account
+                </Button>
+              </div>
+            </Card>
           </motion.div>
         </motion.div>
       )}
@@ -838,6 +1032,174 @@ export default function OutletSettingsPage() {
 
       {activeTab === 'billing' && (
         <BillingTabContent />
+      )}
+
+      {/* Delete Account Modal Dialog */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slatey-150 space-y-6 relative overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slatey-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center text-red-600 shrink-0">
+                  <ShieldAlert className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slatey-900">
+                    {deleteStep === 'confirm' && 'Delete your account permanently?'}
+                    {deleteStep === 'otp' && 'Verify Account Deletion'}
+                    {deleteStep === 'deleting' && 'Deleting your account...'}
+                  </h3>
+                  <p className="text-xs text-slatey-500 mt-0.5">
+                    {deleteStep === 'confirm' && 'Requires explicit confirmation before proceeding.'}
+                    {deleteStep === 'otp' && "We've sent a 6-digit verification code to your registered email address."}
+                    {deleteStep === 'deleting' && 'Executing permanent account purging transaction.'}
+                  </p>
+                </div>
+              </div>
+              {deleteStep !== 'deleting' && (
+                <button
+                  onClick={handleCloseDeleteModal}
+                  className="text-slatey-400 hover:text-slatey-600 p-1 rounded-lg hover:bg-slatey-100 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+
+            {/* STEP 1: CONFIRMATION */}
+            {deleteStep === 'confirm' && (
+              <div className="space-y-5">
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 space-y-2">
+                  <p className="text-xs font-semibold flex items-center gap-1.5 text-red-800">
+                    <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                    This action is permanent and irreversible
+                  </p>
+                  <p className="text-xs leading-relaxed text-red-700">
+                    Deleting your account will permanently remove your account, associated business profiles, outlets, review automation configurations, connected Google credentials, and stored data according to our account deletion policy.
+                  </p>
+                </div>
+
+                <label className="flex items-start gap-3 p-3 rounded-xl border border-slatey-200 bg-slatey-50/50 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={confirmChecked}
+                    onChange={(e) => setConfirmChecked(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slatey-300 text-red-600 focus:ring-red-500"
+                  />
+                  <span className="text-xs text-slatey-700 leading-normal font-medium">
+                    I understand that this action cannot be undone and that my account and associated data will be permanently deleted.
+                  </span>
+                </label>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseDeleteModal}
+                    className="text-xs px-4 py-2.5"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleConfirmDeleteRequest}
+                    disabled={!confirmChecked || requestingOtp}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl border border-red-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {requestingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {requestingOtp ? 'Sending OTP...' : 'Continue to Email Verification →'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: OTP VERIFICATION */}
+            {deleteStep === 'otp' && (
+              <div className="space-y-6">
+                <div className="text-center space-y-1">
+                  <p className="text-xs text-slatey-600">
+                    Enter the 6-digit OTP code sent to <span className="font-bold text-slatey-900">{user?.email}</span>
+                  </p>
+                </div>
+
+                {/* 6-Digit OTP Input Box */}
+                <div className="flex items-center justify-center gap-2 sm:gap-3" onPaste={handleDigitPaste}>
+                  {otpDigits.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      ref={(el) => (otpInputRefs.current[idx] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleDigitChange(idx, e.target.value)}
+                      onKeyDown={(e) => handleDigitKeyDown(idx, e)}
+                      disabled={otpLoading}
+                      className="w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono rounded-xl border border-slatey-300 bg-white text-slatey-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 transition disabled:bg-slatey-50"
+                    />
+                  ))}
+                </div>
+
+                {/* Error Banner */}
+                {otpError && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium text-center">
+                    {otpError}
+                  </div>
+                )}
+
+                {/* Countdown & Resend Options */}
+                <div className="flex items-center justify-between text-xs text-slatey-500 pt-1 border-t border-slatey-100">
+                  <div className="flex items-center gap-1.5 font-mono text-slatey-600">
+                    <Clock className="h-3.5 w-3.5 text-slatey-400" />
+                    <span>
+                      Expires in {Math.floor(otpTimer / 60).toString().padStart(2, '0')}:{(otpTimer % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleResendOtp}
+                    disabled={resendCooldown > 0 || resendLoading}
+                    className="flex items-center gap-1 text-red-600 hover:text-red-700 font-medium disabled:text-slatey-400 disabled:cursor-not-allowed transition"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${resendLoading ? 'animate-spin' : ''}`} />
+                    {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend OTP'}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseDeleteModal}
+                    disabled={otpLoading}
+                    className="text-xs px-4 py-2.5"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleVerifyOtp}
+                    disabled={otpLoading || otpDigits.join('').length !== 6 || otpTimer === 0}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl border border-red-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                  >
+                    {otpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                    {otpLoading ? 'Verifying & Deleting...' : 'Verify & Permanently Delete'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: DELETING IN PROGRESS */}
+            {deleteStep === 'deleting' && (
+              <div className="py-8 text-center space-y-4">
+                <Loader2 className="h-12 w-12 text-red-600 animate-spin mx-auto text-center" />
+                <div className="space-y-1">
+                  <p className="text-base font-bold text-slatey-900">Deleting your account permanently...</p>
+                  <p className="text-xs text-slatey-500">Purging account credentials, outlets, and session tokens. Please wait.</p>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
       )}
     </div>
   )

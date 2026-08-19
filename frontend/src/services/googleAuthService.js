@@ -117,8 +117,11 @@ export function startGoogleOAuth(outletId, uid) {
   }
 }
 
+import { clearCachedReviewCount } from './reviewService'
+
 export async function syncBusinessData(outletId, forceRefresh = false) {
   if (!outletId) throw new Error('Outlet ID is required');
+  clearCachedReviewCount(outletId)
   console.debug('[GoogleOAuth] API call structure:', { method: 'POST', path: '/api/reviews/sync', params: ['outletId', 'forceRefresh'] })
   const { data } = await apiClient.post('/api/reviews/sync', { outletId, forceRefresh })
   return data

@@ -22,6 +22,7 @@ import {
   SendOnboardingConfirmedDto,
   SendReviewAlertDto,
   SendEscalationEmailDto,
+  SendAccountDeletionOtpDto,
 } from '../dto/email.dto';
 
 export interface EmailDispatchResult {
@@ -185,6 +186,14 @@ export class EmailService {
     return this.dispatchJob(EmailJobType.ESCALATION_ALERT, {
       ...dto,
       dashboardUrl: dto.dashboardUrl || `${this.frontendUrl}/outlet-dashboard/reviews`,
+    });
+  }
+
+  async sendAccountDeletionOtp(dto: SendAccountDeletionOtpDto): Promise<EmailDispatchResult> {
+    this.logger.log(`Queueing Account Deletion OTP email for ${dto.recipientEmail}`);
+    return this.dispatchJob(EmailJobType.ACCOUNT_DELETION_OTP, {
+      ...dto,
+      expiresInMinutes: dto.expiresInMinutes || 10,
     });
   }
 }

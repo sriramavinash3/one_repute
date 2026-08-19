@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
 import { FirebaseService } from '../firebase/firebase.service';
@@ -7,6 +7,8 @@ import { AutomationService } from '../workflow/automation.service';
 import { AIService } from '../ai/ai.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { EmailService } from '../email/services/email.service';
+import { CacheService } from '../cache/cache.service';
+import { withFirestoreBackoff } from '../../common/utils/firestore-backoff.util';
 
 @Injectable()
 export class SchedulerService implements OnModuleInit, OnModuleDestroy {
@@ -21,6 +23,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     private readonly aiService: AIService,
     private readonly whatsappService: WhatsAppService,
     private readonly emailService: EmailService,
+    @Optional() private readonly cacheService?: CacheService,
   ) {}
 
   onModuleInit() {
@@ -79,18 +82,63 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('[Scheduler] All background jobs stopped');
   }
 
+  private async withJobLock(jobName: string, ttlSeconds: number, jobFn: () => Promise<void>): Promise<void> {
+    const lockKey = `scheduler:lock:${jobName}`;
+    if (this.cacheService) {
+      try {
+        const locked = await this.cacheService.get(lockKey);
+        if (locked) {
+          this.logger.debug(`[Scheduler] Job ${jobName} is locked by another instance. Skipping.`);
+          return;
+        }
+        await this.cacheService.set(lockKey, 'locked', ttlSeconds);
+      } catch {}
+    }
+    try {
+      await jobFn();
+    } finally {
+      if (this.cacheService) {
+        try {
+          await this.cacheService.del(lockKey);
+        } catch {}
+      }
+    }
+  }
+
   // ─── Job Handlers ────────────────────────────────────────────────────────────
 
+  private escalationPausedUntil = 0;
+  private escalationBackoffMs = 5 * 60 * 1000; // 5 min initial backoff
+
   private async runEscalationJob(): Promise<void> {
+    if (Date.now() < this.escalationPausedUntil) {
+      return;
+    }
+
     try {
       const result = await this.automationService.processEscalations({
         dashboardBaseUrl: this.config.get<string>('APP_URL') || this.config.get<string>('FRONTEND_BASE_URL') || 'https://app.onerepute.com',
       });
-      if (result.processed > 0 || result.errors > 0) {
-        this.logger.log(`[Scheduler] Escalation cycle: processed=${result.processed}, errors=${result.errors}`);
+
+      if (result.isQuotaExhausted) {
+        this.escalationPausedUntil = Date.now() + this.escalationBackoffMs;
+        this.logger.warn(`[Scheduler] Quota limit encountered in escalation cycle. Pausing escalation job until ${new Date(this.escalationPausedUntil).toISOString()}`);
+        this.escalationBackoffMs = Math.min(this.escalationBackoffMs * 2, 60 * 60 * 1000);
+      } else {
+        this.escalationBackoffMs = 5 * 60 * 1000;
+        if (result.processed > 0 || result.errors > 0) {
+          this.logger.log(`[Scheduler] Escalation cycle: processed=${result.processed}, errors=${result.errors}`);
+        }
       }
     } catch (err: any) {
-      this.logger.error(`[Scheduler] Escalation job failed: ${err.message}`);
+      const isQuota = /RESOURCE_EXHAUSTED|Quota exceeded|429/i.test(err?.message || '');
+      if (isQuota) {
+        this.escalationPausedUntil = Date.now() + this.escalationBackoffMs;
+        this.logger.warn(`[Scheduler] Quota limit hit in escalation job: ${err.message}. Pausing escalation job for ${this.escalationBackoffMs / 1000}s`);
+        this.escalationBackoffMs = Math.min(this.escalationBackoffMs * 2, 60 * 60 * 1000);
+      } else {
+        this.logger.error(`[Scheduler] Escalation job failed: ${err.message}`);
+      }
     }
   }
 

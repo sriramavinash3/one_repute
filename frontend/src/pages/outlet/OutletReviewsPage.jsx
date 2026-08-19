@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Star, Sparkles, Filter, ClipboardCopy, Check, X, Clock, CheckCircle, Mail, Phone } from 'lucide-react'
+import { Search, Star, Sparkles, Filter, ClipboardCopy, Check, X, Clock, CheckCircle, Mail, Phone, CalendarDays, RotateCcw } from 'lucide-react'
 import StatusBadge from '../../components/feedback/StatusBadge'
 import EmptyState from '../../components/feedback/EmptyState'
 import Skeleton from '../../components/feedback/Skeleton'
@@ -12,6 +12,9 @@ import Button from '../../components/ui/button'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
 import { fetchReviewEscalationStatus } from '../../services/escalationService'
+import { fetchReviews, getCachedReviewCount, setCachedReviewCount } from '../../services/reviewService'
+import { DATE_PRESETS, computeDateRange, formatRangeLabel } from '../../utils/dateRange'
+import { EMPTY_COUNTS, computeStatusCounts, filterReviews } from '../../utils/reviewFilters'
 
 const TABS = [
   { key: 'all', label: 'All' },
@@ -21,6 +24,19 @@ const TABS = [
   { key: 'escalated', label: 'Escalated' },
   { key: 'failed', label: 'Failed' }
 ]
+
+// Server-side query params for the Reviews API (GET /api/reviews)
+const STATUS_API_MAP = {
+  pending: 'pending',
+  suggested: 'suggested',
+  responded: 'responded',
+  escalated: 'escalated',
+  failed: 'failed',
+}
+
+const RATING_API_MAP = { 4: '4+', 3: '3+', 1: '1-2' }
+
+const PAGE_LIMIT = 50
 
 function StarRating({ rating }) {
   return (
@@ -401,113 +417,161 @@ function ReviewDetailsDrawer({ review, onClose }) {
 
 export default function OutletReviewsPage() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [minRating, setMinRating] = useState(0)
+  const [datePreset, setDatePreset] = useState('all')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
+  const [appliedCustom, setAppliedCustom] = useState(null)
   const { outlet, profile } = useAuth()
   const [reviews, setReviews] = useState([])
-  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 })
-  const [counts, setCounts] = useState({ all: 0, pending: 0, suggested: 0, responded: 0, escalated: 0, failed: 0 })
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: PAGE_LIMIT, totalPages: 1 })
+  const [counts, setCounts] = useState(EMPTY_COUNTS)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [selectedReview, setSelectedReview] = useState(null)
+  // 'rest' (primary, server-side sort/filter/pagination) or 'firestore' (fallback)
+  const [dataSource, setDataSource] = useState('rest')
 
   const outletId = outlet?.id || profile?.outletId
 
+  // Latest-ref so drawer sync inside fetch callbacks never triggers refetches.
+  const selectedReviewRef = useRef(null)
+  useEffect(() => {
+    selectedReviewRef.current = selectedReview
+  })
+
+  // Debounce search input so each keystroke does not fire a request.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
+
+  // Resolve the selected date range in the user's local timezone.
+  const { from, to } = useMemo(
+    () => computeDateRange(datePreset, datePreset === 'custom' ? appliedCustom : null),
+    [datePreset, appliedCustom]
+  )
+  const isDateFilterActive = Boolean(from || to)
+
+  const isSessionOutletRemoved = outlet?.status === 'removed' || outlet?.isDeleted === true
+
+  const lastFetchKeyRef = useRef('')
+
+  // Pre-populate total count from sessionStorage cache if available for this outlet
+  useEffect(() => {
+    if (!outletId) return
+    const cachedCount = getCachedReviewCount(outletId)
+    if (cachedCount !== null && cachedCount > 0) {
+      setPagination((prev) => ({
+        ...prev,
+        total: cachedCount,
+        totalPages: Math.ceil(cachedCount / PAGE_LIMIT) || 1,
+      }))
+    }
+  }, [outletId])
+
+  // Data loading: REST API primary with database-level 50-item limit & offset pagination
   useEffect(() => {
     if (USE_MOCK_DATA) {
-      setReviews(MOCK_REVIEWS)
+      const allFiltered = filterReviews(MOCK_REVIEWS, { activeTab, minRating, search: debouncedSearch, from, to })
+      const total = allFiltered.length
+      const totalPages = Math.ceil(total / PAGE_LIMIT) || 1
+      const clampedPage = Math.min(Math.max(page, 1), totalPages)
+      const start = (clampedPage - 1) * PAGE_LIMIT
+      const paginatedData = allFiltered.slice(start, start + PAGE_LIMIT)
+
+      setReviews(paginatedData)
+      setPagination({ total, page: clampedPage, limit: PAGE_LIMIT, totalPages })
+      setCounts(computeStatusCounts(allFiltered))
       setLoading(false)
       return
     }
 
-    if (!outletId) {
+    if (!outletId || isSessionOutletRemoved) {
       setReviews([])
+      setCounts(EMPTY_COUNTS)
       setLoading(false)
       return
     }
 
-    // Defence-in-depth: if the session outlet has been removed, do not subscribe to its reviews
-    if (outlet?.status === 'removed' || outlet?.isDeleted === true) {
-      setReviews([])
-      setLoading(false)
+    const fetchKey = JSON.stringify({
+      outletId,
+      page,
+      activeTab,
+      minRating,
+      debouncedSearch,
+      from: from ? from.toISOString() : null,
+      to: to ? to.toISOString() : null,
+    })
+
+    if (lastFetchKeyRef.current === fetchKey) {
       return
     }
+    lastFetchKeyRef.current = fetchKey
 
+    let cancelled = false
     setLoading(true)
-    let q = query(
-      collection(db, 'reviews'),
-      where('outletId', '==', outletId),
-      orderBy('createdAt', 'desc'),
-      limit(100)
-    )
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snap) => {
-        let data = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
+    const params = {
+      outletId,
+      page,
+      limit: PAGE_LIMIT,
+      sort: 'date_desc',
+    }
+    if (activeTab !== 'all') params.status = STATUS_API_MAP[activeTab]
+    if (minRating) params.rating = RATING_API_MAP[minRating]
+    if (debouncedSearch) params.search = debouncedSearch
+    if (from) params.from = from.toISOString()
+    if (to) params.to = to.toISOString()
 
-        // Tab/status filter
-        if (activeTab !== 'all') {
-          if (activeTab === 'escalated') {
-            // Include both legacy escalated and new levels
-            data = data.filter((r) => r.status === 'escalated' || (r.escalationStatus && r.escalationStatus !== 'no_escalation' && r.escalationStatus !== 'resolved'))
-          } else {
-            data = data.filter((r) => (r.status || 'pending') === activeTab)
-          }
+    fetchReviews(params)
+      .then((res) => {
+        if (cancelled) return
+
+        const total = res?.totalReviews ?? res?.pagination?.total ?? (Array.isArray(res?.data) ? res.data.length : 0)
+        const totalPages = res?.totalPages ?? res?.pagination?.totalPages ?? (Math.ceil(total / PAGE_LIMIT) || 1)
+        const currentPage = res?.currentPage ?? res?.pagination?.page ?? page
+
+        // Update sessionStorage count cache
+        if (typeof total === 'number' && total >= 0) {
+          setCachedReviewCount(outletId, total)
         }
 
-        // Rating filter
-        if (minRating === 4) {
-          data = data.filter((r) => Number(r.rating || 0) >= 4)
-        } else if (minRating === 3) {
-          data = data.filter((r) => Number(r.rating || 0) >= 3)
-        } else if (minRating === 1) {
-          data = data.filter((r) => Number(r.rating || 0) <= 2)
+        // Clamp the page if filters reduce result set below current page
+        if (page > 1 && totalPages > 0 && page > totalPages) {
+          setPage(totalPages)
+          return
         }
 
-        // Search filter
-        if (searchQuery) {
-          const qstr = searchQuery.toLowerCase()
-          data = data.filter(
-            (r) =>
-              (r.customerName || '').toLowerCase().includes(qstr) ||
-              (r.text || '').toLowerCase().includes(qstr)
-          )
-        }
+        const items = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res.slice(0, PAGE_LIMIT) : [])
 
-        setReviews(data)
-        setPagination({ total: data.length, page: 1, limit: 100, totalPages: 1 })
-        
-        // Count statuses
-        const counts = { all: 0, pending: 0, suggested: 0, responded: 0, escalated: 0, failed: 0 }
-        data.forEach((r) => {
-          const st = r.status || 'pending'
-          counts[st] = (counts[st] || 0) + 1
-          if (r.escalationStatus && r.escalationStatus !== 'no_escalation' && r.escalationStatus !== 'resolved') {
-            counts.escalated++
-          }
-          counts.all++
-        })
-        setCounts(counts)
-        setLoading(false)
+        setReviews(items)
+        setPagination({ total, page: currentPage, limit: PAGE_LIMIT, totalPages })
+        setCounts({ ...EMPTY_COUNTS, ...(res?.counts || {}) })
 
-        // Sync currently opened drawer review details if it updates
-        if (selectedReview) {
-          const updated = data.find(r => r.id === selectedReview.id)
+        if (selectedReviewRef.current) {
+          const updated = items.find((r) => r.id === selectedReviewRef.current.id)
           if (updated) setSelectedReview(updated)
         }
-      },
-      () => {
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.warn('[OutletReviews] REST API fetch failed:', err?.message)
+        // Reset key so user/retry can re-attempt if network drops
+        lastFetchKeyRef.current = ''
         setReviews([])
-        setLoading(false)
-      }
-    )
-    return () => unsubscribe()
-  }, [outletId, outlet?.status, outlet?.isDeleted, activeTab, minRating, searchQuery])
+        setCounts(EMPTY_COUNTS)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
 
+    return () => {
+      cancelled = true
+    }
+  }, [outletId, isSessionOutletRemoved, page, activeTab, minRating, debouncedSearch, from, to])
 
   const filtered = reviews
 
@@ -525,6 +589,37 @@ export default function OutletReviewsPage() {
     setActiveTab(val)
     setPage(1)
   }
+
+  const handlePresetChange = (val) => {
+    setDatePreset(val)
+    setPage(1)
+  }
+
+  const handleApplyCustom = () => {
+    if (!customStart || !customEnd) return
+    if (customStart > customEnd) return
+    setAppliedCustom({ start: customStart, end: customEnd })
+    setPage(1)
+  }
+
+  const handleClearDateFilter = () => {
+    setDatePreset('all')
+    setCustomStart('')
+    setCustomEnd('')
+    setAppliedCustom(null)
+    setPage(1)
+  }
+
+  const resetAllFilters = () => {
+    setSearchQuery('')
+    setDebouncedSearch('')
+    setActiveTab('all')
+    setMinRating(0)
+    handleClearDateFilter()
+  }
+
+  const hasActiveFilters =
+    isDateFilterActive || activeTab !== 'all' || minRating !== 0 || Boolean(debouncedSearch)
 
   return (
     <div className="space-y-5 relative">
@@ -557,6 +652,72 @@ export default function OutletReviewsPage() {
             <option value={1}>1-2 stars</option>
           </select>
         </div>
+      </div>
+
+      {/* Date Range Filter */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slatey-200 bg-white/80 px-3 py-2">
+        <CalendarDays className="h-4 w-4 shrink-0 text-slatey-400" />
+        <select
+          value={datePreset}
+          onChange={(e) => handlePresetChange(e.target.value)}
+          className="rounded-lg border border-slatey-200 bg-white/80 px-2.5 py-1.5 text-sm text-slatey-700 outline-none focus:border-brand-400"
+        >
+          {DATE_PRESETS.map((p) => (
+            <option key={p.key} value={p.key}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+
+        {datePreset === 'custom' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={customStart}
+              onChange={(e) => setCustomStart(e.target.value)}
+              className="rounded-lg border border-slatey-200 bg-white/80 px-2.5 py-1.5 text-sm text-slatey-700 outline-none focus:border-brand-400"
+            />
+            <span className="text-xs text-slatey-400">→</span>
+            <input
+              type="date"
+              value={customEnd}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              className="rounded-lg border border-slatey-200 bg-white/80 px-2.5 py-1.5 text-sm text-slatey-700 outline-none focus:border-brand-400"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs font-semibold"
+              disabled={!customStart || !customEnd || customStart > customEnd}
+              onClick={handleApplyCustom}
+            >
+              Apply
+            </Button>
+            {customStart && customEnd && customStart > customEnd && (
+              <span className="text-[11px] font-medium text-rose-600">End date must be on or after start date</span>
+            )}
+          </div>
+        )}
+
+        {isDateFilterActive && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
+            {formatRangeLabel(from, to)}
+          </span>
+        )}
+
+        {isDateFilterActive && (
+          <button
+            type="button"
+            onClick={handleClearDateFilter}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slatey-500 transition hover:text-slatey-800"
+          >
+            <RotateCcw className="h-3 w-3" /> Clear
+          </button>
+        )}
+
+        <span className="ml-auto hidden text-[11px] font-medium text-slatey-400 sm:inline">
+          Sorted: newest first
+        </span>
       </div>
 
       {/* Tabs */}
@@ -597,8 +758,14 @@ export default function OutletReviewsPage() {
           </motion.div>
         ) : (
           <EmptyState
-            title="No reviews yet"
-            description="Waiting for the first sync. New reviews will appear automatically."
+            title={hasActiveFilters ? 'No reviews match your filters' : 'No reviews yet'}
+            description={
+              hasActiveFilters
+                ? 'Try widening the date range or clearing your filters.'
+                : 'Waiting for the first sync. New reviews will appear automatically.'
+            }
+            actionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+            onAction={hasActiveFilters ? resetAllFilters : undefined}
           />
         )}
       </AnimatePresence>
@@ -625,7 +792,7 @@ export default function OutletReviewsPage() {
       </AnimatePresence>
 
       {/* Pagination Controls */}
-      {!loading && filtered.length > 0 && pagination.totalPages > 1 && (
+      {!loading && reviews.length > 0 && pagination.total > 50 && pagination.totalPages > 1 && (
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slatey-100 bg-white/80 px-5 py-4 shadow-sm">
           <p className="text-xs text-slatey-500">
             Showing <span className="font-semibold text-slatey-700">{((page - 1) * pagination.limit) + 1}</span> to{' '}

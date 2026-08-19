@@ -206,13 +206,6 @@ export class ReviewSyncService {
 
       if (knownHashes.has(reviewHash)) continue;
 
-      // Check DB dedup
-      const exists = await this.reviewExistsInFirestore(db, outlet.id, providerReviewId, reviewHash);
-      if (exists) {
-        knownHashes.add(reviewHash);
-        continue;
-      }
-
       // Parse the original Google timestamp — NOT insertion timestamp
       const parsedTimestamp = reviewTimestamp ? new Date(reviewTimestamp) : new Date();
 

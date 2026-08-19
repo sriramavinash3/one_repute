@@ -20,29 +20,41 @@ export class EmailQueueService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const config = loadEmailConfig();
     try {
-      this.redisClient = new Redis({
-        host: config.redis.host,
-        port: config.redis.port,
-        password: config.redis.password,
+      const options = {
         maxRetriesPerRequest: null,
         enableOfflineQueue: false,
-        retryStrategy: (times) => {
+        retryStrategy: (times: number) => {
           if (times > 3) {
             this.logger.warn(`Redis connection failed after ${times} retries. Switching queue to local direct mode.`);
             return null; // Stop retrying
           }
           return Math.min(times * 500, 2000);
         },
-      });
+      };
+
+      if (config.redis.url) {
+        this.redisClient = new Redis(config.redis.url, options);
+      } else {
+        this.redisClient = new Redis({
+          host: config.redis.host,
+          port: config.redis.port,
+          password: config.redis.password,
+          ...options,
+        });
+      }
 
       this.redisClient.on('connect', () => {
         this.isConnected = true;
-        this.logger.log(`Connected to Redis at ${config.redis.host}:${config.redis.port}`);
+        this.logger.log(`Connected to Redis at ${config.redis.url ? 'REDIS_URL' : `${config.redis.host}:${config.redis.port}`}`);
       });
 
+      let errCount = 0;
       this.redisClient.on('error', (err) => {
         this.isConnected = false;
-        this.logger.warn(`Redis Error: ${err.message}`);
+        errCount++;
+        if (errCount <= 3) {
+          this.logger.warn(`Redis Error (${errCount}/3): ${err.message}`);
+        }
       });
 
       this.queue = new Queue(config.queue.name, {

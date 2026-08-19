@@ -218,18 +218,17 @@ export class AutomationService {
    * Process pending escalations — called by the scheduler every minute.
    * Replicates the full logic of legacy escalationCron.js.
    */
-  async processEscalations(params: EscalationCheckParams = {}): Promise<{ processed: number; errors: number }> {
+  async processEscalations(params: EscalationCheckParams = {}): Promise<{ processed: number; errors: number; isQuotaExhausted?: boolean }> {
     const { dashboardBaseUrl = process.env.APP_URL || 'https://app.onerepute.com' } = params;
 
     const db = this.firebaseService.getDb();
     const now = new Date();
 
-    // Fetch all reviews pending escalation (filtered in memory to avoid Firestore composite index requirement)
     let docs: admin.firestore.QueryDocumentSnapshot[] = [];
     try {
       const querySnap = await db.collection('reviews')
         .where('escalationStatus', 'in', ['level_1_pending', 'level_2_pending', 'level_3_pending'])
-        .limit(100)
+        .limit(50)
         .get();
 
       docs = querySnap.docs.filter((doc) => {
@@ -239,15 +238,19 @@ export class AutomationService {
         return nextTime <= now;
       });
     } catch (err: any) {
+      const isQuota = /RESOURCE_EXHAUSTED|Quota exceeded|429/i.test(err?.message || '');
       this.logger.error(`[Automation] Failed to query escalations: ${err.message}`);
-      return { processed: 0, errors: 1 };
+      return { processed: 0, errors: 1, isQuotaExhausted: isQuota };
     }
 
     let processed = 0, errors = 0;
+    const outletCache = new Map<string, any>();
+    const customerCache = new Map<string, any>();
+    const settingsCache = new Map<string, any>();
 
     for (const doc of docs) {
       try {
-        await this.processOneEscalation(doc, db, dashboardBaseUrl);
+        await this.processOneEscalation(doc, db, dashboardBaseUrl, { outletCache, customerCache, settingsCache });
         processed++;
       } catch (err: any) {
         this.logger.error(`[Automation] Escalation failed for review ${doc.id}: ${err.message}`);
@@ -262,7 +265,12 @@ export class AutomationService {
     return { processed, errors };
   }
 
-  private async processOneEscalation(doc: any, db: any, dashboardBaseUrl: string): Promise<void> {
+  private async processOneEscalation(
+    doc: any,
+    db: any,
+    dashboardBaseUrl: string,
+    caches?: { outletCache?: Map<string, any>; customerCache?: Map<string, any>; settingsCache?: Map<string, any> },
+  ): Promise<void> {
     const data = doc.data();
     const reviewId = doc.id;
 
@@ -272,13 +280,17 @@ export class AutomationService {
       return;
     }
 
-    // 2. Load outlet + customer plan
-    const outletSnap = await db.collection('outlets').doc(data.outletId).get();
-    if (!outletSnap.exists) {
-      await doc.ref.update({ escalationStatus: 'completed' });
-      return;
+    // 2. Load outlet + customer plan with in-memory cycle cache
+    let outlet = caches?.outletCache?.get(data.outletId);
+    if (!outlet) {
+      const outletSnap = await db.collection('outlets').doc(data.outletId).get();
+      if (!outletSnap.exists) {
+        await doc.ref.update({ escalationStatus: 'completed' });
+        return;
+      }
+      outlet = outletSnap.data();
+      if (caches?.outletCache) caches.outletCache.set(data.outletId, outlet);
     }
-    const outlet = outletSnap.data();
 
     // Guard: stop escalation processing for removed or deleted outlets
     if (outlet?.status === 'removed' || outlet?.isDeleted === true || outlet?.status === 'deleted') {
@@ -291,9 +303,15 @@ export class AutomationService {
     let maxLevel = getPlanMaxLevel('starter'); // Default to 1 (Starter) if customer details not resolved
     if (customerId) {
       try {
-        const customerSnap = await db.collection('customers').doc(customerId).get();
-        if (customerSnap.exists) {
-          const customer = customerSnap.data() || {};
+        let customer = caches?.customerCache?.get(customerId);
+        if (!customer) {
+          const customerSnap = await db.collection('customers').doc(customerId).get();
+          if (customerSnap.exists) {
+            customer = customerSnap.data() || {};
+            if (caches?.customerCache) caches.customerCache.set(customerId, customer);
+          }
+        }
+        if (customer) {
           const planName = customer.planName || customer.plan || 'starter';
           maxLevel = getPlanMaxLevel(planName);
           // Check subscription still active
@@ -320,7 +338,7 @@ export class AutomationService {
     }
 
     // 3. Build escalation contacts for this level
-    const escalationContacts = await this.getEscalationContactsAsync(currentLevel, data.outletId, outlet);
+    const escalationContacts = await this.getEscalationContactsAsync(currentLevel, data.outletId, outlet, caches?.settingsCache);
     if (!escalationContacts.length) {
       this.logger.warn(`[Automation] No valid escalation contacts configured for Level ${currentLevel}, outlet ${data.outletId}`);
       await doc.ref.update({ escalationStatus: 'completed' });
@@ -375,7 +393,7 @@ export class AutomationService {
 
     // 5. Advance escalation level
     const nextLevel = currentLevel + 1;
-    const intervalMs = await this.getEscalationIntervalAsync(nextLevel, data.outletId);
+    const intervalMs = await this.getEscalationIntervalAsync(nextLevel, data.outletId, caches?.settingsCache);
     const nextEscalationTime = new Date(Date.now() + intervalMs);
 
     if (nextLevel > maxLevel) {
@@ -396,9 +414,13 @@ export class AutomationService {
     }
   }
 
-  private async getEscalationContactsAsync(level: number, outletId: string, outlet: any): Promise<Array<{ phone?: string; email?: string }>> {
+  private async getEscalationContactsAsync(level: number, outletId: string, outlet: any, settingsCache?: Map<string, any>): Promise<Array<{ phone?: string; email?: string }>> {
     try {
-      const settings = await this.escalationService.getSettings(outletId);
+      let settings = settingsCache?.get(outletId);
+      if (!settings) {
+        settings = await this.escalationService.getSettings(outletId);
+        if (settingsCache) settingsCache.set(outletId, settings);
+      }
       if (!settings.masterEnabled) return [];
 
       const lvlConfig = settings.levels.find(l => l.level === level);
@@ -440,9 +462,13 @@ export class AutomationService {
     return contacts.filter((c) => c.phone || c.email);
   }
 
-  private async getEscalationIntervalAsync(level: number, outletId: string): Promise<number> {
+  private async getEscalationIntervalAsync(level: number, outletId: string, settingsCache?: Map<string, any>): Promise<number> {
     try {
-      const settings = await this.escalationService.getSettings(outletId);
+      let settings = settingsCache?.get(outletId);
+      if (!settings) {
+        settings = await this.escalationService.getSettings(outletId);
+        if (settingsCache) settingsCache.set(outletId, settings);
+      }
       const lvlConfig = settings.levels.find(l => l.level === level);
       if (lvlConfig && lvlConfig.escalationMinutes) {
         return lvlConfig.escalationMinutes * 60 * 1000;

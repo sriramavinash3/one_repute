@@ -16,6 +16,7 @@ export enum EmailJobType {
   ONBOARDING_CONFIRMED = 'send-onboarding-confirmed-email',
   REVIEW_ALERT = 'send-review-alert-email',
   ESCALATION_ALERT = 'send-escalation-alert-email',
+  ACCOUNT_DELETION_OTP = 'send-account-deletion-otp',
 }
 
 export interface BaseEmailJobData {
@@ -113,6 +114,12 @@ export interface EscalationAlertJobData extends BaseEmailJobData {
   dashboardUrl?: string;
 }
 
+export interface AccountDeletionOtpJobData extends BaseEmailJobData {
+  userName?: string;
+  otpCode: string;
+  expiresInMinutes?: number;
+}
+
 export type EmailJobPayload =
   | { type: EmailJobType.WELCOME; data: WelcomeJobData }
   | { type: EmailJobType.VERIFICATION; data: VerificationJobData }
@@ -124,4 +131,5 @@ export type EmailJobPayload =
   | { type: EmailJobType.FIFTEEN_DAY_REPORT; data: FifteenDayReportJobData }
   | { type: EmailJobType.ONBOARDING_CONFIRMED; data: OnboardingConfirmedJobData }
   | { type: EmailJobType.REVIEW_ALERT; data: ReviewAlertJobData }
-  | { type: EmailJobType.ESCALATION_ALERT; data: EscalationAlertJobData };
+  | { type: EmailJobType.ESCALATION_ALERT; data: EscalationAlertJobData }
+  | { type: EmailJobType.ACCOUNT_DELETION_OTP; data: AccountDeletionOtpJobData };

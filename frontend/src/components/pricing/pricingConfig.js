@@ -114,7 +114,7 @@ export const PLAN_FEATURE_COMPARISON = [
   { feature: 'Positive Review Replies', starter: true, growth: true, premium: true },
   { feature: 'WhatsApp Escalation Alert', starter: '1 Level', growth: '2 Levels', premium: '3 Levels' },
   { feature: 'Smart QR', starter: false, growth: true, premium: true },
-  { feature: 'Sentiment Analysis', starter: 'Basic', growth: true, premium: 'Advanced' },
+  { feature: 'Sentiment Analysis', starter: 'Basic', growth: 'Advanced', premium: 'Advanced' },
   { feature: 'Review Dashboard', starter: 'Basic', growth: 'Full Dashboard', premium: 'Advanced Dashboard' },
   { feature: 'Monthly Report', starter: 'Comprehensive Summary', growth: 'Detailed Report with Sentiment Analysis', premium: 'Strategy Report with Action Plan' },
   { feature: 'Keyword Tracking', starter: false, growth: true, premium: true },

@@ -20,7 +20,7 @@ import { formatTimestamp } from '../../utils/format'
 import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
 import { useSubscription } from '../../contexts/SubscriptionContext'
-import { fetchReviews } from '../../services/reviewService'
+import { fetchReviews, fetchReviewCount } from '../../services/reviewService'
 import HistoricalReviewSection from '../../components/dashboard/HistoricalReviewSection'
 
 const stagger = {
@@ -39,6 +39,31 @@ export default function OutletDashboardPage() {
   const reviews = useAppStore((state) => state.reviews)
   const setReviews = useAppStore((state) => state.setReviews)
   const outletId = outlet?.id || profile?.outletId
+
+  // Authoritative Total Reviews count from the backend (DB-level COUNT),
+  // independent of the paginated/Firestore-limited reviews array.
+  const [totalReviews, setTotalReviews] = useState(null)
+  const [isLoadingCount, setIsLoadingCount] = useState(false)
+  const [countError, setCountError] = useState(null)
+
+  // Reset total reviews state when the active outlet changes
+  useEffect(() => {
+    setTotalReviews(null)
+    setCountError(null)
+  }, [outletId])
+
+  // Mock mode and guarded (no/removed outlet) states are derived, not stored:
+  // the count is always a real number there and the effect keeps a single sync
+  // setState per branch.
+  const displayTotalReviews = USE_MOCK_DATA
+    ? MOCK_REVIEWS.length
+    : !outletId || outlet?.status === 'removed' || outlet?.isDeleted === true
+      ? 0
+      : totalReviews != null
+        ? totalReviews
+        : reviews.length > 0
+          ? reviews.length
+          : null
   
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const plan = billingInfo?.subscription?.plan || 'plan_starter'
@@ -54,22 +79,56 @@ export default function OutletDashboardPage() {
 
     if (!outletId) {
       setReviews([])
+      setTotalReviews(0)
       return
     }
 
     // Defence-in-depth: if the session outlet has been removed, do not subscribe to its reviews
     if (outlet?.status === 'removed' || outlet?.isDeleted === true) {
       setReviews([])
+      setTotalReviews(0)
       return
+    }
+
+    // Helper to fetch the authoritative review count from the REST API.
+    // Refreshed on every snapshot so new/deleted reviews are reflected.
+    const loadCount = () => {
+      setIsLoadingCount(true)
+      fetchReviewCount(outletId)
+        .then((res) => {
+          const count = typeof res?.totalReviews === 'number'
+            ? res.totalReviews
+            : typeof res?.total === 'number'
+              ? res.total
+              : null
+
+          if (count !== null) {
+            setTotalReviews(count)
+            setCountError(null)
+          } else {
+            console.warn('[OutletDashboard] unexpected review count response format:', res)
+          }
+        })
+        .catch((err) => {
+          console.warn('[OutletDashboard] review count fetch failed:', err?.message)
+          setCountError(err)
+        })
+        .finally(() => {
+          setIsLoadingCount(false)
+        })
     }
 
     // Helper to fetch from REST API fallback
     const loadFromApi = () => {
-      fetchReviews({ outletId, limit: 200 })
+      fetchReviews({ outletId, limit: 10000 })
         .then((res) => {
           if (res?.data && Array.isArray(res.data)) {
             setReviews(res.data)
           }
+          if (typeof res?.pagination?.total === 'number') {
+            setTotalReviews(res.pagination.total)
+          }
+          loadCount()
         })
         .catch((err) => {
           console.warn('[OutletDashboard] REST API fallback failed:', err?.message)
@@ -78,10 +137,10 @@ export default function OutletDashboardPage() {
 
     const q = query(
       collection(db, 'reviews'),
-      where('outletId', '==', outletId),
-      orderBy('createdAt', 'desc'),
-      limit(200)
+      where('outletId', '==', outletId)
     )
+
+    loadCount()
 
     const unsubscribe = onSnapshot(
       q,
@@ -92,7 +151,14 @@ export default function OutletDashboardPage() {
           loadFromApi()
         } else {
           const items = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+          items.sort((a, b) => {
+            const timeA = a.reviewTimestamp?.toDate?.()?.getTime() || (a.reviewTimestamp ? new Date(a.reviewTimestamp).getTime() : 0) || a.createdAt?.toDate?.()?.getTime() || 0
+            const timeB = b.reviewTimestamp?.toDate?.()?.getTime() || (b.reviewTimestamp ? new Date(b.reviewTimestamp).getTime() : 0) || b.createdAt?.toDate?.()?.getTime() || 0
+            return timeB - timeA
+          })
           setReviews(items)
+          setTotalReviews(items.length)
+          loadCount()
         }
       },
       (err) => {
@@ -122,15 +188,23 @@ export default function OutletDashboardPage() {
   const fourteenDaysAgo = new Date()
     fourteenDaysAgo.setDate(now.getDate() - 14)
 
-    const currentWeekReviews = reviews.filter((review) => {
-    const date = review.createdAt?.toDate?.()
+    const parseReviewDate = (review) => {
+    if (!review) return null
+    if (review.reviewTimestamp?.toDate) return review.reviewTimestamp.toDate()
+    if (review.createdAt?.toDate) return review.createdAt.toDate()
+    const val = review.reviewTimestamp || review.createdAt
+    if (!val) return null
+    const d = new Date(val)
+    return isNaN(d.getTime()) ? null : d
+  }
 
+  const currentWeekReviews = reviews.filter((review) => {
+    const date = parseReviewDate(review)
     return date && date >= sevenDaysAgo
   })
 
   const previousWeekReviews = reviews.filter((review) => {
-    const date = review.createdAt?.toDate?.()
-
+    const date = parseReviewDate(review)
     return (
       date &&
       date >= fourteenDaysAgo &&
@@ -215,7 +289,15 @@ export default function OutletDashboardPage() {
         <motion.div variants={fadeUp}>
           <StatCard
             title="Total reviews"
-            value={reviews.length > 0 ? `${reviews.length}` : 'N/A'}
+            value={
+              displayTotalReviews != null
+                ? `${displayTotalReviews}`
+                : isLoadingCount
+                  ? '...'
+                  : countError
+                    ? 'N/A'
+                    : '...'
+            }
             delta={
               reviewDelta > 0
                 ? `+${reviewDelta} this week`

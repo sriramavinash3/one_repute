@@ -103,31 +103,74 @@ Authorization: Bearer <Firebase_ID_Token>
 
 ### C. Reviews & AI Automation (`/api/reviews`)
 
-#### 1. Retrieve Historical Reviews
+#### 1. Retrieve Reviews (sorted + filterable)
 *   **Endpoint:** `GET /api/reviews`
 *   **Query Parameters:**
     *   `outletId`: String (Filter by outlet)
-    *   `sentiment`: `positive` | `negative` | `neutral`
-    *   `status`: `pending` | `replied` | `escalated`
+    *   `status`: `pending` | `suggested` | `responded` | `escalated` | `failed`
+    *   `rating`: `4+` (≥4) | `3+` (≥3) | `1-2` (≤2) | exact value `1..5`
+    *   `search`: String (customer name / review text, case-insensitive contains)
+    *   `sort`: `date_desc` (default, newest first) | `date_asc` (oldest first)
+    *   `from`: Date filter start. ISO datetime (e.g. `2026-08-01T18:30:00.000Z`)
+        or bare `YYYY-MM-DD` (interpreted as UTC midnight of that day)
+    *   `to`: Date filter end. ISO datetime or bare `YYYY-MM-DD` (interpreted as
+        UTC end-of-day `23:59:59.999`, so the selected day is fully included)
+    *   `page`: Number (1-based, default 1)
+    *   `limit`: Number (default 10)
+*   **Sorting:** Reviews are always sorted by the original Google review date
+    (`reviewTimestamp`), never by display-formatted strings. Identical
+    timestamps are tie-broken by `id` (DESC for `date_desc`, ASC for
+    `date_asc`) so pagination never skips or duplicates rows.
+*   **Date ranges:** `from`/`to` are applied against `reviewTimestamp`.
+    Invalid or reversed ranges (`from` > `to`) return an empty result set.
 *   **Response (200 OK):**
     ```json
     {
-      "reviews": [
+      "data": [
         {
-          "reviewId": "rev_998877",
-          "author": "John Doe",
+          "id": "rev_998877",
+          "customerName": "John Doe",
           "rating": 5,
-          "comment": "Amazing food and super fast service!",
-          "sentiment": "positive",
-          "aiResponse": "Thank you John! We are glad you loved the food. Hope to see you again soon!",
-          "status": "replied",
-          "repliedAt": "2026-07-15T10:15:30Z"
+          "text": "Amazing food and super fast service!",
+          "reviewTimestamp": "2026-07-15T10:15:30.000Z",
+          "status": "responded",
+          "aiResponse": "Thank you John! We are glad you loved the food.",
+          "requiresManualReply": false,
+          "isEscalated": false,
+          "hasFailed": false
         }
-      ]
+      ],
+      "pagination": { "total": 42, "page": 1, "limit": 10, "totalPages": 5 },
+      "counts": { "all": 42, "pending": 10, "suggested": 12, "responded": 18, "escalated": 1, "failed": 1 }
     }
     ```
+*   **Examples:**
+    *   Newest reviews for an outlet: `GET /api/reviews?outletId=abc&sort=date_desc`
+    *   July 2026 for an outlet: `GET /api/reviews?outletId=abc&from=2026-07-01&to=2026-07-31`
+    *   Exact 2-day window (timezone-precise): `GET /api/reviews?from=2026-08-13T00:00:00.000Z&to=2026-08-14T23:59:59.999Z`
+    *   Page 3 of 20 per page within a range: `GET /api/reviews?outletId=abc&from=2026-07-01&to=2026-07-31&page=3&limit=20`
 
-#### 2. Submit AI Review Reply manually
+#### 2. Authoritative Review Count for an Outlet
+*   **Endpoint:** `GET /api/reviews/count?outletId=abc`
+*   **Description:** Returns the exact Total Reviews count for one outlet using a
+    database-level `COUNT` (Prisma/PostgreSQL primary; Firestore aggregate
+    `count()` fallback). Never loads review rows, so it is not capped by any
+    pagination or list limit. Uses the same outlet scope and eligibility rules
+    as the reviews list, so the KPI always matches the list's `pagination.total`.
+*   **Query Parameters:**
+    *   `outletId`: String (**required** — a missing outletId returns `400` and
+        never an unscoped global count)
+*   **Authorization:** The outlet must belong to the authenticated user's
+    customer scope. Accessing another customer's outlet returns `403 Forbidden`.
+    Admins are exempt from the ownership check.
+*   **Response (200 OK):**
+    ```json
+    { "outletId": "abc", "totalReviews": 42, "total": 42 }
+    ```
+*   **Errors:** `400` (missing `outletId`), `403` (outlet belongs to another
+    customer), `404` (outlet not found / inactive / removed), `500` (failure).
+
+#### 3. Submit AI Review Reply manually
 *   **Endpoint:** `POST /api/reviews/:id/reply`
 *   **Description:** Manually review, override or submit the AI generated response directly to the source provider (Google Business profile).
 *   **Payload:**

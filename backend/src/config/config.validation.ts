@@ -22,6 +22,7 @@ export const configValidationSchema = Joi.object({
   DATABASE_URL: Joi.string().optional(),
 
   // Redis & BullMQ
+  REDIS_URL: Joi.string().optional(),
   REDIS_HOST: Joi.string().default('localhost'),
   REDIS_PORT: Joi.number().default(6379),
   REDIS_PASSWORD: Joi.string().allow('').optional(),

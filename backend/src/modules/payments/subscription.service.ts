@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanService } from './plan.service';
 import { PaymentsConfigService } from './payments-config.service';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class SubscriptionService {
@@ -13,19 +14,32 @@ export class SubscriptionService {
     private readonly prismaService: PrismaService,
     private readonly planService: PlanService,
     private readonly configService: PaymentsConfigService,
+    @Optional() private readonly cacheService?: CacheService,
   ) {}
 
-  private invalidateCache() {
-    this.logger.debug('[SubscriptionService] Cache invalidated');
+  private async invalidateCache(customerId?: string) {
+    this.logger.debug(`[SubscriptionService] Cache invalidated for ${customerId || 'all'}`);
+    if (customerId && this.cacheService) {
+      try {
+        await this.cacheService.del(`subscription:${customerId}`);
+      } catch {}
+    }
   }
 
   async getBillingInfo(customerId: string) {
+    const cacheKey = `subscription:${customerId}`;
+    if (this.cacheService) {
+      try {
+        const cached = await this.cacheService.get(cacheKey);
+        if (cached) return cached;
+      } catch {}
+    }
+
     const db = this.firebaseService.getDb();
 
-    const [customerSnap, usageSnap, plansSnap] = await Promise.all([
+    const [customerSnap, usageSnap] = await Promise.all([
       db.collection('customers').doc(customerId).get(),
       db.collection('customerUsage').doc(customerId).get(),
-      db.collection('plans').get(),
     ]);
 
     const customer = customerSnap.exists ? customerSnap.data() : {
@@ -86,7 +100,7 @@ export class SubscriptionService {
       return dateB.getTime() - dateA.getTime();
     });
 
-    return {
+    const result = {
       subscription: {
         plan: currentPlan,
         scheduledPlan,
@@ -112,6 +126,14 @@ export class SubscriptionService {
       plans,
       invoices,
     };
+
+    if (this.cacheService) {
+      try {
+        await this.cacheService.set(cacheKey, result, 600); // 10 min TTL
+      } catch {}
+    }
+
+    return result;
   }
 
   async changePlan(customerId: string, newPlanId: string, billingCycle: string = 'monthly') {

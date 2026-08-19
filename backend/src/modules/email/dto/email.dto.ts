@@ -115,3 +115,11 @@ export interface SendEscalationEmailDto {
   userId?: string;
   dashboardUrl?: string;
 }
+
+export interface SendAccountDeletionOtpDto {
+  recipientEmail: string;
+  otpCode: string;
+  userName?: string;
+  userId?: string;
+  expiresInMinutes?: number;
+}

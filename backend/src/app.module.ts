@@ -32,6 +32,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
 
 import { EscalationModule } from './modules/escalation/escalation.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AccountModule } from './modules/account/account.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AdminModule } from './modules/admin/admin.module';
     // Features (Phases 1-4)
     EmailModule,
     AuthModule,
+    AccountModule,
     PaymentsModule,
     WebhookModule,
     GoogleBusinessModule,

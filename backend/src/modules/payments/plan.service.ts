@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Request } from 'express';
 import { FirebaseService } from '../firebase/firebase.service';
 import { PaymentsConfigService } from './payments-config.service';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class PlanService {
@@ -10,6 +11,7 @@ export class PlanService {
   constructor(
     private readonly firebaseService: FirebaseService,
     private readonly configService: PaymentsConfigService,
+    @Optional() private readonly cacheService?: CacheService,
   ) {}
 
   detectCountry(req: Request, customerData?: any, userData?: any, outletData?: any): string {
@@ -210,16 +212,37 @@ export class PlanService {
   }
 
 
+  private allPlansCache = new Map<string, { data: any; expiresAt: number }>();
+
   async getAllPlans(countryCode: string = 'IN') {
+    const normCountry = countryCode.toUpperCase();
+    const cacheKey = `plans:central:${normCountry}`;
+
+    if (this.cacheService) {
+      try {
+        const cached = await this.cacheService.get(cacheKey);
+        if (cached) return cached;
+      } catch {}
+    }
+
+    const memoryCached = this.allPlansCache.get(normCountry);
+    if (memoryCached && memoryCached.expiresAt > Date.now()) {
+      return memoryCached.data;
+    }
+
     try {
       const db = this.firebaseService.getDb();
-      const plansSnap = await db.collection('plans').get();
-      
       let dbPlansMap = new Map();
-      if (!plansSnap.empty) {
-        plansSnap.docs.forEach(doc => {
-          dbPlansMap.set(doc.id, doc.data());
-        });
+      
+      try {
+        const plansSnap = await db.collection('plans').get();
+        if (!plansSnap.empty) {
+          plansSnap.docs.forEach(doc => {
+            dbPlansMap.set(doc.id, doc.data());
+          });
+        }
+      } catch (dbErr: any) {
+        this.logger.warn(`Firestore plans query failed (${dbErr.message}). Using central plan definitions.`);
       }
 
       const central = this.CentralPlanDefinitions;
@@ -250,10 +273,22 @@ export class PlanService {
         })
       );
 
+      this.allPlansCache.set(normCountry, { data: result, expiresAt: Date.now() + 60 * 60 * 1000 });
+      if (this.cacheService) {
+        try {
+          await this.cacheService.set(cacheKey, result, 3600); // 1 hour TTL
+        } catch {}
+      }
       return result;
     } catch (err: any) {
-      this.logger.error(`Error in getAllPlans: ${err.message}`);
-      return this.CentralPlanDefinitions;
+      this.logger.error(`Error in getAllPlans: ${err.message}. Returning static definitions.`);
+      const staticResult = this.CentralPlanDefinitions.map((cp) => {
+        const fallbackPrice = countryCode.toUpperCase() === 'IN' 
+          ? { monthlyPrice: 1299, quarterlyPrice: 3899, annualPrice: 15599, currency: 'INR', currencySymbol: '₹' }
+          : { monthlyPrice: 29, quarterlyPrice: 79, annualPrice: 299, currency: 'USD', currencySymbol: '$' };
+        return { ...cp, ...fallbackPrice };
+      });
+      return staticResult;
     }
   }
 
