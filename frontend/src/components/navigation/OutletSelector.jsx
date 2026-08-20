@@ -154,7 +154,6 @@ export default function OutletSelector() {
           onClose={() => setShowSubscriptionModal(false)}
           onSuccess={() => {
             setShowSubscriptionModal(false)
-            window.location.reload()
           }}
         />
       )}

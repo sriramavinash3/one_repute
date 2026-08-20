@@ -5,6 +5,8 @@ import Button from '../ui/button'
 import { loadRazorpayScript, createSubscription } from '../../services/paymentService'
 import apiClient from '../../services/apiClient'
 import { PRICING_CONFIG, formatPrice } from './pricingConfig'
+import { useAuth } from '../../contexts/AuthContext'
+import { useSubscription } from '../../contexts/SubscriptionContext'
 
 const PLANS = [
   {
@@ -31,6 +33,8 @@ const PLANS = [
 export default function OutletSubscriptionModal({ isOpen, location, user, onClose, onSuccess }) {
   const [selectedPlanId, setSelectedPlanId] = useState('plan_growth')
   const [loading, setLoading] = useState(false)
+  const { switchOutlet, refreshUserAndOutlets } = useAuth()
+  const { refetch: refetchSubscription } = useSubscription()
 
   if (!isOpen || !location) return null
 
@@ -47,7 +51,20 @@ export default function OutletSubscriptionModal({ isOpen, location, user, onClos
 
         if (data.success && data.outletId) {
           toast.success(`Outlet "${location.name}" registered with 15-day trial!`)
-          window.location.href = '/outlet-dashboard?sync=true'
+          if (switchOutlet) {
+            await switchOutlet(data.outletId)
+          }
+          if (refreshUserAndOutlets) {
+            await refreshUserAndOutlets(data.outletId)
+          }
+          if (refetchSubscription) {
+            await refetchSubscription()
+          }
+          if (onSuccess) {
+            onSuccess(data.outletId)
+          } else if (onClose) {
+            onClose()
+          }
         } else {
           throw new Error(data.error || 'Failed to register outlet.')
         }
@@ -82,7 +99,20 @@ export default function OutletSubscriptionModal({ isOpen, location, user, onClos
 
               if (data.success && data.outletId) {
                 toast.success(`Outlet "${location.name}" subscription activated!`)
-                window.location.href = '/outlet-dashboard?sync=true'
+                if (switchOutlet) {
+                  await switchOutlet(data.outletId)
+                }
+                if (refreshUserAndOutlets) {
+                  await refreshUserAndOutlets(data.outletId)
+                }
+                if (refetchSubscription) {
+                  await refetchSubscription()
+                }
+                if (onSuccess) {
+                  onSuccess(data.outletId)
+                } else if (onClose) {
+                  onClose()
+                }
               } else {
                 toast.error('Outlet activation failed after payment.')
               }
@@ -111,6 +141,7 @@ export default function OutletSubscriptionModal({ isOpen, location, user, onClos
       }
     } catch (error) {
       toast.error(error.message || 'Subscription failed.')
+    } finally {
       setLoading(false)
     }
   }

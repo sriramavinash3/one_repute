@@ -456,10 +456,45 @@ export class PaymentService {
     }
 
     // 2. Check server-side uniqueness to prevent duplicate outlet creation
-    const existingSnap = await db.collection('outlets')
+    let existingSnap = await db.collection('outlets')
       .where('googleLocationId', '==', locationId)
       .limit(1)
       .get();
+
+    if (existingSnap.empty && locationId) {
+      const docSnap = await db.collection('outlets').doc(locationId).get();
+      if (docSnap.exists) {
+        existingSnap = { empty: false, docs: [docSnap] } as any;
+      }
+    }
+
+    const now = new Date();
+    const trialDays = this.configService.trialDays || 15;
+    const trialStartDate = now;
+    const trialEndDate = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
+
+    const userDoc = await db.collection('users').doc(userUid).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    let customerId = userData?.customerId;
+
+    if (!customerId) {
+      const customerRef = db.collection('customers').doc();
+      customerId = customerRef.id;
+    }
+
+    const customerUpdate: any = {
+      name: location.name || userEmail,
+      email: userEmail,
+      plan: planId || 'plan_starter',
+      subscriptionStatus: isTrial ? 'trialing' : 'active',
+      updatedAt: now,
+    };
+    if (isTrial) {
+      customerUpdate.trialStartDate = trialStartDate;
+      customerUpdate.trialEndDate = trialEndDate;
+      customerUpdate.trialUsed = true;
+    }
+    await db.collection('customers').doc(customerId).set(customerUpdate, { merge: true });
 
     let targetOutletId: string;
     let alreadyExisted = false;
@@ -468,42 +503,32 @@ export class PaymentService {
       const existingDoc = existingSnap.docs[0];
       targetOutletId = existingDoc.id;
       alreadyExisted = true;
-      
-      await db.collection('outlets').doc(targetOutletId).set({
+
+      const outletUpdatePayload: any = {
         status: 'active',
         isActive: true,
         planId: planId || 'plan_starter',
-        updatedAt: new Date(),
-      }, { merge: true });
-
-      this.logger.log(`[PROVISION OUTLET] Outlet ${targetOutletId} already existed for locationId ${locationId}. Updated subscription status.`);
-    } else {
-      // 3. Find or create customer document for user
-      const userDoc = await db.collection('users').doc(userUid).get();
-      const userData = userDoc.exists ? userDoc.data() : {};
-      let customerId = userData?.customerId;
-
-      if (!customerId) {
-        const customerRef = db.collection('customers').doc();
-        customerId = customerRef.id;
-        await customerRef.set({
-          name: location.name || userEmail,
-          email: userEmail,
-          plan: planId || 'plan_starter',
-          subscriptionStatus: isTrial ? 'trialing' : 'active',
-          createdAt: new Date(),
-        });
+        updatedAt: now,
+      };
+      if (isTrial) {
+        outletUpdatePayload.subscriptionStatus = 'trialing';
+        outletUpdatePayload.isTrial = true;
+        outletUpdatePayload.trialStartDate = trialStartDate;
+        outletUpdatePayload.trialEndDate = trialEndDate;
       }
 
+      await db.collection('outlets').doc(targetOutletId).set(outletUpdatePayload, { merge: true });
+
+      this.logger.log(`[PROVISION OUTLET] Outlet ${targetOutletId} already existed for locationId ${locationId}. Updated trial & plan status.`);
+    } else {
       const newOutletRef = db.collection('outlets').doc();
       targetOutletId = newOutletRef.id;
 
-      const now = new Date();
       const businessName = location.name || 'Business Outlet';
       const businessCategory = location.category || location.primaryCategory?.displayName || 'General Business';
       const address = location.address || (location.addressLines ? location.addressLines.join(', ') : '');
 
-      await newOutletRef.set({
+      const newOutletPayload: any = {
         name: businessName,
         businessType: businessCategory,
         businessCategory: businessCategory,
@@ -528,24 +553,35 @@ export class PaymentService {
         averageRating: 5.0,
         createdAt: now,
         updatedAt: now,
-      });
+      };
 
-      // Update user document
-      await db.collection('users').doc(userUid).set({
-        outletId: targetOutletId,
-        customerId: customerId,
-        isSetupComplete: true,
-        role: 'outlet',
-        updatedAt: now,
-      }, { merge: true });
+      if (isTrial) {
+        newOutletPayload.subscriptionStatus = 'trialing';
+        newOutletPayload.isTrial = true;
+        newOutletPayload.trialStartDate = trialStartDate;
+        newOutletPayload.trialEndDate = trialEndDate;
+      }
+
+      await newOutletRef.set(newOutletPayload);
 
       this.logger.log(`[PROVISION OUTLET] Provisioned new outlet ${targetOutletId} for locationId ${locationId}`);
     }
+
+    // Always update user document to set current active outletId
+    await db.collection('users').doc(userUid).set({
+      outletId: targetOutletId,
+      customerId: customerId,
+      isSetupComplete: true,
+      role: 'outlet',
+      updatedAt: now,
+    }, { merge: true });
 
     return {
       success: true,
       outletId: targetOutletId,
       alreadyExisted,
+      status: isTrial ? 'trialing' : 'active',
+      planId: planId || 'plan_starter',
     };
   }
 }

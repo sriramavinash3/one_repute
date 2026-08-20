@@ -95,22 +95,22 @@ export function AuthProvider({ children }) {
   const [accessibleGbpLocations, setAccessibleGbpLocations] = useState([])
   const [noGmbFound, setNoGmbFound] = useState(false)
 
-  const refreshUserAndOutlets = async () => {
-    if (!profile?.customerId && !profile?.outletId) return
+  const refreshUserAndOutlets = async (targetOutletId = null) => {
+    if (!profile?.customerId && !profile?.outletId && !user?.uid) return
     try {
       const { collection, query, where, getDocs } = await import('firebase/firestore')
       let q
-      if (profile.customerId) {
+      if (profile?.customerId) {
         q = query(
           collection(db, 'outlets'),
           where('customerId', '==', profile.customerId),
-          where('status', '==', 'active')
+          where('status', 'in', ['active', 'trialing'])
         )
       } else {
         q = query(
           collection(db, 'outlets'),
           where('ownerId', '==', user.uid),
-          where('status', '==', 'active')
+          where('status', 'in', ['active', 'trialing'])
         )
       }
       const querySnapshot = await getDocs(q)
@@ -131,7 +131,8 @@ export function AuthProvider({ children }) {
         })
         setAccessibleGbpLocations(Array.from(gbpMap.values()))
 
-        const currentOutlet = fetchedOutlets.find(o => o.id === profile.outletId) || fetchedOutlets[0]
+        const activeId = targetOutletId || profile?.outletId
+        const currentOutlet = fetchedOutlets.find(o => o.id === activeId) || fetchedOutlets[0]
         setOutlet(currentOutlet || null)
         setOutletState(currentOutlet || null)
       }
@@ -152,12 +153,12 @@ export function AuthProvider({ children }) {
       setOutletLoading(true)
       try {
         if (profile.customerId) {
-          // Fetch only ACTIVE outlets for this customer
+          // Fetch ACTIVE or TRIALING outlets for this customer
           const { collection, query, where, getDocs } = await import('firebase/firestore')
           const q = query(
             collection(db, 'outlets'),
             where('customerId', '==', profile.customerId),
-            where('status', '==', 'active')
+            where('status', 'in', ['active', 'trialing'])
           )
           const querySnapshot = await getDocs(q)
           
@@ -189,7 +190,7 @@ export function AuthProvider({ children }) {
           const outletRef = doc(db, 'outlets', profile.outletId)
           const snapshot = await getDoc(outletRef)
           const outletData = snapshot.exists() ? snapshot.data() : null
-          if (outletData && outletData.status === 'active' && outletData.isDeleted !== true) {
+          if (outletData && (outletData.status === 'active' || outletData.status === 'trialing') && outletData.isDeleted !== true) {
             const active = { id: snapshot.id, ...outletData }
             setOutlet(active)
             setOutlets([active])
@@ -217,17 +218,33 @@ export function AuthProvider({ children }) {
   }, [profile?.outletId, profile?.role, profile?.customerId])
 
   const switchOutlet = async (newOutletId) => {
-    const newOutlet = outlets.find(o => o.id === newOutletId);
-    if (newOutlet) {
-      setOutlet(newOutlet);
-      setOutletState(newOutlet);
+    if (!newOutletId) return
+    let target = outlets.find(o => o.id === newOutletId)
+    if (!target) {
+      try {
+        const outletRef = doc(db, 'outlets', newOutletId)
+        const snap = await getDoc(outletRef)
+        if (snap.exists()) {
+          target = { id: snap.id, ...snap.data() }
+          setOutlets(prev => {
+            const exists = prev.some(o => o.id === target.id)
+            return exists ? prev.map(o => o.id === target.id ? target : o) : [...prev, target]
+          })
+        }
+      } catch (err) {
+        console.warn('[AuthContext] Failed to fetch target outlet for switch:', err)
+      }
+    }
+    if (target) {
+      setOutlet(target)
+      setOutletState(target)
       if (user?.uid) {
         try {
-          const userRef = doc(db, 'users', user.uid);
-          await setDoc(userRef, { outletId: newOutletId }, { merge: true });
-          setProfile(prev => prev ? { ...prev, outletId: newOutletId } : null);
+          const userRef = doc(db, 'users', user.uid)
+          await setDoc(userRef, { outletId: newOutletId }, { merge: true })
+          setProfile(prev => prev ? { ...prev, outletId: newOutletId } : null)
         } catch (err) {
-          console.warn('[AuthContext] Failed to persist switched active outlet ID', err);
+          console.warn('[AuthContext] Failed to persist switched active outlet ID', err)
         }
       }
     }

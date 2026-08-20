@@ -273,8 +273,14 @@ export default function OutletDashboardPage() {
             Welcome back, {outlet?.name || profile?.businessName || 'Business Owner'}
           </p>
         </div>
-        <div className="flex items-center">
-          <StatusBadge status={outlet?.isActive !== false ? 'active' : 'inactive'} />
+        <div className="flex items-center gap-2">
+          {billingInfo?.subscription?.status === 'trialing' || outlet?.subscriptionStatus === 'trialing' || outlet?.isTrial ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 border border-brand-200 dark:bg-brand-950/50 dark:text-brand-300 dark:border-brand-800">
+              <Sparkles className="h-3.5 w-3.5 text-brand-600" /> 15-Day Free Trial
+            </span>
+          ) : (
+            <StatusBadge status={outlet?.isActive !== false ? 'active' : 'inactive'} />
+          )}
         </div>
       </motion.div>
 
