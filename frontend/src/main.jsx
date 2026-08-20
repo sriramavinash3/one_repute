@@ -6,6 +6,8 @@ import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext'
 import { SubscriptionProvider } from './contexts/SubscriptionContext'
+import { ReadinessProvider } from './contexts/ReadinessContext'
+import FullScreenLoader from './components/feedback/FullScreenLoader'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,12 +21,15 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SubscriptionProvider>
-          <App />
-          <Toaster position="top-right" richColors />
-        </SubscriptionProvider>
-      </AuthProvider>
+      <ReadinessProvider>
+        <AuthProvider>
+          <SubscriptionProvider>
+            <App />
+            <FullScreenLoader />
+            <Toaster position="top-right" richColors />
+          </SubscriptionProvider>
+        </AuthProvider>
+      </ReadinessProvider>
     </QueryClientProvider>
   </StrictMode>
 )

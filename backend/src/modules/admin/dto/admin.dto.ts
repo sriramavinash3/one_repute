@@ -47,6 +47,10 @@ export class CreateAdminOutletDto {
   @IsOptional()
   @IsString()
   ownerId?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
 }
 
 export class UpdateOutletStatusDto {

@@ -8,7 +8,7 @@ const useAppStore = create((set) => ({
   reviews: [],
   analytics: null,
   loadingStates: {},
-  errors: {},
+  clearOutletData: () => set({ reviews: [], analytics: null, errors: {}, loadingStates: {} }),
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
   setOutlet: (outlet) => set({ outlet }),

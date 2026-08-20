@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 const SubscriptionContext = createContext(null)
 
 export function SubscriptionProvider({ children }) {
-  const { user, profile } = useAuth()
+  const { user, profile, outlet } = useAuth()
   const [billingInfo, setBillingInfo] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -31,7 +31,7 @@ export function SubscriptionProvider({ children }) {
 
   useEffect(() => {
     fetchBillingInfo()
-  }, [user, profile?.customerId])
+  }, [user, profile?.customerId, outlet?.id])
 
   // Helper function to map planId to features locally if not fully loaded from API
   const getFeatureValue = (featureKey) => {

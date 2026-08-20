@@ -8,6 +8,7 @@ import apiClient from '../../services/apiClient'
 import { FeatureGate } from '../../components/gating/FeatureGate'
 import ComingSoon from '../../components/feedback/ComingSoon'
 import { FEATURE_FLAGS } from '../../config/featureFlags'
+import { usePageReadiness } from '../../hooks/usePageReadiness'
 
 const stagger = {
   hidden: {},
@@ -19,6 +20,12 @@ const fadeUp = {
 }
 
 export default function OutletQrPage() {
+  usePageReadiness({
+    componentId: 'OutletQrPage',
+    isReady: true,
+    isDataComplete: true,
+  })
+
   if (!FEATURE_FLAGS.SMART_QR_CAMPAIGNS) {
     return (
       <ComingSoon
@@ -42,6 +49,13 @@ function OutletQrContent() {
   const [creating, setCreating] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [form, setForm] = useState({ name: '', redirectUrl: 'https://search.google.com/local/writereview?placeid=' })
+
+  usePageReadiness({
+    componentId: 'OutletQrContent',
+    isReady: !loading,
+    isDataComplete: !loading,
+    onRefetch: fetchQrs,
+  })
 
   const fetchQrs = async () => {
     setLoading(true)

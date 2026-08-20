@@ -46,6 +46,41 @@
     @apply font-display tracking-tight;
     color: var(--text-primary);
   }
+
+  /* Global text selection prevention */
+  *,
+  *::before,
+  *::after {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Re-enable text selection for functional input areas, editable content, and code blocks */
+  input,
+  textarea,
+  [contenteditable="true"],
+  [contenteditable="true"] *,
+  [contenteditable=""],
+  [contenteditable=""] *,
+  [role="textbox"],
+  [role="textbox"] *,
+  code,
+  pre,
+  kbd,
+  samp,
+  .selectable,
+  .selectable *,
+  .user-select-text,
+  .user-select-text *,
+  .allow-select,
+  .allow-select * {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
 }
 
 @layer components {

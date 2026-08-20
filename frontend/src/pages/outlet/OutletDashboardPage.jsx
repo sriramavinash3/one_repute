@@ -23,6 +23,7 @@ import { useSubscription } from '../../contexts/SubscriptionContext'
 import { fetchReviews, fetchReviewCount } from '../../services/reviewService'
 import HistoricalReviewSection from '../../components/dashboard/HistoricalReviewSection'
 import DataSyncModal from '../../components/feedback/DataSyncModal'
+import { usePageReadiness } from '../../hooks/usePageReadiness'
 
 const stagger = {
   hidden: {},
@@ -35,7 +36,7 @@ const fadeUp = {
 }
 
 export default function OutletDashboardPage() {
-  const { outlet, profile } = useAuth()
+  const { outlet, profile, outletLoading } = useAuth()
   const { billingInfo } = useSubscription()
   const reviews = useAppStore((state) => state.reviews)
   const setReviews = useAppStore((state) => state.setReviews)
@@ -85,23 +86,44 @@ export default function OutletDashboardPage() {
     setCountError(null)
   }, [outletId])
 
-  // Mock mode and guarded (no/removed outlet) states are derived, not stored:
-  // the count is always a real number there and the effect keeps a single sync
-  // setState per branch.
   const displayTotalReviews = USE_MOCK_DATA
     ? MOCK_REVIEWS.length
-    : !outletId || outlet?.status === 'removed' || outlet?.isDeleted === true
-      ? 0
-      : totalReviews != null
-        ? totalReviews
-        : reviews.length > 0
-          ? reviews.length
-          : null
+    : outletLoading || !outletId
+      ? null
+      : outlet?.status === 'removed' || outlet?.isDeleted === true
+        ? 0
+        : totalReviews != null
+          ? totalReviews
+          : reviews.length > 0
+            ? reviews.length
+            : isLoadingCount
+              ? null
+              : 0
   
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const plan = billingInfo?.subscription?.plan || 'plan_starter'
   const isPremium = plan === 'plan_premium'
   const isStarter = plan === 'plan_starter'
+
+  const handleRefetch = async () => {
+    if (!outletId) return
+    try {
+      const data = await fetchReviews({ outletId, limit: 50 })
+      if (data?.data) setReviews(data.data)
+      const countRes = await fetchReviewCount(outletId)
+      if (typeof countRes?.totalReviews === 'number') setTotalReviews(countRes.totalReviews)
+    } catch (err) {
+      console.warn('[OutletDashboardPage] re-fetch error:', err)
+    }
+  }
+
+  usePageReadiness({
+    componentId: 'OutletDashboardPage',
+    isReady: !outletLoading && !isLoadingCount && displayTotalReviews !== null,
+    outletId,
+    isDataComplete: !outletLoading && displayTotalReviews !== null,
+    onRefetch: handleRefetch,
+  })
 
 
   useEffect(() => {
@@ -110,9 +132,7 @@ export default function OutletDashboardPage() {
       return
     }
 
-    if (!outletId) {
-      setReviews([])
-      setTotalReviews(0)
+    if (outletLoading || !outletId) {
       return
     }
 
@@ -313,9 +333,11 @@ export default function OutletDashboardPage() {
           <StatCard
             title="Avg rating"
             value={
-              reviews.length > 0
-                ? `${ratingStats.averageRating.toFixed(1)} ★`
-                : 'N/A'
+              outletLoading || displayTotalReviews === null
+                ? '...'
+                : reviews.length > 0
+                  ? `${ratingStats.averageRating.toFixed(1)} ★`
+                  : 'N/A'
             }
             delta={
               previousWeekReviews.length > 0
@@ -329,13 +351,9 @@ export default function OutletDashboardPage() {
           <StatCard
             title="Total reviews"
             value={
-              displayTotalReviews != null
-                ? `${displayTotalReviews}`
-                : isLoadingCount
-                  ? '...'
-                  : countError
-                    ? 'N/A'
-                    : '...'
+              outletLoading || displayTotalReviews === null
+                ? '...'
+                : `${displayTotalReviews}`
             }
             delta={
               reviewDelta > 0
@@ -351,14 +369,14 @@ export default function OutletDashboardPage() {
           <StatCard
             title="AI responses"
             value={
-              reviews.length > 0
-                ? `${statusCounts.responded + statusCounts.suggested}`
-                : 'N/A'
+              outletLoading || displayTotalReviews === null
+                ? '...'
+                : `${statusCounts.responded + statusCounts.suggested}`
             }
             delta={
               reviews.length > 0
                 ? `${autoRate}% automated`
-                : 'N/A'
+                : '0% automated'
             }
             icon={<Sparkles className="h-5 w-5" />}
           />
@@ -367,9 +385,9 @@ export default function OutletDashboardPage() {
           <StatCard
             title="Escalations"
             value={
-              reviews.length > 0
-                ? `${statusCounts.escalated}`
-                : 'N/A'
+              outletLoading || displayTotalReviews === null
+                ? '...'
+                : `${statusCounts.escalated}`
             }
             delta={
               escalationDelta > 0
@@ -504,8 +522,8 @@ export default function OutletDashboardPage() {
               </div>
             ) : (
               <EmptyState
-                title="No recent activity"
-                description="Reviews will appear here once sync begins."
+                title="Waiting for the first sync"
+                description="New reviews will appear automatically."
               />
             )}
           </div>

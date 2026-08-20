@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { validateActiveOutlet } from '../../common/utils/outlet-validator';
 import { GoogleBusinessService } from '../google-business/google-business.service';
 import { SchedulerService } from '../scheduler/scheduler.service';
+import { EmailService } from '../email/services/email.service';
 import {
   CreateAdminOutletDto,
   UpdateOutletStatusDto,
@@ -26,6 +27,7 @@ export class AdminService {
     private readonly prismaService: PrismaService,
     private readonly googleBusinessService: GoogleBusinessService,
     private readonly schedulerService: SchedulerService,
+    private readonly emailService: EmailService,
   ) {}
 
   // ─── Outlets ───────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ export class AdminService {
       googlePlaceId: dto.googlePlaceId || '',
       customerId: dto.customerId || null,
       ownerId: dto.ownerId || null,
+      email: dto.email || null,
       isActive: true,
       status: 'active',
       reviewsCount: 0,
@@ -121,6 +124,40 @@ export class AdminService {
       } catch (err: any) {
         this.logger.warn(`Prisma location create warning: ${err.message}`);
       }
+    }
+
+    // Trigger Outlet Greeting Email
+    try {
+      let recipientEmail = dto.email;
+      if (!recipientEmail && dto.ownerId) {
+        const userSnap = await db.collection('users').doc(dto.ownerId).get();
+        if (userSnap.exists) {
+          recipientEmail = userSnap.data()?.email;
+        }
+      }
+      if (!recipientEmail && dto.customerId) {
+        const custSnap = await db.collection('customers').doc(dto.customerId).get();
+        if (custSnap.exists) {
+          recipientEmail = custSnap.data()?.email;
+        }
+      }
+
+      if (recipientEmail) {
+        const userName = recipientEmail.split('@')[0] || dto.name;
+        await this.emailService.sendOutletGreeting({
+          outletId: id,
+          recipientEmail,
+          userName,
+          businessName: dto.name,
+          planName: 'Starter',
+          isTrial: false,
+          userId: dto.ownerId || undefined,
+          idempotencyKey: `outlet_greeting_${id}`,
+        });
+        this.logger.log(`[ADMIN CREATE OUTLET] Outlet greeting email queued for ${recipientEmail} (outletId=${id})`);
+      }
+    } catch (emailErr: any) {
+      this.logger.warn(`[ADMIN CREATE OUTLET] Could not send outlet greeting email for outlet ${id}: ${emailErr.message}`);
     }
 
     return { id, ...newOutlet, success: true };

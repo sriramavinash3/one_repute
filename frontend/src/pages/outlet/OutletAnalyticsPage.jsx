@@ -15,6 +15,8 @@ import { MOCK_REVIEWS } from '../../config/mockData'
 import EmptyState from '../../components/feedback/EmptyState'
 import { buildDailyTrend, computeRatingStats, computeStatusCounts, toDate } from '../../utils/analytics'
 
+import { usePageReadiness } from '../../hooks/usePageReadiness'
+
 const stagger = {
   hidden: {},
   show: { transition: { staggerChildren: 0.08 } }
@@ -31,19 +33,35 @@ function Trend({ delta }) {
 }
 
 export default function OutletAnalyticsPage() {
-  const { outlet, profile } = useAuth()
+  const { outlet, profile, outletLoading } = useAuth()
   const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
 
   const outletId = outlet?.id || profile?.outletId
 
+  usePageReadiness({
+    componentId: 'OutletAnalyticsPage',
+    isReady: !outletLoading && !loading && Boolean(outletId),
+    outletId,
+    isDataComplete: !outletLoading && !loading,
+  })
+
   useEffect(() => {
+    setLoading(true)
     if (USE_MOCK_DATA) {
       setReviews(MOCK_REVIEWS)
+      setLoading(false)
+      return
+    }
+
+    if (outletLoading) {
+      setLoading(true)
       return
     }
 
     if (!outletId) {
       setReviews([])
+      setLoading(false)
       return
     }
 
@@ -58,8 +76,12 @@ export default function OutletAnalyticsPage() {
       q,
       (snap) => {
         setReviews(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+        setLoading(false)
       },
-      () => setReviews([])
+      () => {
+        setReviews([])
+        setLoading(false)
+      }
     )
 
     return () => unsubscribe()

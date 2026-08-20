@@ -23,6 +23,8 @@ import Input from '../../components/ui/input'
 import { toast } from 'sonner'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, AreaChart, Area } from 'recharts'
 
+import { usePageReadiness } from '../../hooks/usePageReadiness'
+
 const stagger = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -55,7 +57,7 @@ export default function OutletReputationPage() {
   const outletId = outlet?.id || profile?.outletId
 
   // Queries
-  const { data: insights } = useQuery({
+  const insightsQuery = useQuery({
     queryKey: ['admin-reputation-insights', filters, outletId],
     queryFn: async () => {
       if (USE_MOCK_DATA) return MOCK_REPUTATION_INSIGHTS
@@ -63,6 +65,16 @@ export default function OutletReputationPage() {
       return await fetchOutletReputationInsights({ ...filters, outletId })
     },
     enabled: !!outletId
+  })
+
+  const insights = insightsQuery.data
+  const isLoading = insightsQuery.isLoading
+
+  usePageReadiness({
+    componentId: 'OutletReputationPage',
+    isReady: !isLoading,
+    outletId,
+    isDataComplete: !isLoading,
   })
 
   const ruleMutation = useMutation({

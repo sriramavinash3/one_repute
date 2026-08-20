@@ -38,6 +38,19 @@ export const getApiBaseUrl = () => {
   return base || (typeof window !== 'undefined' ? window.location.origin : '')
 }
 
+let pendingCount = 0
+const subscribers = new Set()
+
+export const subscribeRequestCount = (callback) => {
+  subscribers.add(callback)
+  callback(pendingCount)
+  return () => subscribers.delete(callback)
+}
+
+const notifySubscribers = () => {
+  subscribers.forEach((cb) => cb(pendingCount))
+}
+
 const apiClient = axios.create({
   baseURL: getBaseUrl(),
   headers: {
@@ -46,6 +59,9 @@ const apiClient = axios.create({
 })
 
 apiClient.interceptors.request.use(async (config) => {
+  pendingCount += 1
+  notifySubscribers()
+
   // Enforce localhost base URL if in local environment
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     config.baseURL = import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:3000'
@@ -58,11 +74,22 @@ apiClient.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
+}, (error) => {
+  pendingCount = Math.max(0, pendingCount - 1)
+  notifySubscribers()
+  return Promise.reject(error)
 })
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    pendingCount = Math.max(0, pendingCount - 1)
+    notifySubscribers()
+    return response
+  },
   async (error) => {
+    pendingCount = Math.max(0, pendingCount - 1)
+    notifySubscribers()
+
     const status = error?.response?.status
     const errorMsg = String(error?.response?.data?.error || error?.response?.data?.message || error?.message || '').toLowerCase()
     const errorCode = String(error?.response?.data?.code || '').toUpperCase()

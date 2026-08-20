@@ -565,6 +565,26 @@ export class PaymentService {
       await newOutletRef.set(newOutletPayload);
 
       this.logger.log(`[PROVISION OUTLET] Provisioned new outlet ${targetOutletId} for locationId ${locationId}`);
+
+      try {
+        const recipientEmail = userEmail || userData?.email;
+        if (recipientEmail) {
+          const userName = recipientEmail.split('@')[0] || businessName;
+          await this.emailService.sendOutletGreeting({
+            outletId: targetOutletId,
+            recipientEmail: recipientEmail,
+            userName,
+            businessName,
+            planName: planId || 'Starter',
+            isTrial: Boolean(isTrial),
+            userId: userUid,
+            idempotencyKey: `outlet_greeting_${targetOutletId}`,
+          });
+          this.logger.log(`[PROVISION OUTLET] Outlet greeting email queued for ${recipientEmail} (outletId=${targetOutletId})`);
+        }
+      } catch (emailErr: any) {
+        this.logger.warn(`[PROVISION OUTLET] Could not send outlet greeting email for outlet ${targetOutletId}: ${emailErr.message}`);
+      }
     }
 
     // Always update user document to set current active outletId

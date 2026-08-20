@@ -24,6 +24,7 @@ import SubscriptionActivated from '../../../emails/SubscriptionActivated';
 import WeeklyReport from '../../../emails/WeeklyReport';
 import FifteenDayReport from '../../../emails/FifteenDayReport';
 import OnboardingConfirmed from '../../../emails/OnboardingConfirmed';
+import OutletGreeting from '../../../emails/OutletGreeting';
 import ReviewAlert from '../../../emails/ReviewAlert';
 import EscalationAlert from '../../../emails/EscalationAlert';
 import AccountDeletionOtp from '../../../emails/AccountDeletionOtp';
@@ -155,6 +156,11 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
       case EmailJobType.ONBOARDING_CONFIRMED:
         subject = `Business Setup Complete: Welcome ${payload.data.businessName} to OneRepute`;
         templateComponent = React.createElement(OnboardingConfirmed, payload.data);
+        break;
+
+      case EmailJobType.OUTLET_GREETING:
+        subject = `Welcome to OneRepute — ${payload.data.businessName} is successfully registered! 🚀`;
+        templateComponent = React.createElement(OutletGreeting, payload.data);
         break;
 
       case EmailJobType.REVIEW_ALERT:

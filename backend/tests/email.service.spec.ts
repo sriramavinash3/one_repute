@@ -138,4 +138,27 @@ describe('EmailService', () => {
       }),
     );
   });
+
+  it('should enqueue sendOutletGreeting job', async () => {
+    const result = await emailService.sendOutletGreeting({
+      outletId: 'outlet_xyz',
+      recipientEmail: 'owner@bistro.com',
+      userName: 'Alice',
+      businessName: 'Bistro One',
+      planName: 'Starter',
+      isTrial: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockQueueService.addJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'send-outlet-greeting-email',
+        data: expect.objectContaining({
+          outletId: 'outlet_xyz',
+          recipientEmail: 'owner@bistro.com',
+          idempotencyKey: 'outlet_greeting_outlet_xyz',
+        }),
+      }),
+    );
+  });
 });

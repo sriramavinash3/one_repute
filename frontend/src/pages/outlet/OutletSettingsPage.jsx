@@ -17,6 +17,7 @@ import {
 import { requestAccountDeletionOtp, verifyAccountDeletionOtp } from '../../services/accountService'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import { UpgradeModal } from '../../components/gating/FeatureGate'
+import { usePageReadiness } from '../../hooks/usePageReadiness'
 
 function SectionHeader({ icon, title, description }) {
   return (
@@ -85,6 +86,14 @@ export default function OutletSettingsPage() {
   const { outlet, profile, user, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState('general')
   const [customer, setCustomer] = useState(null)
+  const outletId = outlet?.id || profile?.outletId
+
+  usePageReadiness({
+    componentId: 'OutletSettingsPage',
+    isReady: true,
+    outletId,
+    isDataComplete: true,
+  })
 
   // Delete Account State & Modal Controls
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)

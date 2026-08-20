@@ -10,6 +10,7 @@ import { USE_MOCK_DATA } from '../../config/env'
 import { MOCK_REVIEWS } from '../../config/mockData'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatTimestamp } from '../../utils/format'
+import { usePageReadiness } from '../../hooks/usePageReadiness'
 
 const PRIORITY_COLORS = {
   1: 'bg-red-100 text-red-700 border-red-200',
@@ -113,16 +114,28 @@ function EscalationCard({ item }) {
 
 export default function OutletEscalationsPage() {
   const [filter, setFilter] = useState('all')
-  const { outlet, profile } = useAuth()
+  const { outlet, profile, outletLoading } = useAuth()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const outletId = outlet?.id || profile?.outletId
   const escalationThreshold = Number(outlet?.escalationThreshold || 3)
 
+  usePageReadiness({
+    componentId: 'OutletEscalationsPage',
+    isReady: !outletLoading && !loading && Boolean(outletId),
+    outletId,
+    isDataComplete: !outletLoading && !loading,
+  })
+
   useEffect(() => {
     if (USE_MOCK_DATA) {
       setItems(MOCK_REVIEWS.filter(r => r.status === 'escalated'))
       setLoading(false)
+      return
+    }
+
+    if (outletLoading) {
+      setLoading(true)
       return
     }
 

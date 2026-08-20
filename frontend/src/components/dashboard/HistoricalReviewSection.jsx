@@ -13,7 +13,7 @@ export default function HistoricalReviewSection({ outletId }) {
 
   useEffect(() => {
     if (!outletId) {
-      setLoading(false)
+      setLoading(true)
       return
     }
 

@@ -536,21 +536,22 @@ export class AuthController {
       this.logger.warn(`Could not send onboarding WhatsApp message: ${waErr.message}`);
     }
 
-    // 4b. Dispatch Business Onboarding & Trial Activation Email
+    // 4b. Dispatch Dedicated Outlet Greeting Email (scoped per outletId for strict idempotency)
     try {
       const recipientName = userEmail.split('@')[0] || businessName;
-      await this.emailService.sendOnboardingConfirmed({
+      await this.emailService.sendOutletGreeting({
+        outletId: outletRef.id,
         recipientEmail: userEmail,
         userName: recipientName,
         businessName,
         planName: form?.planId || 'Starter',
         isTrial: !!isTrial,
         userId: userUid,
-        idempotencyKey: `onboard_confirmed_${userUid}`,
+        idempotencyKey: `outlet_greeting_${outletRef.id}`,
       });
-      this.logger.log(`Onboarding confirmation email queued for ${userEmail}`);
+      this.logger.log(`Outlet greeting email queued for ${userEmail} (outletId=${outletRef.id})`);
     } catch (emailErr: any) {
-      this.logger.warn(`Could not send onboarding confirmation email for user=${userUid}: ${emailErr.message}`);
+      this.logger.warn(`Could not send outlet greeting email for outlet=${outletRef.id}: ${emailErr.message}`);
     }
 
     // 5. Clean up the temporary session

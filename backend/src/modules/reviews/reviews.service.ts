@@ -163,46 +163,50 @@ export class ReviewsService {
           this.prismaService.review.count({ where: whereClause }),
         ]);
 
-        // Compute counts of statuses before paging and filtering. When a date
-        // range is applied the counts reflect only that range.
-        const counts = { all: total, pending: 0, suggested: 0, responded: 0, escalated: 0, failed: 0 };
-        const countsWhere: any = filter.outletId ? { outletId: filter.outletId } : {};
-        if (fromDate || toDate) {
-          countsWhere.reviewTimestamp = {};
-          if (fromDate) countsWhere.reviewTimestamp.gte = fromDate;
-          if (toDate) countsWhere.reviewTimestamp.lte = toDate;
-        }
-        const allCounts = await this.prismaService.review.groupBy({
-          by: ['status'],
-          where: countsWhere,
-          _count: { _all: true },
-        });
-        allCounts.forEach((group) => {
-          const s = this.normalizeStatus(group.status);
-          if (counts[s] !== undefined) {
-            counts[s] += group._count._all;
+        if (total === 0 && filter.outletId) {
+          this.logger.debug(`Prisma returned 0 reviews for outlet ${filter.outletId}. Falling back to Firestore store.`);
+        } else {
+          // Compute counts of statuses before paging and filtering. When a date
+          // range is applied the counts reflect only that range.
+          const counts = { all: total, pending: 0, suggested: 0, responded: 0, escalated: 0, failed: 0 };
+          const countsWhere: any = filter.outletId ? { outletId: filter.outletId } : {};
+          if (fromDate || toDate) {
+            countsWhere.reviewTimestamp = {};
+            if (fromDate) countsWhere.reviewTimestamp.gte = fromDate;
+            if (toDate) countsWhere.reviewTimestamp.lte = toDate;
           }
-        });
+          const allCounts = await this.prismaService.review.groupBy({
+            by: ['status'],
+            where: countsWhere,
+            _count: { _all: true },
+          });
+          allCounts.forEach((group) => {
+            const s = this.normalizeStatus(group.status);
+            if (counts[s] !== undefined) {
+              counts[s] += group._count._all;
+            }
+          });
 
-        const totalPages = Math.ceil(total / limitNum);
+          const totalPages = Math.ceil(total / limitNum);
 
-        return {
-          data: reviews.map((r) => {
-            const statusVal = this.normalizeStatus(r.status);
-            return {
-              ...r,
-              status: statusVal,
-              requiresManualReply: statusVal === 'suggested',
-              isEscalated: statusVal === 'escalated',
-              hasFailed: statusVal === 'failed',
-            };
-          }),
-          totalReviews: total,
-          totalPages,
-          currentPage: pageNum,
-          pagination: { total, page: pageNum, limit: limitNum, totalPages },
-          counts,
-        };
+          return {
+            data: reviews.map((r) => {
+              const statusVal = this.normalizeStatus(r.status);
+              return {
+                ...r,
+                status: statusVal,
+                requiresManualReply: statusVal === 'suggested',
+                isEscalated: statusVal === 'escalated',
+                hasFailed: statusVal === 'failed',
+              };
+            }),
+            totalReviews: total,
+            totalPages,
+            currentPage: pageNum,
+            pagination: { total, page: pageNum, limit: limitNum, totalPages },
+            counts,
+          };
+        }
       } catch (err: any) {
         this.logger.warn(`Prisma getReviews query failed: ${err.message}. Falling back to Firestore.`);
       }
@@ -531,15 +535,26 @@ export class ReviewsService {
 
   async getOutlets(userId?: string, customerId?: string) {
     const db = this.firebaseService.getDb();
-    let snap: any;
+    const map = new Map<string, any>();
+
     if (customerId) {
-      snap = await db.collection('outlets').where('customerId', '==', customerId).where('status', '==', 'active').get();
-    } else {
-      snap = await db.collection('outlets').where('status', '==', 'active').get();
+      const snapCust = await db.collection('outlets').where('customerId', '==', customerId).get();
+      snapCust.docs.forEach((d: any) => map.set(d.id, { id: d.id, ...d.data() }));
     }
-    return snap.docs
-      .map((doc: any) => ({ id: doc.id, ...doc.data() }))
-      .filter((o: any) => o.isDeleted !== true && o.status !== 'removed');
+
+    if (userId) {
+      const snapOwner = await db.collection('outlets').where('ownerId', '==', userId).get();
+      snapOwner.docs.forEach((d: any) => map.set(d.id, { id: d.id, ...d.data() }));
+    }
+
+    if (!customerId && !userId) {
+      const snapAll = await db.collection('outlets').get();
+      snapAll.docs.forEach((d: any) => map.set(d.id, { id: d.id, ...d.data() }));
+    }
+
+    return Array.from(map.values()).filter(
+      (o: any) => o.isDeleted !== true && o.status !== 'removed' && o.status !== 'deleted',
+    );
   }
 
   async getOutletById(outletId: string) {

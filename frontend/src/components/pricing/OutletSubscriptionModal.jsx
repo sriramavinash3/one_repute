@@ -51,6 +51,10 @@ export default function OutletSubscriptionModal({ isOpen, location, user, onClos
 
         if (data.success && data.outletId) {
           toast.success(`Outlet "${location.name}" registered with 15-day trial!`)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('selectedOutletId', data.outletId)
+            if (user?.uid) localStorage.setItem(`activeOutletId_${user.uid}`, data.outletId)
+          }
           if (switchOutlet) {
             await switchOutlet(data.outletId)
           }
@@ -99,6 +103,10 @@ export default function OutletSubscriptionModal({ isOpen, location, user, onClos
 
               if (data.success && data.outletId) {
                 toast.success(`Outlet "${location.name}" subscription activated!`)
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('selectedOutletId', data.outletId)
+                  if (user?.uid) localStorage.setItem(`activeOutletId_${user.uid}`, data.outletId)
+                }
                 if (switchOutlet) {
                   await switchOutlet(data.outletId)
                 }

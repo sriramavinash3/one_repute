@@ -80,6 +80,15 @@ export interface SendOnboardingConfirmedDto extends BaseEmailDto {
   dashboardUrl?: string;
 }
 
+export interface SendOutletGreetingDto extends BaseEmailDto {
+  outletId: string;
+  userName: string;
+  businessName: string;
+  planName?: string;
+  isTrial?: boolean;
+  dashboardUrl?: string;
+}
+
 export interface SendReviewAlertDto extends BaseEmailDto {
   businessName: string;
   customerName: string;

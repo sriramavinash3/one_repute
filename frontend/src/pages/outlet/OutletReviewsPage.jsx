@@ -15,6 +15,7 @@ import { fetchReviewEscalationStatus } from '../../services/escalationService'
 import { fetchReviews, getCachedReviewCount, setCachedReviewCount, postReviewReply, reprocessReview } from '../../services/reviewService'
 import { DATE_PRESETS, computeDateRange, formatRangeLabel } from '../../utils/dateRange'
 import { EMPTY_COUNTS, computeStatusCounts, filterReviews } from '../../utils/reviewFilters'
+import { usePageReadiness } from '../../hooks/usePageReadiness'
 
 const TABS = [
   { key: 'all', label: 'All' },
@@ -511,7 +512,7 @@ export default function OutletReviewsPage() {
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
   const [appliedCustom, setAppliedCustom] = useState(null)
-  const { outlet, profile } = useAuth()
+  const { outlet, profile, outletLoading } = useAuth()
   const [reviews, setReviews] = useState([])
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: PAGE_LIMIT, totalPages: 1 })
   const [counts, setCounts] = useState(EMPTY_COUNTS)
@@ -522,6 +523,29 @@ export default function OutletReviewsPage() {
   const [dataSource, setDataSource] = useState('rest')
 
   const outletId = outlet?.id || profile?.outletId
+
+  const handleRefetch = async () => {
+    if (!outletId) return
+    setLoading(true)
+    try {
+      const data = await fetchReviews({ outletId, page: 1, limit: PAGE_LIMIT })
+      if (data?.data) {
+        setReviews(data.data)
+      }
+    } catch (err) {
+      console.warn('[OutletReviewsPage] re-fetch failed:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  usePageReadiness({
+    componentId: 'OutletReviewsPage',
+    isReady: !outletLoading && !loading && Boolean(outletId),
+    outletId,
+    isDataComplete: !outletLoading && !loading,
+    onRefetch: handleRefetch,
+  })
 
   // Latest-ref so drawer sync inside fetch callbacks never triggers refetches.
   const selectedReviewRef = useRef(null)
@@ -559,7 +583,7 @@ export default function OutletReviewsPage() {
     }
   }, [outletId])
 
-  // Data loading: REST API primary with database-level 50-item limit & offset pagination
+  // Data loading: Real-time Firestore snapshot primary with REST API fallback
   useEffect(() => {
     if (USE_MOCK_DATA) {
       const allFiltered = filterReviews(MOCK_REVIEWS, { activeTab, minRating, search: debouncedSearch, from, to })
@@ -576,6 +600,11 @@ export default function OutletReviewsPage() {
       return
     }
 
+    if (outletLoading) {
+      setLoading(true)
+      return
+    }
+
     if (!outletId || isSessionOutletRemoved) {
       setReviews([])
       setCounts(EMPTY_COUNTS)
@@ -583,82 +612,86 @@ export default function OutletReviewsPage() {
       return
     }
 
-    const fetchKey = JSON.stringify({
-      outletId,
-      page,
-      activeTab,
-      minRating,
-      debouncedSearch,
-      from: from ? from.toISOString() : null,
-      to: to ? to.toISOString() : null,
-    })
-
-    if (lastFetchKeyRef.current === fetchKey) {
-      return
-    }
-    lastFetchKeyRef.current = fetchKey
-
     let cancelled = false
     setLoading(true)
 
-    const params = {
-      outletId,
-      page,
-      limit: PAGE_LIMIT,
-      sort: 'date_desc',
+    // Helper to fetch from REST API fallback
+    const loadFromApi = () => {
+      const params = {
+        outletId,
+        page,
+        limit: PAGE_LIMIT,
+        sort: 'date_desc',
+      }
+      if (activeTab !== 'all') params.status = STATUS_API_MAP[activeTab]
+      if (minRating) params.rating = RATING_API_MAP[minRating]
+      if (debouncedSearch) params.search = debouncedSearch
+      if (from) params.from = from.toISOString()
+      if (to) params.to = to.toISOString()
+
+      fetchReviews(params)
+        .then((res) => {
+          if (cancelled) return
+          const items = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res.slice(0, PAGE_LIMIT) : [])
+          const total = res?.totalReviews ?? res?.pagination?.total ?? items.length
+          const totalPages = res?.totalPages ?? res?.pagination?.totalPages ?? (Math.ceil(total / PAGE_LIMIT) || 1)
+          const currentPage = res?.currentPage ?? res?.pagination?.page ?? page
+
+          setReviews(items)
+          setPagination({ total, page: currentPage, limit: PAGE_LIMIT, totalPages })
+          if (res?.counts) setCounts({ ...EMPTY_COUNTS, ...res.counts })
+        })
+        .catch((err) => {
+          console.warn('[OutletReviewsPage] REST API fallback failed:', err?.message)
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
     }
-    if (activeTab !== 'all') params.status = STATUS_API_MAP[activeTab]
-    if (minRating) params.rating = RATING_API_MAP[minRating]
-    if (debouncedSearch) params.search = debouncedSearch
-    if (from) params.from = from.toISOString()
-    if (to) params.to = to.toISOString()
 
-    fetchReviews(params)
-      .then((res) => {
+    const q = query(
+      collection(db, 'reviews'),
+      where('outletId', '==', outletId)
+    )
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
         if (cancelled) return
+        if (snap.empty) {
+          loadFromApi()
+        } else {
+          const allItems = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+          allItems.sort((a, b) => {
+            const timeA = a.reviewTimestamp?.toDate?.()?.getTime() || (a.reviewTimestamp ? new Date(a.reviewTimestamp).getTime() : 0) || a.createdAt?.toDate?.()?.getTime() || 0
+            const timeB = b.reviewTimestamp?.toDate?.()?.getTime() || (b.reviewTimestamp ? new Date(b.reviewTimestamp).getTime() : 0) || b.createdAt?.toDate?.()?.getTime() || 0
+            return timeB - timeA
+          })
 
-        const total = res?.totalReviews ?? res?.pagination?.total ?? (Array.isArray(res?.data) ? res.data.length : 0)
-        const totalPages = res?.totalPages ?? res?.pagination?.totalPages ?? (Math.ceil(total / PAGE_LIMIT) || 1)
-        const currentPage = res?.currentPage ?? res?.pagination?.page ?? page
+          const filteredAll = filterReviews(allItems, { activeTab, minRating, search: debouncedSearch, from, to })
+          const total = filteredAll.length
+          const totalPages = Math.ceil(total / PAGE_LIMIT) || 1
+          const clampedPage = Math.min(Math.max(page, 1), totalPages)
+          const start = (clampedPage - 1) * PAGE_LIMIT
+          const paginatedItems = filteredAll.slice(start, start + PAGE_LIMIT)
 
-        // Update sessionStorage count cache
-        if (typeof total === 'number' && total >= 0) {
-          setCachedReviewCount(outletId, total)
+          setReviews(paginatedItems)
+          setPagination({ total, page: clampedPage, limit: PAGE_LIMIT, totalPages })
+          setCounts(computeStatusCounts(allItems))
+          setLoading(false)
         }
-
-        // Clamp the page if filters reduce result set below current page
-        if (page > 1 && totalPages > 0 && page > totalPages) {
-          setPage(totalPages)
-          return
-        }
-
-        const items = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res.slice(0, PAGE_LIMIT) : [])
-
-        setReviews(items)
-        setPagination({ total, page: currentPage, limit: PAGE_LIMIT, totalPages })
-        setCounts({ ...EMPTY_COUNTS, ...(res?.counts || {}) })
-
-        if (selectedReviewRef.current) {
-          const updated = items.find((r) => r.id === selectedReviewRef.current.id)
-          if (updated) setSelectedReview(updated)
-        }
-      })
-      .catch((err) => {
-        if (cancelled) return
-        console.warn('[OutletReviews] REST API fetch failed:', err?.message)
-        // Reset key so user/retry can re-attempt if network drops
-        lastFetchKeyRef.current = ''
-        setReviews([])
-        setCounts(EMPTY_COUNTS)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      },
+      (err) => {
+        console.warn('[OutletReviewsPage] Firestore snapshot listener warning:', err)
+        loadFromApi()
+      }
+    )
 
     return () => {
       cancelled = true
+      unsubscribe()
     }
-  }, [outletId, isSessionOutletRemoved, page, activeTab, minRating, debouncedSearch, from, to])
+  }, [outletId, isSessionOutletRemoved, outletLoading, page, activeTab, minRating, debouncedSearch, from, to])
 
   const filtered = reviews
 
@@ -845,11 +878,11 @@ export default function OutletReviewsPage() {
           </motion.div>
         ) : (
           <EmptyState
-            title={hasActiveFilters ? 'No reviews match your filters' : 'No reviews yet'}
+            title={hasActiveFilters ? 'No reviews match your filters' : 'Waiting for the first sync'}
             description={
               hasActiveFilters
                 ? 'Try widening the date range or clearing your filters.'
-                : 'Waiting for the first sync. New reviews will appear automatically.'
+                : 'New reviews will appear automatically.'
             }
             actionLabel={hasActiveFilters ? 'Clear filters' : undefined}
             onAction={hasActiveFilters ? resetAllFilters : undefined}

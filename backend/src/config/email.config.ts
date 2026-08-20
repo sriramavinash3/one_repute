@@ -38,8 +38,8 @@ export function loadEmailConfig(): EmailConfig {
   const fallbackEmailFrom = process.env.FALLBACK_EMAIL_FROM || 'OneRepute <onboarding@resend.dev>';
   const timeoutMs = parseInt(process.env.EMAIL_TIMEOUT_MS || '10000', 10);
   
-  const defaultFrontendUrl = isProduction ? 'https://onerepute.com' : 'http://localhost:5173';
-  const defaultAppUrl = isProduction ? 'https://onerepute.com' : 'http://localhost:3000';
+  const defaultFrontendUrl = 'https://onerepute.com';
+  const defaultAppUrl = 'https://onerepute.com';
 
   const frontendUrl = process.env.FRONTEND_BASE_URL || defaultFrontendUrl;
   const appUrl = process.env.APP_URL || defaultAppUrl;

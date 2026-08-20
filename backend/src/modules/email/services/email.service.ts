@@ -21,6 +21,7 @@ import {
   SendWeeklyReportDto,
   SendFifteenDayReportDto,
   SendOnboardingConfirmedDto,
+  SendOutletGreetingDto,
   SendReviewAlertDto,
   SendEscalationEmailDto,
   SendAccountDeletionOtpDto,
@@ -207,6 +208,16 @@ export class EmailService {
     this.logger.log(`Queueing Business Onboarding Confirmation email for ${dto.recipientEmail}`);
     return this.dispatchJob(EmailJobType.ONBOARDING_CONFIRMED, {
       ...dto,
+      dashboardUrl: dto.dashboardUrl || `${this.frontendUrl}/outlet/dashboard`,
+    });
+  }
+
+  async sendOutletGreeting(dto: SendOutletGreetingDto): Promise<EmailDispatchResult> {
+    const idempotencyKey = dto.idempotencyKey || `outlet_greeting_${dto.outletId}`;
+    this.logger.log(`Queueing Outlet Greeting email for outletId=${dto.outletId} recipient=${dto.recipientEmail} idempotencyKey=${idempotencyKey}`);
+    return this.dispatchJob(EmailJobType.OUTLET_GREETING, {
+      ...dto,
+      idempotencyKey,
       dashboardUrl: dto.dashboardUrl || `${this.frontendUrl}/outlet/dashboard`,
     });
   }

@@ -59,6 +59,13 @@ export default function OutletSelector() {
 
   const handleSelect = (item) => {
     setIsOpen(false)
+    console.log('[OutletSelector] Outlet selection initiated:', {
+      previousOutletId: outlet?.id,
+      selectedOutletId: item.id,
+      selectedName: item.name,
+      isRegistered: item.isRegistered,
+      status: item.status
+    })
     if (item.isRegistered && item.status === 'active') {
       switchOutlet(item.id)
     } else {
