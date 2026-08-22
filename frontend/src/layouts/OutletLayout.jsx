@@ -14,7 +14,7 @@ const SMART_QR_LOCKED_MESSAGE = 'Smart QR Code Campaigns will be updated soon. S
 
 export default function OutletLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { profile, outlet, outlets, switchOutlet, signOut } = useAuth()
+  const { profile, outlet, signOut } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = async () => {

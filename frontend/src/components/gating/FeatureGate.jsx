@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Lock, Sparkles, Check, HelpCircle, X, ShieldAlert, ArrowRight, Clock } from 'lucide-react'
+import { Lock, Sparkles, Check, X, Clock } from 'lucide-react'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import Button from '../ui/button'
 import apiClient from '../../services/apiClient'
-import { PRICING_CONFIG, PLAN_CARD_FEATURES, PLAN_FEATURE_COMPARISON } from '../pricing/pricingConfig'
+import { PRICING_CONFIG, PLAN_CARD_FEATURES } from '../pricing/pricingConfig'
 
 /**
  * FeatureGate wrapper component to gate access to premium features.
@@ -79,23 +79,25 @@ export function LockedPlaceholder({ title, description, onUnlock }) {
 /**
  * UpgradeModal - Premium subscription comparator layout using Home Page PRICING_CONFIG.
  */
+import { INTERNATIONAL_BILLING_ENABLED } from '../../config/featureFlags'
+import InternationalBillingModal from '../common/InternationalBillingModal'
+
 export function UpgradeModal({ onClose }) {
-  const { billingInfo, changePlan, checkoutSubscription } = useSubscription()
+  const { billingInfo, checkoutSubscription } = useSubscription()
   const [billingCycle, setBillingCycle] = useState('monthly')
   const [selectedCurrency, setSelectedCurrency] = useState('INR')
-  const [showIntlWarning, setShowIntlWarning] = useState(false)
-  const [pendingCurrency, setPendingCurrency] = useState(null)
+  const [showLockedModal, setShowLockedModal] = useState(false)
   const [loadingPlan, setLoadingPlan] = useState(null)
 
   const currentPlan = billingInfo?.subscription?.plan || 'plan_starter'
   const sub = billingInfo?.subscription
 
   useEffect(() => {
+    if (!INTERNATIONAL_BILLING_ENABLED) return
+
     // If billing details are loaded and country is not India, flag international
     if (billingInfo?.subscription?.billingCountry && billingInfo.subscription.billingCountry !== 'IN') {
       setSelectedCurrency('USD')
-      setShowIntlWarning(true)
-      setPendingCurrency('USD')
     } else if (!billingInfo) {
       // Guest/Draft Geolocation Check
       async function detect() {
@@ -103,10 +105,8 @@ export function UpgradeModal({ onClose }) {
           const { data } = await apiClient.get('/api/payments/detect-location')
           if (data && data.country && data.country !== 'IN') {
             setSelectedCurrency('USD')
-            setShowIntlWarning(true)
-            setPendingCurrency('USD')
           }
-        } catch (e) {
+        } catch (_) {
           // ignore
         }
       }
@@ -127,23 +127,12 @@ export function UpgradeModal({ onClose }) {
   }
 
   const handleCurrencyChange = (curr) => {
-    if (curr === 'USD') {
-      setPendingCurrency('USD')
-      setShowIntlWarning(true)
-    } else {
+    if (curr === 'USD' && !INTERNATIONAL_BILLING_ENABLED) {
+      setShowLockedModal(true)
       setSelectedCurrency('INR')
+      return
     }
-  }
-
-  const confirmIntlBilling = () => {
-    setSelectedCurrency(pendingCurrency)
-    setShowIntlWarning(false)
-    setPendingCurrency(null)
-  }
-
-  const cancelIntlBilling = () => {
-    setShowIntlWarning(false)
-    setPendingCurrency(null)
+    setSelectedCurrency(curr)
   }
 
   return (
@@ -302,36 +291,10 @@ export function UpgradeModal({ onClose }) {
       </motion.div>
 
 
-      {/* International Billing Warning Dialog */}
-      <AnimatePresence>
-        {showIntlWarning && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slatey-900/60 backdrop-blur-sm p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md bg-white rounded-2xl p-6 border border-slatey-200 shadow-2xl space-y-4 text-center"
-            >
-              <div className="h-12 w-12 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                <ShieldAlert className="h-6 w-6" />
-              </div>
-              <h3 className="text-base font-bold text-slatey-900">International Billing</h3>
-              <p className="text-xs text-slatey-500 leading-relaxed">
-                You are purchasing from outside India.
-                Your payment will be securely processed using the supported international payment options available for your country. Currency conversion, taxes, or bank charges may apply depending on your payment method and issuing bank.
-              </p>
-              <div className="flex justify-center gap-3 pt-2">
-                <Button variant="ghost" onClick={cancelIntlBilling} className="text-xs">
-                  Back
-                </Button>
-                <Button variant="primary" onClick={confirmIntlBilling} className="text-xs">
-                  Continue
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <InternationalBillingModal
+        isOpen={showLockedModal}
+        onClose={() => setShowLockedModal(false)}
+      />
     </div>
   )
 }

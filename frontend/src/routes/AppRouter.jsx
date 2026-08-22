@@ -29,7 +29,6 @@ const OutletDashboardPage = lazy(() => import('../pages/outlet/OutletDashboardPa
 const OutletReviewsPage = lazy(() => import('../pages/outlet/OutletReviewsPage'))
 const OutletAnalyticsPage = lazy(() => import('../pages/outlet/OutletAnalyticsPage'))
 const OutletEscalationsPage = lazy(() => import('../pages/outlet/OutletEscalationsPage'))
-const OutletGooglePage = lazy(() => import('../pages/outlet/OutletGooglePage'))
 const OutletSettingsPage = lazy(() => import('../pages/outlet/OutletSettingsPage'))
 const OutletReputationPage = lazy(() => import('../pages/outlet/OutletReputationPage'))
 const OutletQrPage = lazy(() => import('../pages/outlet/OutletQrPage'))
@@ -39,9 +38,53 @@ const VerifyEmailPage = lazy(() => import('../pages/VerifyEmailPage'))
 
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
 
+import { useEffect, useState } from 'react'
+import { INTERNATIONAL_BILLING_ENABLED } from '../config/featureFlags'
+import InternationalBillingModal from '../components/common/InternationalBillingModal'
+
+function InternationalBillingUrlGuard() {
+  const [showLockedModal, setShowLockedModal] = useState(() => {
+    if (INTERNATIONAL_BILLING_ENABLED || typeof window === 'undefined') return false
+    const searchParams = new URLSearchParams(window.location.search)
+    const region = (searchParams.get('region') || '').toUpperCase()
+    const currency = (searchParams.get('currency') || '').toUpperCase()
+    const country = (searchParams.get('country') || '').toUpperCase()
+    const billing = (searchParams.get('billing') || '').toLowerCase()
+
+    return (
+      region === 'INT' ||
+      (currency && currency !== 'INR') ||
+      (country && country !== 'IN') ||
+      billing.includes('international') ||
+      window.location.pathname.includes('/billing/international')
+    )
+  })
+
+  useEffect(() => {
+    if (showLockedModal && typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search)
+      searchParams.delete('region')
+      searchParams.delete('currency')
+      searchParams.delete('country')
+      searchParams.delete('billing')
+      const newSearch = searchParams.toString()
+      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [showLockedModal])
+
+  return (
+    <InternationalBillingModal
+      isOpen={showLockedModal}
+      onClose={() => setShowLockedModal(false)}
+    />
+  )
+}
+
 export default function AppRouter() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <InternationalBillingUrlGuard />
       <Suspense fallback={<FullScreenLoader />}> 
         <Routes>
           <Route path="/" element={<LandingPage />} />

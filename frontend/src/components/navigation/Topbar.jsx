@@ -1,17 +1,12 @@
-import { useEffect, useState } from 'react'
-import { Bell, Moon, Search, Sun } from 'lucide-react'
-import Input from '../ui/input'
+import { useState } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenu, DropdownMenuTrigger } from '../ui/dropdown-menu'
 import { AvatarFallback, AvatarImage, AvatarRoot } from '../ui/avatar'
 import Button from '../ui/button'
 import OutletSelector from './OutletSelector'
 
 export default function Topbar({ title, user, onLogout }) {
-  const [isDark, setIsDark] = useState(false)
-
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains('dark'))
-  }, [])
+  const [isDark, setIsDark] = useState(() => typeof document !== 'undefined' && document.documentElement.classList.contains('dark'))
 
   const toggleTheme = () => {
     document.documentElement.classList.toggle('dark')

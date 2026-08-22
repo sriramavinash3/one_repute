@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   CheckCircle2, Link2, Loader2, Store, RefreshCw, MapPin, AlertTriangle,
-  Clock, Info, ChevronRight, Sparkles, ShieldCheck
+  Clock, Info, Sparkles, ShieldCheck
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {

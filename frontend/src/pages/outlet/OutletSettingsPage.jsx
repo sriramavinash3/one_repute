@@ -18,6 +18,7 @@ import { requestAccountDeletionOtp, verifyAccountDeletionOtp } from '../../servi
 import { useSubscription } from '../../contexts/SubscriptionContext'
 import { UpgradeModal } from '../../components/gating/FeatureGate'
 import { usePageReadiness } from '../../hooks/usePageReadiness'
+import { splitPhoneNumber } from '../../utils/format'
 
 function SectionHeader({ icon, title, description }) {
   return (
@@ -308,51 +309,6 @@ export default function OutletSettingsPage() {
     3: { name: '', designation: '', countryCode: '+91', whatsappNumber: '', email: '', escalationMinutes: 180, enabled: true }
   })
 
-  useEffect(() => {
-    if (!outlet) return
-
-    const googleName = outlet.googleLocationName || outlet.name || ''
-    const googleType = outlet.businessCategory || outlet.businessType || ''
-    const googleAddress = outlet.googleLocationAddress || outlet.address || ''
-    const googlePhone = outlet.googleLocationPhone || outlet.phone || outlet.primaryWhatsAppNumber || ''
-    const googleWebsite = outlet.googleLocationWebsite || outlet.websiteUri || outlet.website || ''
-    const contactEmail = outlet.email || ''
-
-    setBusiness({
-      name: googleName,
-      type: googleType,
-      address: googleAddress,
-      phone: googlePhone,
-      website: googleWebsite,
-      email: contactEmail
-    })
-
-    const loadedWhatsapp = {
-      number: outlet.whatsappNumber || '',
-      escalationThreshold: String(outlet.escalationThreshold || 3)
-    }
-
-    setWhatsapp(loadedWhatsapp)
-    setBaseline({
-      business: {
-        name: googleName,
-        type: googleType,
-        address: googleAddress,
-        phone: googlePhone,
-        website: googleWebsite,
-        email: contactEmail
-      },
-      whatsapp: loadedWhatsapp
-    })
-
-    if (profile?.customerId) {
-      getDoc(doc(db, 'customers', profile.customerId)).then(snap => {
-        if (snap.exists()) setCustomer(snap.data())
-      })
-      loadEscalationSettings()
-    }
-  }, [outlet, profile])
-
   const loadEscalationSettings = async () => {
     try {
       setLoadingEscalation(true)
@@ -383,12 +339,58 @@ export default function OutletSettingsPage() {
       })
 
       setLevelForms(forms)
-    } catch (err) {
+    } catch (_) {
       toast.error('Failed to load escalation settings.')
     } finally {
       setLoadingEscalation(false)
     }
   }
+
+  useEffect(() => {
+    if (!outlet) return
+
+    const primaryGbpLoc = Array.isArray(outlet.googleLocations) && outlet.googleLocations.length > 0 ? outlet.googleLocations[0] : null
+    const googleName = outlet.googleLocationName || primaryGbpLoc?.name || outlet.name || ''
+    const googleAddress = outlet.address || primaryGbpLoc?.address || ''
+    const googlePhone = outlet.primaryPhone || outlet.phone || primaryGbpLoc?.phone || ''
+    const googleWebsite = outlet.website || primaryGbpLoc?.website || ''
+    const contactEmail = outlet.email || profile?.email || ''
+    const rawNumber = outlet.whatsappNumber || outlet.primaryWhatsAppNumber || ''
+    const parsed = splitPhoneNumber(rawNumber)
+
+    const loadedWhatsapp = {
+      countryCode: parsed.countryCode,
+      number: parsed.number,
+      escalationThreshold: outlet.escalationThreshold || 3
+    }
+
+    setBusiness({
+      name: googleName,
+      address: googleAddress,
+      phone: googlePhone,
+      website: googleWebsite,
+      email: contactEmail
+    })
+    setWhatsapp(loadedWhatsapp)
+
+    setBaseline({
+      business: {
+        name: googleName,
+        address: googleAddress,
+        phone: googlePhone,
+        website: googleWebsite,
+        email: contactEmail
+      },
+      whatsapp: loadedWhatsapp
+    })
+
+    if (profile?.customerId) {
+      getDoc(doc(db, 'customers', profile.customerId)).then(snap => {
+        if (snap.exists()) setCustomer(snap.data())
+      })
+      loadEscalationSettings()
+    }
+  }, [outlet, profile])
 
   const hasChanges = useMemo(() => {
     return (

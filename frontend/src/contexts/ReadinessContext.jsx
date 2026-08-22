@@ -131,7 +131,7 @@ export function ReadinessProvider({ children }) {
       isValidatingRef.current = true
 
       try {
-        setStageMessage((prev) => {
+        setStageMessage(() => {
           if (activeRequestsCount > 0) return `Waiting for pending network requests (${activeRequestsCount} active)…`
           return 'Validating data completeness & outlet consistency…'
         })
@@ -149,7 +149,9 @@ export function ReadinessProvider({ children }) {
 
         const components = Array.from(componentsMapRef.current.entries())
         if (components.length === 0) {
-          console.debug('[ReadinessContext] Verification pending: no components registered yet.')
+          console.debug('[ReadinessContext] No custom readiness components registered. Defaulting to ready.')
+          setStatus('ready')
+          setStageMessage('Ready')
           isValidatingRef.current = false
           return
         }

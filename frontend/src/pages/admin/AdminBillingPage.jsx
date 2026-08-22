@@ -19,6 +19,9 @@ const fadeUp = {
 }
 
 
+import { INTERNATIONAL_BILLING_ENABLED } from '../../config/featureFlags'
+import InternationalBillingModal from '../../components/common/InternationalBillingModal'
+
 export default function AdminBillingPage() {
   const [activeCustomers, setActiveCustomers] = useState(0)
   const [totalCustomers, setTotalCustomers] = useState(0)
@@ -33,6 +36,7 @@ export default function AdminBillingPage() {
   const [loadingPrices, setLoadingPrices] = useState(false)
   const [editingPrice, setEditingPrice] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showLockedModal, setShowLockedModal] = useState(false)
   const [priceForm, setPriceForm] = useState({
     planId: 'plan_starter',
     country: '',
@@ -50,9 +54,9 @@ export default function AdminBillingPage() {
     if (!cust) return 0
     const rawPlan = cust.plan || 'plan_starter'
     const planKey = rawPlan.replace('plan_', '')
-    const region = (cust.billingCountry === 'IN' || cust.country === 'IN') ? 'IN' : 'INT'
+    const region = (!INTERNATIONAL_BILLING_ENABLED) ? 'IN' : ((cust.billingCountry === 'IN' || cust.country === 'IN') ? 'IN' : 'INT')
     const cycle = cust.billingCycle || 'monthly'
-    const regionPlans = PRICING_CONFIG.regions[region]?.plans || PRICING_CONFIG.regions.INT.plans
+    const regionPlans = PRICING_CONFIG.regions[region]?.plans || PRICING_CONFIG.regions.IN.plans
     const planPrices = regionPlans[planKey] || regionPlans[`plan_${planKey}`]
     if (!planPrices) return 0
     return planPrices[cycle] || planPrices.monthly || 0
@@ -84,6 +88,12 @@ export default function AdminBillingPage() {
 
   const handleSavePrice = async (e) => {
     e.preventDefault()
+    const countryUpper = (priceForm.country || '').trim().toUpperCase()
+    const currencyUpper = (priceForm.currency || '').trim().toUpperCase()
+    if (!INTERNATIONAL_BILLING_ENABLED && (countryUpper !== 'IN' || (currencyUpper && currencyUpper !== 'INR'))) {
+      setShowLockedModal(true)
+      return
+    }
     try {
       await apiClient.post('/api/admin/billing/prices', priceForm)
       fetchPrices()
@@ -604,6 +614,10 @@ export default function AdminBillingPage() {
           )}
         </div>
       </motion.div>
+      <InternationalBillingModal
+        isOpen={showLockedModal}
+        onClose={() => setShowLockedModal(false)}
+      />
     </motion.div>
   )
 }

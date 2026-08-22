@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Req, UseGuards, HttpStatus, HttpCode, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, UseGuards, HttpStatus, HttpCode, Logger, ForbiddenException } from '@nestjs/common';
 import { Request } from 'express';
 import { PaymentService } from './payment.service';
 import { SubscriptionService } from './subscription.service';
@@ -8,6 +8,7 @@ import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { CreateSubscriptionDto, VerifyPaymentDto, ChangePlanDto, VerifyAndProvisionOutletDto } from './dto/payment.dto';
+import { INTERNATIONAL_BILLING_ENABLED } from '../../config/feature-flags.config';
 
 @Controller('payments')
 export class PaymentsController {
@@ -22,6 +23,9 @@ export class PaymentsController {
 
   @Get('detect-location')
   async detectLocation(@Req() req: Request) {
+    if (!INTERNATIONAL_BILLING_ENABLED) {
+      return { country: 'IN', currency: 'INR', symbol: '₹' };
+    }
     try {
       let customerData: any = null;
       let userData: any = null;
@@ -76,8 +80,11 @@ export class PaymentsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateSubscriptionDto,
   ) {
+    const countryCode = (dto.countryCode || 'IN').toUpperCase();
+    if (!INTERNATIONAL_BILLING_ENABLED && countryCode !== 'IN') {
+      throw new ForbiddenException('International Billing is unavailable. We launch it soon.');
+    }
     const resolvedCustomerId = dto.customerId || user.customerId || `cust_${user.uid}`;
-    const countryCode = dto.countryCode || 'IN';
     const skipTrial = dto.skipTrial !== undefined ? dto.skipTrial : true;
     const result = await this.paymentService.createSubscription(
       resolvedCustomerId,

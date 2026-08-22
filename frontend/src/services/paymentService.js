@@ -1,10 +1,18 @@
 import apiClient from './apiClient';
+import { INTERNATIONAL_BILLING_ENABLED } from '../config/featureFlags';
 
 export async function createSubscription(planId, billingCycle = 'monthly', countryCode = 'IN', customerId, discountCode, skipTrial = true) {
+  const normCountry = (countryCode || 'IN').toUpperCase();
+  if (!INTERNATIONAL_BILLING_ENABLED && normCountry !== 'IN') {
+    const error = new Error('International Billing is unavailable. We launch it soon.');
+    error.isInternationalBillingLocked = true;
+    throw error;
+  }
+
   const { data } = await apiClient.post('/api/payments/create-subscription', {
     planId,
     billingCycle,
-    countryCode,
+    countryCode: INTERNATIONAL_BILLING_ENABLED ? countryCode : 'IN',
     customerId,
     discountCode,
     skipTrial,

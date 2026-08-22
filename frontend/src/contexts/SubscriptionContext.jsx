@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useAuth } from './AuthContext'
 import apiClient from '../services/apiClient'
 import { toast } from 'sonner'
+import { INTERNATIONAL_BILLING_ENABLED } from '../config/featureFlags'
 
 const SubscriptionContext = createContext(null)
 
@@ -11,27 +12,29 @@ export function SubscriptionProvider({ children }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const fetchBillingInfo = async () => {
-    if (!user) {
-      setBillingInfo(null)
+  const fetchBillingInfo = useCallback(async () => {
+    const custId = profile?.customerId || (user ? 'cust_' + user.uid : null) || outlet?.id
+    if (!custId) {
+      setLoading(false)
       return
     }
-    setLoading(true)
-    setError(null)
+
     try {
+      setLoading(true)
       const { data } = await apiClient.get('/api/payments/billing-info')
       setBillingInfo(data)
+      setError(null)
     } catch (err) {
       console.error('Failed to load billing info:', err)
       setError('Failed to load subscription details')
     } finally {
       setLoading(false)
     }
-  }
+  }, [profile?.customerId, user, outlet?.id])
 
   useEffect(() => {
     fetchBillingInfo()
-  }, [user, profile?.customerId, outlet?.id])
+  }, [fetchBillingInfo])
 
   // Helper function to map planId to features locally if not fully loaded from API
   const getFeatureValue = (featureKey) => {
@@ -174,10 +177,14 @@ export function SubscriptionProvider({ children }) {
       }
 
       // Create subscription on the backend
+      const targetCountry = INTERNATIONAL_BILLING_ENABLED
+        ? (billingInfo?.subscription?.billingCountry || 'IN')
+        : 'IN'
+
       const { data: subscription } = await apiClient.post('/api/payments/create-subscription', {
         planId,
         billingCycle,
-        countryCode: billingInfo?.subscription?.billingCountry || 'IN',
+        countryCode: targetCountry,
         customerId: profile?.customerId,
         skipTrial: true,
       })

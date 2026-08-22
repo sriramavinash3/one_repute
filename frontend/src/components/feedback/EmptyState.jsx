@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Inbox, RefreshCw, Sparkles, Database } from 'lucide-react'
+import { Inbox, RefreshCw } from 'lucide-react'
 import Button from '../ui/button'
 
 export default function EmptyState({

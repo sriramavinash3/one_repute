@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Store, ChevronDown, PlusCircle, Check } from 'lucide-react'
+import { Store, ChevronDown, Check } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import OutletSubscriptionModal from '../pricing/OutletSubscriptionModal'
 import NoGmbModal from '../common/NoGmbModal'

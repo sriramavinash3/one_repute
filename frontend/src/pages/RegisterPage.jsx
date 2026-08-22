@@ -1,17 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, ChevronRight, Store, CreditCard, Sparkles, Tag, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
-import { db } from '../firebase/firebase'
+import { CheckCircle2, ChevronRight, Store, CreditCard, Tag, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
 import Button from '../components/ui/button'
 import Input from '../components/ui/input'
 import { useAuth } from '../contexts/AuthContext'
 import apiClient from '../services/apiClient'
 import { buildOAuthUrl, getOAuthMessageOrigins } from '../services/googleAuthService'
 import { createSubscription, verifyPayment, loadRazorpayScript } from '../services/paymentService'
-import { fetchPlaceSuggestions, fetchPlaceDetails } from '../services/outletService'
 import Logo from '../components/common/Logo'
 import Seo from '../components/seo/Seo'
 import { PRICING_CONFIG, formatPrice, PLAN_CARD_FEATURES } from '../components/pricing/pricingConfig'
@@ -83,9 +80,12 @@ export default function OnboardingPage() {
     }))
   }, [gmbLocations])
 
+  const [onboardingState, setOnboardingState] = useState('IDLE') // 'IDLE' | 'AUTHENTICATING' | 'LOADING_PROFILE' | 'PROFILE_LOADED' | 'NO_PROFILE' | 'RETRYING' | 'ERROR' | 'RECOVERING' | 'COMPLETE'
+
   const inFlightRef = useRef(false)
   const pollTimerRef = useRef(null)
   const maxTimeoutRef = useRef(null)
+  const retryCountRef = useRef(0)
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -101,13 +101,29 @@ export default function OnboardingPage() {
   /**
    * Reliably loads the Google Business data collected during the OAuth flow.
    * Consumes explicit session status: 'loading', 'ready', 'no_gmb_found', 'no_data', 'error', 'completed'.
+   * Implements 5-Tier recovery hierarchy with max timeouts and AbortController.
    */
-  const loadOnboardingSession = useCallback(async (fallbackLocations) => {
+  const loadSessionRef = useRef()
+  const loadOnboardingSession = useCallback(async (fallbackLocations, isRetryAttempt = false) => {
     if (!user?.uid || inFlightRef.current) return false
     inFlightRef.current = true
 
+    if (isRetryAttempt) {
+      setOnboardingState('RETRYING')
+    } else if (onboardingState !== 'AUTHENTICATING') {
+      setOnboardingState('LOADING_PROFILE')
+    }
+
     try {
-      const { data } = await apiClient.get(`/api/auth/onboarding-session/${user.uid}`)
+      // Tier 1: Normal fetch with abort controller
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 12000)
+
+      const { data } = await apiClient.get(`/api/auth/onboarding-session/${user.uid}`, {
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
+
       const status = data?.status
       const gbp = data?.googleBusinessProfile || {}
       const locs = gbp.locations || data?.googleLocations || []
@@ -116,6 +132,7 @@ export default function OnboardingPage() {
 
       if (status === 'completed') {
         stopPolling()
+        setOnboardingState('COMPLETE')
         setLocationsLoading(false)
         navigate('/outlet-dashboard')
         return true
@@ -126,6 +143,7 @@ export default function OnboardingPage() {
         setGmbLocations([])
         setGoogleConnected(false)
         setLocationsLoading(false)
+        setOnboardingState('NO_PROFILE')
         setShowNoGmbModal(true)
         return true
       }
@@ -136,6 +154,7 @@ export default function OnboardingPage() {
         setGoogleConnected(true)
         setLocationsError(null)
         setLocationsLoading(false)
+        setOnboardingState('PROFILE_LOADED')
         if (locs.length === 1) {
           handleSelectLocation(locs[0].id, locs)
         }
@@ -151,6 +170,7 @@ export default function OnboardingPage() {
           message: warning || 'No business locations were found for this Google account.'
         })
         setLocationsLoading(false)
+        setOnboardingState('NO_PROFILE')
         return true
       }
 
@@ -163,50 +183,82 @@ export default function OnboardingPage() {
           message: errorMsg || 'Google connection failed. Please try again.'
         })
         setLocationsLoading(false)
+        setOnboardingState('ERROR')
         return false
       }
 
-      // If status === 'loading'
+      // If status === 'loading', ensure polling is active so we don't hang indefinitely
       setLocationsLoading(true)
+      setOnboardingState('LOADING_PROFILE')
       return false
     } catch (error) {
+      console.warn('[Onboarding] Error loading onboarding session:', error?.message)
+
       if (Array.isArray(fallbackLocations) && fallbackLocations.length > 0) {
         stopPolling()
         setGmbLocations(fallbackLocations)
         setGoogleConnected(true)
         setLocationsLoading(false)
+        setOnboardingState('PROFILE_LOADED')
         if (fallbackLocations.length === 1) {
           handleSelectLocation(fallbackLocations[0].id, fallbackLocations)
         }
         return true
       }
+
+      // Tier 2: Transient network error retry (up to 2 attempts)
+      if (retryCountRef.current < 2 && (error?.code === 'ECONNABORTED' || error?.name === 'AbortError' || !error?.response)) {
+        retryCountRef.current += 1
+        console.log(`[Onboarding] Retrying onboarding session load (${retryCountRef.current}/2)...`)
+        inFlightRef.current = false
+        await new Promise(r => setTimeout(r, 1500))
+        return loadSessionRef.current?.(fallbackLocations, true)
+      }
+
+      // Tier 3: Session revalidation on 401
+      if (error?.response?.status === 401 && user) {
+        try {
+          console.log('[Onboarding] Revalidating auth session token...')
+          setOnboardingState('RECOVERING')
+          await user.getIdToken(true)
+        } catch (_) {}
+      }
+
       stopPolling()
       setLocationsLoading(false)
+      setOnboardingState('ERROR')
       if (error?.response?.status === 404) {
         setLocationsError({ type: 'error', message: 'Unable to retrieve your onboarding session. Please restart onboarding.' })
       } else {
-        setLocationsError({ type: 'error', message: error?.response?.data?.error || 'Failed to load Google Business data. Please try again.' })
+        setLocationsError({ type: 'error', message: error?.response?.data?.error || error?.message || 'Failed to load Google Business data. Please try again.' })
       }
       return false
     } finally {
       inFlightRef.current = false
     }
-  }, [user?.uid, handleSelectLocation, navigate, stopPolling])
+  }, [user, handleSelectLocation, navigate, stopPolling, onboardingState])
+
+  useEffect(() => {
+    loadSessionRef.current = loadOnboardingSession
+  }, [loadOnboardingSession])
 
   const startPolling = useCallback(() => {
     stopPolling()
+    retryCountRef.current = 0
     setLocationsLoading(true)
+    setOnboardingState('LOADING_PROFILE')
     setLocationsError(null)
 
-    // Maximum 60s timeout
+    // Bounded 45s maximum timeout guard
     maxTimeoutRef.current = setTimeout(() => {
       stopPolling()
       setLocationsLoading(false)
+      setOnboardingState('ERROR')
       setLocationsError({
         type: 'error',
         message: 'Unable to load Google Business Profile data within the timeout period. Please try reconnecting.'
       })
-    }, 60000)
+    }, 45000)
 
     // Poll every 2.5s
     pollTimerRef.current = setInterval(async () => {
@@ -226,9 +278,14 @@ export default function OnboardingPage() {
   // Recover the Google connection + selected outlet after a page refresh.
   useEffect(() => {
     if (user?.uid) {
-      loadOnboardingSession(null)
+      loadOnboardingSession(null).then((isFinished) => {
+        // If not finished (status === 'loading') and no poll timer active, start polling automatically!
+        if (!isFinished && !pollTimerRef.current) {
+          startPolling()
+        }
+      })
     }
-  }, [user?.uid, loadOnboardingSession])
+  }, [user?.uid, loadOnboardingSession, startPolling])
 
   const handleApplyDiscount = async () => {
     if (!discountCode.trim()) return;
@@ -483,7 +540,9 @@ export default function OnboardingPage() {
                   {locationsLoading ? (
                     <div className="flex items-center justify-center gap-3 rounded-2xl border border-slatey-200 bg-slatey-50 p-6 text-sm text-slatey-500">
                       <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
-                      Loading your Google Business Profile data…
+                      {onboardingState === 'RETRYING' ? 'Retrying business profile connection…' :
+                       onboardingState === 'RECOVERING' ? 'Refreshing your session…' :
+                       'Loading your Google Business Profile data…'}
                     </div>
                   ) : !googleConnected ? (
                     <div className="space-y-3 rounded-2xl border border-slatey-200 bg-slatey-50 p-5 text-center">

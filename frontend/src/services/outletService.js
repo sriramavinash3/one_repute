@@ -1,6 +1,6 @@
 import apiClient from './apiClient'
 import { db } from '../firebase/firebase'
-import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 
 const COLLECTION = 'outlets'
 

@@ -38,12 +38,58 @@ export async function consumeTrialResponseAllowance(
   customerId: string,
   requestedCount: number = 1
 ): Promise<TrialAllowanceResult> {
-  if (!customerId) {
+  if (!customerId || !db) {
     return { allowedCount: 0, isTrial: false, remaining: 0, used: 0 };
   }
 
   const customerRef = db.collection('customers').doc(customerId);
   const usageRef = db.collection('customerUsage').doc(customerId);
+
+  if (typeof db.runTransaction !== 'function') {
+    const customerSnap = await customerRef.get();
+    if (!customerSnap.exists) {
+      return { allowedCount: 0, isTrial: false, remaining: 0, used: 0 };
+    }
+
+    const customerData = customerSnap.data();
+    const inTrial = isCustomerInTrial(customerData);
+
+    if (!inTrial) {
+      return { allowedCount: requestedCount, isTrial: false, remaining: Infinity, used: 0 };
+    }
+
+    const usageSnap = await usageRef.get();
+    const usageData = usageSnap.exists ? usageSnap.data() : {};
+
+    const used = Number(
+      usageData?.trial_review_responses_used ??
+      usageData?.trial_ai_suggestion_count ??
+      usageData?.trial_auto_reply_count ??
+      0
+    );
+
+    const remaining = Math.max(0, TOTAL_TRIAL_RESPONSE_LIMIT - used);
+    const allowedCount = Math.min(requestedCount, remaining);
+
+    if (allowedCount > 0) {
+      const newUsed = used + allowedCount;
+      await usageRef.set(
+        {
+          trial_review_responses_used: newUsed,
+          trial_ai_suggestion_count: newUsed,
+          updatedAt: admin.firestore?.FieldValue?.serverTimestamp ? admin.firestore.FieldValue.serverTimestamp() : new Date(),
+        },
+        { merge: true }
+      );
+    }
+
+    return {
+      allowedCount,
+      isTrial: true,
+      remaining: Math.max(0, remaining - allowedCount),
+      used: used + allowedCount,
+    };
+  }
 
   return await db.runTransaction(async (transaction) => {
     const customerSnap = await transaction.get(customerRef);
@@ -55,17 +101,16 @@ export async function consumeTrialResponseAllowance(
     const inTrial = isCustomerInTrial(customerData);
 
     if (!inTrial) {
-      // Paid plan users are not subject to trial response limits
       return { allowedCount: requestedCount, isTrial: false, remaining: Infinity, used: 0 };
     }
 
     const usageSnap = await transaction.get(usageRef);
     const usageData = usageSnap.exists ? usageSnap.data() : {};
 
-    // Retrieve cumulative used responses (consolidated field with fallback)
     const used = Number(
       usageData?.trial_review_responses_used ??
       usageData?.trial_ai_suggestion_count ??
+      usageData?.trial_auto_reply_count ??
       0
     );
 
@@ -78,8 +123,8 @@ export async function consumeTrialResponseAllowance(
         usageRef,
         {
           trial_review_responses_used: newUsed,
-          trial_ai_suggestion_count: newUsed, // maintain backward compatibility
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          trial_ai_suggestion_count: newUsed,
+          updatedAt: admin.firestore?.FieldValue?.serverTimestamp ? admin.firestore.FieldValue.serverTimestamp() : new Date(),
         },
         { merge: true }
       );

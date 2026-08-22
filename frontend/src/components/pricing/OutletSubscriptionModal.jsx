@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import Button from '../ui/button'
 import { loadRazorpayScript, createSubscription } from '../../services/paymentService'
 import apiClient from '../../services/apiClient'
-import { PRICING_CONFIG, formatPrice } from './pricingConfig'
+import { PRICING_CONFIG } from './pricingConfig'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../contexts/SubscriptionContext'
 

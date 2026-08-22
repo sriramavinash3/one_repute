@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { History, Sparkles, MessageCircle, CheckCircle2, Clock, AlertTriangle, ChevronRight } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { History, Sparkles, CheckCircle2 } from 'lucide-react'
 import { formatTimestamp } from '../../utils/format'
 import StatusBadge from '../feedback/StatusBadge'
 import Skeleton from '../feedback/Skeleton'
@@ -8,16 +8,12 @@ import apiClient from '../../services/apiClient'
 
 export default function HistoricalReviewSection({ outletId }) {
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(Boolean(outletId))
   const [activeTab, setActiveTab] = useState('imported10')
 
   useEffect(() => {
-    if (!outletId) {
-      setLoading(true)
-      return
-    }
+    if (!outletId) return
 
-    setLoading(true)
     apiClient
       .get(`/api/outlets/historical-summary?outletId=${outletId}`)
       .then((res) => {

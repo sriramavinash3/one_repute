@@ -279,7 +279,7 @@ export class AuthController {
     const data = sessionDoc.data() || {};
     const locations = data.googleLocations || [];
     const warning = data.googleLocationsWarning || '';
-    const errorMsg = data.error || null;
+    let errorMsg = data.error || null;
     
     // Explicit status derivation logic:
     let status = data.status;
@@ -292,6 +292,35 @@ export class AuthController {
         status = 'no_data';
       } else {
         status = 'loading';
+      }
+    }
+
+    // Stale session threshold check: if status is 'loading' for > 45s, mark as timed out / error
+    if (status === 'loading') {
+      const lastUpdateRaw = data.updatedAt || data.createdAt;
+      let lastUpdateMs = 0;
+      if (lastUpdateRaw) {
+        if (typeof lastUpdateRaw.toDate === 'function') {
+          lastUpdateMs = lastUpdateRaw.toDate().getTime();
+        } else if (typeof lastUpdateRaw.getTime === 'function') {
+          lastUpdateMs = lastUpdateRaw.getTime();
+        } else if (typeof lastUpdateRaw === 'number') {
+          lastUpdateMs = lastUpdateRaw;
+        } else {
+          lastUpdateMs = new Date(lastUpdateRaw).getTime();
+        }
+      }
+
+      if (lastUpdateMs > 0 && Date.now() - lastUpdateMs > 45000) {
+        this.logger.warn(`[ONBOARDING] Stale session auto-recovered (timed out after 45s) for uid=${uid}`);
+        status = 'error';
+        errorMsg = 'Onboarding session timed out. Please try connecting Google again.';
+        // Asynchronously update session in Firestore so subsequent checks remain deterministic
+        db.collection('onboarding_sessions').doc(uid).set({
+          status: 'error',
+          error: errorMsg,
+          updatedAt: new Date(),
+        }, { merge: true }).catch((e) => this.logger.error(`Failed to update stale session in DB: ${e.message}`));
       }
     }
 

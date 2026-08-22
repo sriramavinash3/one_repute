@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { GoogleBusinessService } from '../google-business/google-business.service';
 import { AIService } from '../ai/ai.service';
 
-import { consumeTrialResponseAllowance, releaseTrialResponseAllowance } from '../../common/utils/trial-entitlement.util';
+import { consumeTrialResponseAllowance, releaseTrialResponseAllowance, isCustomerInTrial } from '../../common/utils/trial-entitlement.util';
 
 @Injectable()
 export class ReviewReplyService {
@@ -111,6 +111,27 @@ export class ReviewReplyService {
       throw new NotFoundException(`Outlet ${outletId} not found or has been removed`);
     }
     const outlet = outletSnap.data() as any;
+
+    // Check trial auto-reply quota limits for customer
+    const customerId = outlet.customerId || outlet.userId || outlet.ownerId || null;
+    if (customerId) {
+      const customerSnap = await db.collection('customers').doc(customerId).get();
+      if (customerSnap.exists) {
+        const customerData = customerSnap.data();
+        if (isCustomerInTrial(customerData)) {
+          const usageSnap = await db.collection('customerUsage').doc(customerId).get();
+          const usageData = usageSnap.exists ? usageSnap.data() : {};
+          const autoReplyUsed = Number(
+            usageData?.trial_auto_reply_count ??
+            usageData?.trial_auto_replies_used ??
+            0
+          );
+          if (autoReplyUsed >= 10) {
+            throw new BadRequestException('Trial auto-reply limit (10/10) reached. Upgrade to a paid plan to publish direct replies.');
+          }
+        }
+      }
+    }
 
     // 2. Load review
     const reviewSnap = await db.collection('reviews').doc(reviewId).get();

@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanService } from './plan.service';
 import { PaymentsConfigService } from './payments-config.service';
 import { EmailService } from '../email/services/email.service';
+import { INTERNATIONAL_BILLING_ENABLED } from '../../config/feature-flags.config';
 
 @Injectable()
 export class PaymentService {
@@ -23,7 +24,7 @@ export class PaymentService {
       const keyId = this.configService.razorpayKeyId;
       const keySecret = this.configService.razorpayKeySecret;
       if (!keyId || !keySecret) {
-        throw new Error('Razorpay API credentials are not configured on the server.');
+        this.logger.error('Razorpay credentials missing from PaymentsConfigService');
       }
       const Razorpay = require('razorpay');
       this.razorpayInstance = new Razorpay({
@@ -36,6 +37,7 @@ export class PaymentService {
 
   async createSubscription(customerId: string, rawPlanId: string, billingCycle: string = 'monthly', countryCode: string = 'IN', discountCode?: string, skipTrial: boolean = true) {
     try {
+      const resolvedCountryCode = !INTERNATIONAL_BILLING_ENABLED ? 'IN' : (countryCode || 'IN');
       if (!rawPlanId) {
         throw new Error('Plan ID is required for checkout.');
       }
@@ -70,7 +72,7 @@ export class PaymentService {
 
       const isNewTrialEligible = (!customerData || customerData.trialUsed !== true) && !isCurrentlyInTrial;
 
-      const localizedPrice = await this.planService.getPlanPrice(planId, countryCode);
+      const localizedPrice = await this.planService.getPlanPrice(planId, resolvedCountryCode);
       const basePriceAmount = billingCycle === 'annual' 
         ? localizedPrice.annualPrice 
         : billingCycle === 'quarterly' 

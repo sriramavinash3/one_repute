@@ -147,7 +147,7 @@ export class AutomationService {
         this.logger.warn(`AI_RESPONSE_TRIAL_LIMIT_EXCEEDED customerId=${customerId} outletId=${outletId} reviewId=${reviewId} used=${trialResult.used}/30`);
         await this.dualWriteReview(reviewId, {
           status: 'pending',
-          lastError: 'Trial limit of 30 AI review responses reached. Upgrade to a paid plan to continue generating AI responses.',
+          lastError: 'Trial limit of 30 AI reply suggestions reached. Upgrade to a paid plan to continue generating AI responses.',
           aiVersion,
         });
         return;
@@ -189,10 +189,26 @@ export class AutomationService {
       return;
     }
 
-    // 2. Evaluate auto-publishing
+    // 2. Evaluate auto-publishing & trial auto-reply limit
+    let isTrialUser = false;
+    let autoReplyCount = 0;
+    if (customerId) {
+      const customerSnap = await db.collection('customers').doc(customerId).get();
+      if (customerSnap.exists && isCustomerInTrial(customerSnap.data())) {
+        isTrialUser = true;
+        const usageSnap = await db.collection('customerUsage').doc(customerId).get();
+        const usageData = usageSnap.exists ? usageSnap.data() : {};
+        autoReplyCount = Number(
+          usageData?.trial_auto_reply_count ??
+          usageData?.trial_auto_replies_used ??
+          0
+        );
+      }
+    }
+
     const targetLocationId = outlet?.googleLocationId || outlet?.googleActiveLocation || (Array.isArray(outlet?.googleLocations) && outlet?.googleLocations[0]?.id) || null;
     const hasGoogleCredentials = Boolean(outlet?.googleAccountId && targetLocationId && outlet?.googleRefreshToken);
-    const isEligibleForAutoPublish = autoResponseEnabled && rating >= minRatingForAutoResponse && hasGoogleCredentials;
+    const isEligibleForAutoPublish = autoResponseEnabled && rating >= minRatingForAutoResponse && hasGoogleCredentials && (!isTrialUser || autoReplyCount < 10);
 
     const baseUpdatePayload: any = {
       replySuggestion: replyResult.text,
@@ -220,6 +236,19 @@ export class AutomationService {
           resourceName,
           replyResult.text,
         );
+
+        if (isTrialUser && customerId) {
+          const usageRef = db.collection('customerUsage').doc(customerId);
+          const usageSnap = await usageRef.get();
+          const currentCount = usageSnap.exists ? Number(usageSnap.data()?.trial_auto_reply_count ?? 0) : 0;
+          await usageRef.set(
+            {
+              trial_auto_reply_count: currentCount + 1,
+              trial_auto_replies_used: currentCount + 1,
+            },
+            { merge: true }
+          );
+        }
 
         const repliedAt = new Date();
         await this.dualWriteReview(reviewId, {

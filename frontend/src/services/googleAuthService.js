@@ -1,5 +1,4 @@
 import apiClient, { getApiBaseUrl } from './apiClient'
-import axios from 'axios';
 
 // Debounce utility to prevent repeated API calls
 let debounceTimeout;
@@ -46,7 +45,7 @@ export function getOAuthMessageOrigins() {
 
   const localApi = import.meta.env.VITE_LOCAL_API_URL
   if (localApi && localApi.startsWith('http')) {
-    try { origins.add(new URL(localApi).origin) } catch (_) {}
+    try { origins.add(new URL(localApi).origin) } catch { /* ignore */ }
   }
   if (host === 'localhost' || host === '127.0.0.1') {
     origins.add('http://localhost:3000')
@@ -60,7 +59,7 @@ export function getOAuthMessageOrigins() {
 
   const apiBase = import.meta.env.VITE_API_BASE_URL
   if (apiBase && apiBase.startsWith('http')) {
-    try { origins.add(new URL(apiBase).origin) } catch (_) {}
+    try { origins.add(new URL(apiBase).origin) } catch { /* ignore */ }
   }
 
   return Array.from(origins)

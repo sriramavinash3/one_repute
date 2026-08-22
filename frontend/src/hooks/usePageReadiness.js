@@ -17,7 +17,7 @@ export function usePageReadiness({
     return () => {
       unregisterComponent(componentId)
     }
-  }, [componentId, registerComponent, unregisterComponent])
+  }, [componentId, isReady, outletId, isDataComplete, registerComponent, unregisterComponent])
 
   useEffect(() => {
     if (!componentId) return

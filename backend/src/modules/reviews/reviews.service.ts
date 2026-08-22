@@ -213,9 +213,9 @@ export class ReviewsService {
     }
 
     // 2. Fallback path: Firestore
-    const db = this.firebaseService.getDb();
+    const db = this.firebaseService?.getDb();
 
-    if (invalidDateRange) {
+    if (invalidDateRange || !db || typeof db.collection !== 'function') {
       return this.emptyReviewsResult(pageNum, limitNum);
     }
 

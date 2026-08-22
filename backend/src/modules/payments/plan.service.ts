@@ -3,6 +3,7 @@ import { Request } from 'express';
 import { FirebaseService } from '../firebase/firebase.service';
 import { PaymentsConfigService } from './payments-config.service';
 import { CacheService } from '../cache/cache.service';
+import { INTERNATIONAL_BILLING_ENABLED } from '../../config/feature-flags.config';
 
 @Injectable()
 export class PlanService {
@@ -15,6 +16,9 @@ export class PlanService {
   ) {}
 
   detectCountry(req: Request, customerData?: any, userData?: any, outletData?: any): string {
+    if (!INTERNATIONAL_BILLING_ENABLED) {
+      return 'IN';
+    }
     if (customerData && customerData.billingCountry) {
       this.logger.log(`Resolved country from billing records: ${customerData.billingCountry}`);
       return this.normalizeCountryCode(customerData.billingCountry);
@@ -71,7 +75,8 @@ export class PlanService {
   }
 
   async getPlanPrice(planId: string, countryCode: string = 'IN') {
-    const normCountry = this.normalizeCountryCode(countryCode);
+    const effectiveCountry = !INTERNATIONAL_BILLING_ENABLED ? 'IN' : countryCode;
+    const normCountry = this.normalizeCountryCode(effectiveCountry);
     const normPlan = planId.startsWith('plan_') ? planId : `plan_${planId}`;
 
     try {
@@ -260,7 +265,7 @@ export class PlanService {
   private allPlansCache = new Map<string, { data: any; expiresAt: number }>();
 
   async getAllPlans(countryCode: string = 'IN') {
-    const normCountry = countryCode.toUpperCase();
+    const normCountry = (!INTERNATIONAL_BILLING_ENABLED ? 'IN' : countryCode).toUpperCase();
     const cacheKey = `plans:central:${normCountry}`;
 
     if (this.cacheService) {

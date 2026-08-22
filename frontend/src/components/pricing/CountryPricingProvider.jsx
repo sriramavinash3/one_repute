@@ -1,8 +1,10 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { PRICING_CONFIG, formatPrice } from './pricingConfig'
 import { useAuth } from '../../contexts/AuthContext'
 import { PricingContext } from './usePricing'
 import apiClient from '../../services/apiClient'
+import { INTERNATIONAL_BILLING_ENABLED } from '../../config/featureFlags'
+import InternationalBillingModal from '../common/InternationalBillingModal'
 
 export function CountryPricingProvider({ children }) {
   const authState = useAuth() || {}
@@ -10,8 +12,14 @@ export function CountryPricingProvider({ children }) {
   const [overrideRegion, setOverrideRegion] = useState(null)
   const [billingCycle, setBillingCycle] = useState('monthly')
   const [detectedRegion, setDetectedRegion] = useState('IN')
+  const [showLockedModal, setShowLockedModal] = useState(false)
 
   useEffect(() => {
+    if (!INTERNATIONAL_BILLING_ENABLED) {
+      setDetectedRegion('IN')
+      return
+    }
+
     if (outlet) {
       const countryRaw = (
         outlet.country ||
@@ -42,10 +50,20 @@ export function CountryPricingProvider({ children }) {
     }
   }, [outlet])
 
-  const region = overrideRegion || detectedRegion
+  const handleSetRegion = useCallback((targetRegion) => {
+    if (targetRegion === 'INT' && !INTERNATIONAL_BILLING_ENABLED) {
+      setShowLockedModal(true)
+      setOverrideRegion('IN')
+      return
+    }
+    setOverrideRegion(targetRegion)
+  }, [])
+
+  const rawRegion = overrideRegion || detectedRegion
+  const region = (!INTERNATIONAL_BILLING_ENABLED && rawRegion === 'INT') ? 'IN' : rawRegion
 
   const regionConfig = useMemo(() => {
-    return PRICING_CONFIG.regions[region] || PRICING_CONFIG.regions.INT
+    return PRICING_CONFIG.regions[region] || PRICING_CONFIG.regions.IN
   }, [region])
 
   /**
@@ -76,16 +94,25 @@ export function CountryPricingProvider({ children }) {
   const value = useMemo(
     () => ({
       region,
-      setRegion: setOverrideRegion,
+      setRegion: handleSetRegion,
       billingCycle,
       setBillingCycle,
       regionConfig,
       getPlanPricing,
       pricingConfig: PRICING_CONFIG,
       isAutoDetected: Boolean(outlet?.country || outlet?.googleLocationCountry),
+      triggerInternationalBillingModal: () => setShowLockedModal(true),
     }),
-    [region, billingCycle, regionConfig, getPlanPricing, outlet]
+    [region, handleSetRegion, billingCycle, regionConfig, getPlanPricing, outlet]
   )
 
-  return <PricingContext.Provider value={value}>{children}</PricingContext.Provider>
+  return (
+    <PricingContext.Provider value={value}>
+      {children}
+      <InternationalBillingModal
+        isOpen={showLockedModal}
+        onClose={() => setShowLockedModal(false)}
+      />
+    </PricingContext.Provider>
+  )
 }

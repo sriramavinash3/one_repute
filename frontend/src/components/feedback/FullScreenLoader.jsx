@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, RefreshCw, AlertCircle, CheckCircle2, Database, ShieldCheck, Layers } from 'lucide-react'
+import { Sparkles, RefreshCw, AlertCircle, CheckCircle2, Database } from 'lucide-react'
 import { useReadiness } from '../../contexts/ReadinessContext'
 import Button from '../ui/button'
 

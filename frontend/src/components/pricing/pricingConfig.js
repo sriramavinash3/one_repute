@@ -1,7 +1,9 @@
+import { INTERNATIONAL_BILLING_ENABLED } from '../../config/featureFlags.js'
+
 export const PRICING_CONFIG = {
   discountPercent: 20,
   couponCode: 'LAUNCH20',
-  defaultRegion: 'INT',
+  defaultRegion: INTERNATIONAL_BILLING_ENABLED ? 'INT' : 'IN',
   regions: {
     IN: {
       id: 'IN',

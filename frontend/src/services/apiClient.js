@@ -53,6 +53,7 @@ const notifySubscribers = () => {
 
 const apiClient = axios.create({
   baseURL: getBaseUrl(),
+  timeout: 15000, // 15s default timeout to prevent unbounded requests
   headers: {
     'Content-Type': 'application/json'
   }
@@ -89,6 +90,10 @@ apiClient.interceptors.response.use(
   async (error) => {
     pendingCount = Math.max(0, pendingCount - 1)
     notifySubscribers()
+
+    if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+      error.message = 'Request timed out. Please check your network connection.'
+    }
 
     const status = error?.response?.status
     const errorMsg = String(error?.response?.data?.error || error?.response?.data?.message || error?.message || '').toLowerCase()

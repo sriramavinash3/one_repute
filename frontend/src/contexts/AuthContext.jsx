@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase/firebase'
@@ -32,6 +32,9 @@ export function AuthProvider({ children }) {
     const outletsMap = new Map()
 
     try {
+      if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+        console.debug('[AuthContext] Accessing Firestore resource: outlets query (targetUid:', targetUid, 'targetCustId:', targetCustId, ')')
+      }
       // 1. Fetch by customerId if available (fetching all non-deleted outlets)
       if (targetCustId) {
         const qCust = query(
@@ -194,19 +197,34 @@ export function AuthProvider({ children }) {
       try {
         if (currentUser) {
           setAuthError(null)
-          
-          const isAdminEmail = (currentUser.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-          // Verify if user already exists in 'users' collection
+          // Step 2 & Step 5: Ensure Firebase ID token is retrieved and active before querying Firestore
+          try {
+            await currentUser.getIdToken()
+          } catch (tokenErr) {
+            console.warn('[AuthContext] Token sync warning:', tokenErr)
+          }
+
+          const isAdminEmail = (currentUser.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
           const profileRef = doc(db, 'users', currentUser.uid)
-          const profileSnap = await getDoc(profileRef)
+
+          if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+            console.debug('[AuthContext] Accessing Firestore resource: users/' + currentUser.uid, 'for UID:', currentUser.uid)
+          }
+
+          let profileSnap = null
+          try {
+            profileSnap = await getDoc(profileRef)
+          } catch (err) {
+            console.warn('[AuthContext] Error reading user profile from Firestore:', err?.code || err)
+          }
 
           let currentProfile;
-          if (profileSnap.exists()) {
+          if (profileSnap && profileSnap.exists()) {
             currentProfile = { id: profileSnap.id, ...profileSnap.data() }
             try {
               const tokenResult = await currentUser.getIdTokenResult();
-              if (tokenResult.claims.role) {
+              if (tokenResult?.claims?.role) {
                 currentProfile.role = tokenResult.claims.role;
               }
             } catch (err) {
@@ -219,7 +237,11 @@ export function AuthProvider({ children }) {
               isSetupComplete: isAdminEmail ? true : false,
               createdAt: new Date()
             }
-            await setDoc(profileRef, currentProfile)
+            try {
+              await setDoc(profileRef, currentProfile)
+            } catch (setErr) {
+              console.warn('[AuthContext] Failed to save user profile to Firestore:', setErr?.code || setErr)
+            }
             currentProfile.id = currentUser.uid
           }
 
@@ -238,7 +260,11 @@ export function AuthProvider({ children }) {
           setProfileState(currentProfile)
 
           // Await active outlet resolution before marking overall auth loading complete
-          await loadOutletForProfile(currentUser, currentProfile)
+          try {
+            await loadOutletForProfile(currentUser, currentProfile)
+          } catch (outletErr) {
+            console.warn('[AuthContext] Error loading outlet for profile:', outletErr)
+          }
         } else {
           setUser(null)
           setProfile(null)
@@ -252,7 +278,11 @@ export function AuthProvider({ children }) {
       } catch (error) {
         console.error('AUTH_ERROR', error)
         setAuthError('Authentication verification failed.')
-        await signOut(auth)
+        try {
+          await signOut(auth)
+        } catch (soErr) {
+          console.warn('[AuthContext] Error during safe signOut:', soErr)
+        }
         setUserState(null)
         setProfileState(null)
         setOutletState(null)
@@ -261,17 +291,16 @@ export function AuthProvider({ children }) {
         setLoading(false)
       }
     })
-    
 
     return () => unsubscribe()
   }, [])
 
-  const refreshUserAndOutlets = async (targetOutletId = null) => {
+  const refreshUserAndOutlets = useCallback(async (targetOutletId = null) => {
     if (!user?.uid && !profile?.customerId) return
     await loadOutletForProfile(user, profile, targetOutletId)
-  }
+  }, [user, profile, loadOutletForProfile])
 
-  const switchOutlet = async (newOutletId) => {
+  const switchOutlet = useCallback(async (newOutletId) => {
     if (!newOutletId) return
     console.debug('[AuthContext] Switching outlet from', outlet?.id, 'to', newOutletId)
 
@@ -329,7 +358,7 @@ export function AuthProvider({ children }) {
     }
 
     setOutletLoading(false)
-  }
+  }, [user, outlet?.id, outlets, setOutletState])
 
   const value = useMemo(
     () => ({
@@ -351,7 +380,7 @@ export function AuthProvider({ children }) {
       signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
       signOut: () => signOut(auth)
     }),
-    [user, profile, outlet, outlets, accessibleGbpLocations, noGmbFound, loading, outletLoading, authError]
+    [user, profile, outlet, outlets, accessibleGbpLocations, noGmbFound, loading, outletLoading, authError, switchOutlet, refreshUserAndOutlets]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

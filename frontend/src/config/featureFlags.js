@@ -1,12 +1,11 @@
 /**
- * Central feature flags for the OneRepute frontend.
- *
- * Set a flag to `false` to temporarily lock a feature across the app
- * (navigation + direct URLs) without touching feature code.
- * To re-enable a feature, set the flag back to `true` (or remove the
- * lock conditions that read it).
+ * Centralized Feature Flags configuration for OneRepute Frontend.
+ * Set INTERNATIONAL_BILLING_ENABLED to true when International Billing is officially launched.
  */
+export const INTERNATIONAL_BILLING_ENABLED = false
+
 export const FEATURE_FLAGS = {
-  // Locked: "Smart QR Code Campaigns will be updated soon. Stay tuned."
-  SMART_QR_CAMPAIGNS: false,
+  INTERNATIONAL_BILLING: INTERNATIONAL_BILLING_ENABLED,
+  SMART_QR_CAMPAIGNS: true,
 }
+

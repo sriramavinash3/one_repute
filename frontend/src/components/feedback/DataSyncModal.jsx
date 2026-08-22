@@ -25,14 +25,54 @@ export default function DataSyncModal({ isOpen, outletId, onClose, onSyncComplet
 
   const currentStage = STAGE_PROGRESS[stageKey] || STAGE_PROGRESS.QUEUED
 
-  useEffect(() => {
-    if (!isOpen || !outletId || inProgressRef.current) return
-    runSyncProcess()
+  const pollJobStatus = (jobId, outletId) => {
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+    if (maxTimeoutRef.current) clearTimeout(maxTimeoutRef.current)
 
-    return () => {
+    // Bounded max timeout: 60 seconds limit on sync polling
+    maxTimeoutRef.current = setTimeout(() => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
-    }
-  }, [isOpen, outletId])
+      inProgressRef.current = false
+      setStatus('error')
+      setErrorMessage('Synchronization timed out after 60 seconds. Please refresh the page.')
+    }, 60000)
+
+    pollTimerRef.current = setInterval(async () => {
+      try {
+        const statusRes = await fetchSyncStatus(outletId, jobId)
+        if (!statusRes) return
+
+        const currentStageKey = statusRes.stage || statusRes.status || 'QUEUED'
+        setStageKey(currentStageKey)
+
+        if (statusRes.progress) {
+          setProgress(statusRes.progress)
+        }
+
+        if (currentStageKey === 'COMPLETED' || statusRes.status === 'completed' || currentStageKey === 'SKIPPED') {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+          if (maxTimeoutRef.current) clearTimeout(maxTimeoutRef.current)
+
+          setCountsInfo({ fetched: statusRes.fetched || 0, newCount: statusRes.new || 0 })
+          setProgress(100)
+          setStatus('completed')
+          if (onSyncComplete) await onSyncComplete()
+          await new Promise((r) => setTimeout(r, 800))
+          inProgressRef.current = false
+          if (onClose) onClose()
+        } else if (currentStageKey === 'FAILED' || statusRes.status === 'failed') {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+          if (maxTimeoutRef.current) clearTimeout(maxTimeoutRef.current)
+
+          inProgressRef.current = false
+          setStatus('error')
+          setErrorMessage(statusRes.errorMessage || 'Synchronization failed.')
+        }
+      } catch (err) {
+        console.error('[DataSyncModal] Status polling error:', err)
+      }
+    }, 2000)
+  }
 
   const runSyncProcess = async () => {
     inProgressRef.current = true
@@ -71,39 +111,17 @@ export default function DataSyncModal({ isOpen, outletId, onClose, onSyncComplet
     }
   }
 
-  const pollJobStatus = (jobId, outletId) => {
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+  useEffect(() => {
+    if (!isOpen || !outletId || inProgressRef.current) return
+    runSyncProcess()
 
-    pollTimerRef.current = setInterval(async () => {
-      try {
-        const jobStatus = await fetchSyncStatus(jobId, outletId)
-        if (!jobStatus) return
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+      if (maxTimeoutRef.current) clearTimeout(maxTimeoutRef.current)
+    }
+  }, [isOpen, outletId])
 
-        const stage = jobStatus.stage || jobStatus.status || 'QUEUED'
-        setStageKey(stage)
 
-        const stageMeta = STAGE_PROGRESS[stage] || STAGE_PROGRESS.QUEUED
-        setProgress(stageMeta.progress)
-        setCountsInfo({ fetched: jobStatus.fetchedCount || 0, newCount: jobStatus.newCount || 0 })
-
-        if (stage === 'COMPLETED' || stage === 'SKIPPED') {
-          clearInterval(pollTimerRef.current)
-          setStatus('completed')
-          if (onSyncComplete) await onSyncComplete()
-          await new Promise((r) => setTimeout(r, 800))
-          inProgressRef.current = false
-          if (onClose) onClose()
-        } else if (stage === 'FAILED') {
-          clearInterval(pollTimerRef.current)
-          inProgressRef.current = false
-          setStatus('error')
-          setErrorMessage(jobStatus.error || 'Review synchronization failed.')
-        }
-      } catch (err) {
-        console.warn('[DataSyncModal] Status polling error:', err?.message)
-      }
-    }, 800)
-  }
 
   const handleRetry = () => {
     inProgressRef.current = false
